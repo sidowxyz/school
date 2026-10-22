@@ -1,0 +1,181 @@
+name: CI — Frontend Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # Conflict check 
+  conflict-check:
+    name: Merge Conflict Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect conflict markers
+        run: |
+          CONFLICT_FILES=$(grep -rln \
+            -e "^<<<<<<< " \
+            -e "^=======$" \
+            -e "^>>>>>>> " \
+            --include="*.js" \
+            --include="*.jsx" \
+            --include="*.css" \
+            --include="*.json" \
+            . 2>/dev/null || true)
+
+          if [ -n "$CONFLICT_FILES" ]; then
+            echo "Conflict markers found in the following files:"
+            echo "$CONFLICT_FILES"
+            exit 1
+          else
+            echo "No conflict markers found"
+          fi
+
+  # Lint 
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    needs: conflict-check
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint --if-present
+
+      - name: Check formatting (Prettier)
+        run: npm run format:check --if-present
+        # Add this to package.json: "format:check": "prettier --check \"src/**/*.{js,jsx,css}\""
+
+  #  Security audit 
+  audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    needs: conflict-check
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit for vulnerabilities
+        run: npm audit --audit-level=high
+
+  # Unit & Component Tests
+  test:
+    name: Unit & Component Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    env:
+      CI: true
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test -- --watchAll=false --passWithNoTests
+        # --watchAll=false   → run once, don't watch (CI mode)
+        # --passWithNoTests  → won't fail if no test files exist yet
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-${{ github.run_number }}
+          path: coverage/
+          retention-days: 7
+
+  # Production Build
+  build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    needs: [ test, audit ]       # Only build if tests AND audit pass
+
+    env:
+      NODE_ENV: production
+      CI: false                  # Prevents CRA from treating warnings as errors
+      # Add your real env vars here (non-secret ones):
+      # REACT_APP_API_URL: https://your-api-url.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for production
+        run: npm run build
+
+      - name: Check build output size
+        run: |
+          echo "Build output:"
+          du -sh build/ 2>/dev/null || du -sh dist/ 2>/dev/null || echo "Build folder not found"
+          echo "Files generated:"
+          ls -lh build/ 2>/dev/null || ls -lh dist/ 2>/dev/null
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-${{ github.run_number }}
+          path: |
+            build/
+            dist/
+          if-no-files-found: warn
+          retention-days: 3      # Short retention — builds get stale quickly
+
+  # Summary
+  ci-status:
+    name: CI Passed
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.build.result }}" = "success" ]; then
+            echo "All frontend CI checks passed — safe to merge"
+          else
+            echo "One or more CI checks failed"
+            exit 1
+          fi    

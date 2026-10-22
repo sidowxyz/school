@@ -1,13 +1,39 @@
-# Independently-cloned sibling repos — each has its own git history/remote.
-# Never remove these two lines; without them git would try to track the
-# cloned repos as embedded content.
-/server/
-/client/
-
-# Node
+# Dependencies
 node_modules/
+client/node_modules/
+server/node_modules/
 
-# OS / editor cruft
-.DS_Store
+# Environment files & Secrets
+.env
+.env.*
+!.env.example
+client/.env
+client/.env.*
+!client/.env.example
+server/.env
+server/.env.*
+!server/.env.example
+
+# Build artifacts
+dist/
+client/dist/
+server/dist/
+.vite/
+client/.vite/
+*.tsbuildinfo
+
+# Logs & temp
 *.log
+mongod-replset.log
+logs/
+server/logs/
+
+# Backups
+*.git_backup/
+
+# OS & IDE
+.DS_Store
+Thumbs.db
 .vscode/
+.idea/
+.qodo/
