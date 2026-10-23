@@ -107,18 +107,27 @@ if (process.env.NODE_ENV !== 'test') {
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
+// Render (and most hosts) sit behind one proxy. Trusting it gives the real
+// visitor IP to the rate limiter; otherwise every visitor shares one limit.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+
 // 1. Security
 app.use(helmet());
 
 // 2. CORS — must run before the rate limiter. Otherwise a 429 response never
 // reaches this middleware, so it carries no Access-Control-Allow-Origin header
 // and the browser reports it as a CORS failure instead of a rate limit.
-// Explicit production origins, plus any localhost/127.0.0.1 port in development
-// (Vite picks 5173, 5174, 5175... depending on what's free, so a hard-coded port
-// list breaks the moment another dev server is already running).
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:5173'];
+// Deployed sites are listed in CORS_ORIGINS (comma-separated, e.g. the Vercel
+// URL of this environment). Any localhost/127.0.0.1 port is allowed outside
+// production (Vite picks 5173, 5174, 5175... depending on what's free, so a
+// hard-coded port list breaks the moment another dev server is already running).
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  ...(process.env.CORS_ORIGINS ?? '').split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean),
+];
 const isLocalhostOrigin = (origin) =>
-  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  process.env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin) || isLocalhostOrigin(origin)) {
