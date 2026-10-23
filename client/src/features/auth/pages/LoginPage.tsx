@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { homePathFor } from "../../../hooks/usePermission";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -26,16 +27,6 @@ export default function LoginPage() {
   const { setAuth } = useAuth();
   const navigate = useNavigate();
 
-  const rolePathMap: Record<string, string> = {
-    admin: "/dashboard/admin",
-    principal: "/dashboard/principal",
-    academic_officer: "/dashboard/academic-officer",
-    teacher: "/dashboard/teacher",
-    accountant: "/dashboard/accountant",
-    student: "/student-portal",
-    parent: "/parent-portal",
-  };
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -45,7 +36,7 @@ export default function LoginPage() {
       const res = await authApi.login({ email, password });
       const { user, accessToken, refreshToken } = res.data.data;
       setAuth(accessToken, user, refreshToken, rememberMe);
-      navigate(rolePathMap[user.role] ?? "/dashboard/admin");
+      navigate(homePathFor(user));
     } catch (err: any) {
       if (err?.response) {
         setError(

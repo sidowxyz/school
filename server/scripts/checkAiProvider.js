@@ -2,7 +2,7 @@
 /**
  * Diagnoses the configured AI provider key.
  *
- *   npm --prefix server run check:ai
+ *   pnpm --dir server check:ai
  *
  * Prints what is wrong in plain terms and never prints the key itself, so the
  * output is safe to paste into a chat or an issue. The assistant deliberately

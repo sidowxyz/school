@@ -29,10 +29,12 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    // String-based role for RBAC
+    // A built-in role key (admin, principal, ...) or the key of a custom role
+    // made on the Roles page (see config/access.js and models/AccessRole.js).
+    // Checked against both in the user controller before it is saved.
     role: {
       type: String,
-      enum: ["admin", "principal", "academic_officer", "teacher", "accountant", "student", "parent"],
+      trim: true,
       default: "student",
     },
 

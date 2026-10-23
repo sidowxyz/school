@@ -1,11 +1,10 @@
 import { z } from 'zod';
 
-export const ROLES = ['admin', 'principal', 'academic_officer', 'teacher', 'accountant', 'student', 'parent'];
+// A built-in role or a custom role key; the controller checks it exists.
+const roleKey = z.string({ required_error: 'role is required' }).trim().min(1, 'role is required').max(40);
 
 export const updateUserRoleSchema = z.object({
-  role: z.enum(ROLES, {
-    errorMap: () => ({ message: `Role must be one of: ${ROLES.join(', ')}` })
-  })
+  role: roleKey
 });
 
 export const updateUserStatusSchema = z.object({
@@ -19,8 +18,6 @@ export const createUserSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required'),
   lastName: z.string().trim().min(1, 'Last name is required'),
   email: z.string().trim().email('Please enter a valid email address.'),
-  role: z.enum(ROLES, {
-    errorMap: () => ({ message: `Role must be one of: ${ROLES.join(', ')}` })
-  }),
+  role: roleKey,
   password: z.string().min(6, 'Password must be at least 6 characters').optional()
 });

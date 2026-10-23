@@ -5,12 +5,13 @@
   "description": "Orchestrates local setup and concurrent dev servers for school-management-backend and school-management-frontend. Not a monorepo — each sub-repo keeps its own independent git history.",
   "scripts": {
     "setup": "bash setup.sh",
-    "dev": "concurrently -n server,client -c blue,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
-    "dev:server": "npm --prefix server run dev",
-    "dev:client": "npm --prefix client run dev",
-    "install:all": "npm --prefix server install && npm --prefix client install"
+    "dev": "concurrently -n server,client -c blue,magenta \"pnpm --dir server dev\" \"pnpm --dir client dev\"",
+    "dev:server": "pnpm --dir server dev",
+    "dev:client": "pnpm --dir client dev",
+    "install:all": "pnpm --dir server install && pnpm --dir client install"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
-  }
+  },
+  "packageManager": "pnpm@10.34.7"
 }

@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "server",
-      "runtimeExecutable": "npm.cmd",
-      "runtimeArgs": ["--prefix", "server", "run", "dev"],
+      "runtimeExecutable": "pnpm.cmd",
+      "runtimeArgs": ["--dir", "server", "dev"],
       "port": 5000
     },
     {
       "name": "client",
-      "runtimeExecutable": "npm.cmd",
-      "runtimeArgs": ["--prefix", "client", "run", "dev"],
+      "runtimeExecutable": "pnpm.cmd",
+      "runtimeArgs": ["--dir", "client", "dev"],
       "port": 5173
     }
   ]

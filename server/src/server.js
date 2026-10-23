@@ -23,6 +23,7 @@ import reportRoutes from './routes/reportRoutes.js';
 //  Auth & Core 
 import authRoutes              from './routes/authRoutes.js';
 import userRoutes              from './routes/userRoutes.js';
+import roleRoutes              from './routes/roleRoutes.js';
 import studentRoutes           from './routes/studentRoutes.js';
 import familyRoutes            from './routes/familyRoutes.js';
 import parentRoutes            from './routes/parentRoutes.js';
@@ -158,6 +159,7 @@ app.get('/', (_req, res) => res.json({ success: true, message: 'Server is runnin
 // Auth & Users
 app.use('/api/auth',           authRoutes);
 app.use('/api/users',          userRoutes);
+app.use('/api/roles',          roleRoutes);
 
 // Core Entities
 app.use('/api/students',       studentRoutes);

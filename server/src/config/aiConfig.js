@@ -22,7 +22,7 @@ const TIERS = ['economy', 'advanced'];
  * a pinned default that works on one key 404s on another, and the model list
  * moves faster than this file will. The "-latest" aliases are the portable
  * choice. Pin a specific version with AI_MODEL_ECONOMY / AI_MODEL_ADVANCED if
- * you need reproducibility; `npm run check:ai` lists what your key can use.
+ * you need reproducibility; `pnpm check:ai` lists what your key can use.
  */
 const DEFAULT_MODELS = {
   gemini: {

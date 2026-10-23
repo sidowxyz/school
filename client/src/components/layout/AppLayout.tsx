@@ -1,15 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import StudentPortalSidebar from './StudentPortalSidebar';
 import TopBar from './TopBar';
 import AIAssistantButton from '../../features/ai-assistant/components/AIAssistantButton';
 import { useAuth } from '../../hooks/useAuth';
+import { useAuthStore } from '../../store/authStore';
+import { authApi } from '../../features/auth/api/authApi';
 
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { role } = useAuth();
   const isStudent = role === 'student';
+  const updateUser = useAuthStore((s) => s.updateUser);
+
+  // A role's pages can change on the Roles page while someone is signed in.
+  // Re-read them when the app opens and whenever the window regains focus, so
+  // the sidebar and page gates follow without signing out.
+  useEffect(() => {
+    const refresh = () => {
+      authApi.me()
+        .then((me) => updateUser({ role: me.user.role, roleName: me.roleName, permissions: me.permissions }))
+        .catch(() => { /* signed out or offline — the API guards still apply */ });
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [updateUser]);
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">

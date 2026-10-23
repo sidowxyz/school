@@ -1,23 +1,21 @@
 import { useEffect, useState } from 'react';
-import { SpinnerGap, Receipt, CheckCircle, WarningCircle, DownloadSimple } from '@phosphor-icons/react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { StatusBadge } from '../shared';
+import { CheckCircle, DownloadSimple, Receipt, WarningCircle } from '@phosphor-icons/react';
+import { Button } from '@/components/ui/button';
+import StatStrip from '@/components/shared/StatStrip';
+import { cn } from '@/lib/utils';
+import { DashboardError, DashboardLoading, Panel, PanelEmpty, ProgressLine } from '../../../dashboard/components/DashboardKit';
 import { downloadCSV } from '../../utils/csv';
 import { portalApi, type PortalInvoicesResponse } from '../../api/portalApi';
 import { usePortal } from '../../context/PortalContext';
-import { Button } from '@/components/ui/button';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 
-const formatUSD = (n: number) =>
-  `$${(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-
+const formatUSD = (n: number) => `$${(n ?? 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 const formatDate = (iso?: string) =>
   iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
-const STATUS_LABEL: Record<string, string> = {
-  Unpaid: 'Unpaid',
-  Partially_Paid: 'Partially Paid',
-  Paid: 'Paid',
+const STATUS: Record<string, { label: string; pill: string }> = {
+  Paid: { label: 'Paid', pill: 'bg-success/10 text-success' },
+  Partially_Paid: { label: 'Part paid', pill: 'bg-warning/10 text-warning' },
+  Unpaid: { label: 'Unpaid', pill: 'bg-destructive/10 text-destructive' },
 };
 
 export default function FeesTab() {
@@ -28,124 +26,61 @@ export default function FeesTab() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await portalApi.getInvoices(studentId);
-        if (!cancelled) { setData(res); setError(''); }
-      } catch (err) {
-        if (!cancelled) { console.error(err); setError('Failed to load fees.'); }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    setLoading(true);
+    portalApi.getInvoices(studentId)
+      .then((res) => { if (!cancelled) { setData(res); setError(''); } })
+      .catch(() => { if (!cancelled) setError('Could not load your fees.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [studentId]);
 
-  if (loading) {
-    return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-primary" /></div>;
-  }
-  if (error) {
-    return <div className="text-center py-24 text-destructive text-sm">{error}</div>;
-  }
+  if (loading) return <DashboardLoading />;
+  if (error) return <DashboardError message={error} />;
 
   const totals = data?.totals ?? { invoiced: 0, paid: 0, balance: 0 };
-  const invoices = data?.invoices ?? [];
+  const invoices = (data?.invoices ?? []).slice().sort((a, b) => (b.dueDate ?? b.registerDate ?? '').localeCompare(a.dueDate ?? a.registerDate ?? ''));
+  const paidPct = totals.invoiced > 0 ? Math.round((totals.paid / totals.invoiced) * 100) : 0;
 
-  const exportInvoices = () => {
-    downloadCSV('fees', invoices.map((i) => ({
-      Invoice: i.invoice_no, Amount: i.invoice_amount, Paid: i.paid_amount,
-      Balance: i.balance, Status: STATUS_LABEL[i.status] ?? i.status,
-      Due: formatDate(i.dueDate), Issued: formatDate(i.registerDate),
-    })));
-  };
+  const exportCsv = () => downloadCSV('fees', invoices.map((i) => ({
+    Bill: i.invoice_no, Amount: i.invoice_amount, Paid: i.paid_amount, Balance: i.balance,
+    Status: STATUS[i.status]?.label ?? i.status, Due: formatDate(i.dueDate),
+  })));
 
   return (
     <div className="space-y-6">
-      {/* Hairline Divided KPI Strip */}
-      <Card className="overflow-hidden border-border bg-border shadow-2xs">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-px">
-          <KPICell icon={Receipt} iconClass="text-info" label="Total Invoiced" value={formatUSD(totals.invoiced)} sub="All issued invoices" />
-          <KPICell icon={CheckCircle} iconClass="text-success" label="Total Paid" value={formatUSD(totals.paid)} sub="Payments received" />
-          <KPICell icon={WarningCircle} iconClass="text-destructive" label="Outstanding Balance" value={formatUSD(totals.balance)} sub="Amount remaining" />
-        </div>
-      </Card>
+      <StatStrip items={[
+        { label: 'Still to pay', value: formatUSD(totals.balance), icon: WarningCircle, tone: totals.balance > 0 ? 'rose' : 'emerald', hint: totals.balance > 0 ? 'Balance due' : 'All paid, thank you' },
+        { label: 'Paid', value: formatUSD(totals.paid), icon: CheckCircle, tone: 'emerald', hint: `${paidPct}% of all bills` },
+        { label: 'Billed', value: formatUSD(totals.invoiced), icon: Receipt, tone: 'sky', hint: `${invoices.length} bill${invoices.length === 1 ? '' : 's'}` },
+      ]} />
 
-      {/* Invoices Table */}
-      {invoices.length === 0 ? (
-        <Card className="border-border/80 shadow-2xs">
-          <CardContent className="p-0">
-            <div className="text-center py-16 text-muted-foreground space-y-2">
-              <Receipt size={32} className="mx-auto text-muted-foreground/40" />
-              <p className="text-sm font-medium">No invoices issued</p>
-              <p className="text-xs text-muted-foreground/80 max-w-sm mx-auto">
-                No invoices have been issued to you yet. They will appear here once generated.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="border-border/80 shadow-2xs">
-          <CardHeader className="border-b border-border/60 pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-semibold text-foreground">Invoices</CardTitle>
-                <CardDescription className="text-xs mt-0.5">Your fee invoices and payment status</CardDescription>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportInvoices}
-                className="inline-flex items-center gap-1.5 text-xs font-medium"
-              >
-                <DownloadSimple size={13} /> Export CSV
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table className="w-full min-w-[680px]">
-                <TableHeader>
-                  <TableRow className="border-b border-border/60">
-                    <TableHead className="px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Invoice</TableHead>
-                    <TableHead className="px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Amount</TableHead>
-                    <TableHead className="px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Paid</TableHead>
-                    <TableHead className="px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Balance</TableHead>
-                    <TableHead className="px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                    <TableHead className="px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Due Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices.map((i) => (
-                    <TableRow key={i._id} className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
-                      <TableCell className="px-5 py-3 text-sm font-medium text-foreground">{i.invoice_no}</TableCell>
-                      <TableCell className="px-5 py-3 text-sm text-foreground">{formatUSD(i.invoice_amount)}</TableCell>
-                      <TableCell className="px-5 py-3 text-sm text-success">{formatUSD(i.paid_amount)}</TableCell>
-                      <TableCell className="px-5 py-3 text-sm text-foreground">{formatUSD(i.balance)}</TableCell>
-                      <TableCell className="px-5 py-3"><StatusBadge status={STATUS_LABEL[i.status] ?? i.status} /></TableCell>
-                      <TableCell className="px-5 py-3 text-sm text-muted-foreground">{formatDate(i.dueDate)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-/* ─── KPI Strip Cell ─── */
-function KPICell({ icon: Icon, iconClass, label, value, sub }: { icon: React.ElementType; iconClass: string; label: string; value: string; sub: string }) {
-  return (
-    <div className="bg-card p-5">
-      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-        <Icon size={15} className={iconClass} />
-        <span className="text-[11px] font-medium uppercase tracking-wider">{label}</span>
-      </div>
-      <div className="text-2xl font-bold text-foreground">{value}</div>
-      <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>
+      <Panel title="My bills" description="Monthly fees and what has been paid" flush
+        action={<Button variant="outline" size="sm" onClick={exportCsv} disabled={!invoices.length} className="h-8 gap-1.5"><DownloadSimple size={13} /> CSV</Button>}>
+        {invoices.length === 0 ? (
+          <PanelEmpty text="No bills yet. They appear here once the school charges your fees." />
+        ) : (
+          <>
+            <div className="px-6 py-4"><ProgressLine label="Paid so far" percent={paidPct} /></div>
+            <ul className="divide-y divide-border border-t border-border">
+              {invoices.map((i) => (
+                <li key={i._id} className="flex flex-wrap items-center gap-3 px-6 py-3">
+                  <div className="min-w-[140px] flex-1">
+                    <p className="text-sm font-medium">{i.invoice_no}</p>
+                    <p className="text-xs text-muted-foreground">Due {formatDate(i.dueDate)}</p>
+                  </div>
+                  <div className="w-24 text-right">
+                    <p className="text-sm font-semibold tabular-nums">{formatUSD(i.invoice_amount)}</p>
+                    {i.paid_amount > 0 && i.balance > 0 && <p className="text-xs text-muted-foreground">{formatUSD(i.balance)} left</p>}
+                  </div>
+                  <span className={cn('w-20 shrink-0 rounded-full px-2.5 py-0.5 text-center text-xs font-medium', STATUS[i.status]?.pill ?? 'bg-muted text-muted-foreground')}>
+                    {STATUS[i.status]?.label ?? i.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Panel>
     </div>
   );
 }

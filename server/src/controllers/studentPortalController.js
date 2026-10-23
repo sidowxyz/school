@@ -8,12 +8,14 @@ import StudentAttendance from '../models/StudentAttendance.js';
 import StudentInvoice from '../models/StudentInvoice.js';
 import StudentScholarship from '../models/StudentScholarship.js';
 import Status from '../models/Status.js';
-import TimetableSlot from '../models/TimetableSlot.js';
+import TeacherAssignment from '../models/TeacherAssignment.js';
+import Term from '../models/Term.js';
 // Imported so their schemas are registered for the .populate() calls below —
 // otherwise the queries throw MissingSchemaError for these refs.
 import '../models/Period.js';
 import '../models/Subject.js';
 import '../models/User.js';
+import '../models/Teacher.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 
@@ -57,13 +59,42 @@ export const getMyProfile = async (req, res, next) => {
 };
 
 // GET /api/portal/student/timetable
+// The week is built from the same teacher assignments the admin Timetable page
+// edits, for the student's class and section in the current term, so a lesson
+// placed there shows up here straight away.
 export const getMyTimetable = async (req, res, next) => {
   try {
     const student = await resolveStudent(req);
-    const slots = await TimetableSlot.find({ class: student.classId })
-      .populate('subject', 'sub_name sub_no')
-      .populate('teacher', 'firstName lastName email')
-      .sort({ day: 1, timePeriod: 1 });
+    const term = await Term.findOne({ status: 'active' }).sort({ startDate: -1, createdAt: -1 }).select('_id').lean()
+      ?? await Term.findOne().sort({ startDate: -1, createdAt: -1 }).select('_id').lean();
+    if (!term || !student.classId) {
+      return res.status(200).json(new ApiResponse(200, [], 'Timetable retrieved successfully'));
+    }
+
+    const filter = { classId: student.classId, termId: term._id };
+    if (student.sectionId) filter.sectionId = student.sectionId;
+    const assignments = await TeacherAssignment.find(filter)
+      .populate('subjectId', 'sub_name sub_no')
+      .populate({ path: 'teacherId', select: 'userId', populate: { path: 'userId', select: 'firstName lastName email' } })
+      .populate('timetableSlots.periodId', 'per_name time_in time_out')
+      .lean();
+
+    const slots = [];
+    for (const a of assignments) {
+      const user = a.teacherId?.userId;
+      for (const slot of a.timetableSlots ?? []) {
+        const p = slot.periodId;
+        if (!p) continue;
+        slots.push({
+          _id: `${a._id}-${slot._id}`,
+          day: slot.day,
+          timePeriod: p.time_in && p.time_out ? `${p.time_in} - ${p.time_out}` : (p.per_name ?? ''),
+          subject: a.subjectId ?? null,
+          teacher: user ? { _id: user._id, firstName: user.firstName, lastName: user.lastName, email: user.email } : null,
+        });
+      }
+    }
+    slots.sort((x, y) => x.day.localeCompare(y.day) || x.timePeriod.localeCompare(y.timePeriod));
     res.status(200).json(new ApiResponse(200, slots, 'Timetable retrieved successfully'));
   } catch (error) {
     next(error);

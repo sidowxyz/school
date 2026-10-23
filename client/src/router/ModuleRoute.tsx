@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { roleCanAccess } from '../hooks/usePermission';
+import { userCanAccess } from '../hooks/usePermission';
 
 interface Props { module: string }
 
@@ -9,6 +9,6 @@ interface Props { module: string }
  * decide which links to show, so a hidden nav link is also a blocked route.
  */
 export default function ModuleRoute({ module }: Props) {
-  const { role } = useAuth();
-  return roleCanAccess(role, module) ? <Outlet /> : <Navigate to="/403" replace />;
+  const { user } = useAuth();
+  return userCanAccess(user, module) ? <Outlet /> : <Navigate to="/403" replace />;
 }
