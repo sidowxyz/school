@@ -1,0 +1,61 @@
+# Render Blueprint: the two backend environments.
+#   school-api-demo  <- deploys the `demo` branch (test here first)
+#   school-api       <- deploys the `main` branch (the live school)
+# Secrets (sync: false) are typed into the Render dashboard, never committed.
+# See docs/DEPLOYMENT.md.
+services:
+  - type: web
+    name: school-api-demo
+    runtime: node
+    plan: free
+    branch: demo
+    rootDir: server
+    buildCommand: npx --yes pnpm@10.34.7 install --frozen-lockfile
+    startCommand: node src/server.js
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  - type: web
+    name: school-api
+    runtime: node
+    plan: free
+    branch: main
+    rootDir: server
+    buildCommand: npx --yes pnpm@10.34.7 install --frozen-lockfile
+    startCommand: node src/server.js
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
