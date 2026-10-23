@@ -7,6 +7,7 @@ import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { assignGuardianToStudent, unassignGuardianFromStudent, getSiblingDiscountPercent } from '../services/familyService.js';
+import { withTransaction } from '../utils/transaction.js';
 
 // @desc   Create a new parent (Guardian). Auto-creates a hidden 1:1 Family
 //         "household" record so admins manage a single "Parent" concept —
@@ -18,7 +19,7 @@ export const createParent = async (req, res, next) => {
   try {
     let newGuardian, newUser, temporaryPassword;
 
-    await session.withTransaction(async () => {
+    await withTransaction(session, async () => {
       const { name, relationship, phone, email, createPortalUser, password } = req.body;
 
       if (!name || !relationship || !phone) {

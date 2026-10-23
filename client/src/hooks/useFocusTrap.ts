@@ -7,7 +7,7 @@ const FOCUSABLE_SELECTOR =
  * Traps Tab/Shift+Tab focus within the returned ref's container while it's mounted,
  * focuses the first focusable element on mount, and restores focus to whatever was
  * focused before the modal opened once it unmounts. Intended for createPortal-based
- * modals (BookFormModal, ReserveBookModal, LibrarySettingsModal, etc).
+ * modals.
  */
 export function useFocusTrap<T extends HTMLElement = HTMLDivElement>() {
   const ref = useRef<T>(null);

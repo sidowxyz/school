@@ -129,7 +129,7 @@ export default function AttendanceTab({
     } catch (error: any) {
       setMessage({
         type: 'error',
-        text: error?.response?.data?.message || 'Unable to FloppyDisk attendance.',
+        text: error?.response?.data?.message || 'Unable to save attendance.',
       });
     } finally {
       setSaving(false);
@@ -138,7 +138,7 @@ export default function AttendanceTab({
 
   const counts = ATTENDANCE_STATUSES.reduce<Record<AttendanceStatusName, number>>(
     (result, status) => {
-      result[status] = Object.values(marks).Funnel((mark) => mark.status === status).length;
+      result[status] = Object.values(marks).filter((mark) => mark.status === status).length;
       return result;
     },
     { Present: 0, Absent: 0, Late: 0, Excused: 0 },
@@ -146,21 +146,21 @@ export default function AttendanceTab({
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-xl border border-gray-150 p-5 shadow-sm">
+      <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-end gap-4">
           <div className="flex-1">
-            <h2 className="font-semibold text-gray-800">Mark Attendance</h2>
-            <p className="text-sm text-gray-400 mb-4">
+            <h2 className="font-semibold text-foreground">Mark Attendance</h2>
+            <p className="text-sm text-muted-foreground mb-4">
               Only your scheduled periods from Academic Structure are available.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Lesson Date</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-1.5">Lesson Date</label>
                 <Input
                   type="date"
                   value={date}
                   onChange={(event) => setDate(event.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-green-400"
+                  className="w-full border border-border rounded-lg px-4 py-2.5 text-sm text-foreground/80 focus:outline-none focus:ring-1 focus:ring-primary/40"
                 />
               </div>
               <Select
@@ -176,7 +176,7 @@ export default function AttendanceTab({
               />
             </div>
             {!assignmentsLoading && sessions.length === 0 && (
-              <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              <p className="mt-3 text-xs text-warning bg-warning/10 border border-warning/20 rounded-lg px-3 py-2">
                 No assigned teaching period is scheduled for {weekdayForDate(date) || 'this date'}.
               </p>
             )}
@@ -185,7 +185,7 @@ export default function AttendanceTab({
             <Button variant="plain"
               onClick={saveAttendance}
               disabled={!selectedSession || students.length === 0 || loading || saving}
-              className="inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors"
+              className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors"
             >
               {saving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
               {saving ? 'Saving...' : 'Save Attendance'}
@@ -197,8 +197,8 @@ export default function AttendanceTab({
       {message && (
         <div className={`rounded-xl border px-4 py-3 flex items-center gap-2 text-sm ${
           message.type === 'success'
-            ? 'bg-green-50 border-green-200 text-green-800'
-            : 'bg-red-50 border-red-200 text-red-800'
+            ? 'bg-primary/10 border-primary/20 text-primary'
+            : 'bg-destructive/10 border-destructive/20 text-destructive'
         }`}>
           {message.type === 'success' ? <CheckCircle size={17} /> : <WarningCircle size={17} />}
           {message.text}
@@ -207,47 +207,47 @@ export default function AttendanceTab({
 
       {selectedSession && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Summary label="Students" value={students.length} color="text-gray-900" />
-          <Summary label="Present" value={counts.Present} color="text-green-600" />
-          <Summary label="Absent" value={counts.Absent} color="text-red-600" />
-          <Summary label="Late" value={counts.Late} color="text-orange-500" />
-          <Summary label="Excused" value={counts.Excused} color="text-sky-600" />
+          <Summary label="Students" value={students.length} color="text-foreground" />
+          <Summary label="Present" value={counts.Present} color="text-primary" />
+          <Summary label="Absent" value={counts.Absent} color="text-destructive" />
+          <Summary label="Late" value={counts.Late} color="text-warning" />
+          <Summary label="Excused" value={counts.Excused} color="text-info" />
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-150 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800">Class Register</h2>
-          <p className="text-sm text-gray-400">
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="font-semibold text-foreground">Class Register</h2>
+          <p className="text-sm text-muted-foreground">
             {selectedSession ? teachingSessionLabel(selectedSession) : 'Select a scheduled period to load the real class roster.'}
           </p>
         </div>
 
         {loading ? (
-          <div className="py-14 flex flex-col items-center gap-2 text-sm text-gray-400">
-            <SpinnerGap size={28} className="animate-spin text-green-600" />
+          <div className="py-14 flex flex-col items-center gap-2 text-sm text-muted-foreground">
+            <SpinnerGap size={28} className="animate-spin text-primary" />
             Loading enrolled students and existing attendance...
           </div>
         ) : !selectedSession ? (
-          <div className="py-14 text-center text-sm text-gray-400">No period selected.</div>
+          <div className="py-14 text-center text-sm text-muted-foreground">No period selected.</div>
         ) : students.length === 0 ? (
-          <div className="py-14 text-center text-sm text-gray-400">No active students are enrolled in this class and section.</div>
+          <div className="py-14 text-center text-sm text-muted-foreground">No active students are enrolled in this class and section.</div>
         ) : (
           <div className="overflow-x-auto">
             <Table className="w-full min-w-[820px]">
-              <TableHeader className="bg-gray-50/70">
+              <TableHeader className="bg-muted/70">
                 <TableRow>
-                  <TableHead className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Admission No.</TableHead>
-                  <TableHead className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Student</TableHead>
-                  <TableHead className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Attendance Status</TableHead>
-                  <TableHead className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Remarks</TableHead>
+                  <TableHead className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground">Admission No.</TableHead>
+                  <TableHead className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground">Student</TableHead>
+                  <TableHead className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground">Attendance Status</TableHead>
+                  <TableHead className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground">Remarks</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {students.map((student) => (
-                  <TableRow key={student._id} className="border-t border-gray-100">
-                    <TableCell className="px-5 py-3 text-sm text-gray-500">{student.admissionNumber}</TableCell>
-                    <TableCell className="px-5 py-3 text-sm font-medium text-gray-900">{student.firstName} {student.lastName}</TableCell>
+                  <TableRow key={student._id} className="border-t border-border">
+                    <TableCell className="px-5 py-3 text-sm text-muted-foreground">{student.admissionNumber}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm font-medium text-foreground">{student.firstName} {student.lastName}</TableCell>
                     <TableCell className="px-5 py-3">
                       <div className="flex flex-wrap gap-1.5">
                         {ATTENDANCE_STATUSES.map((status) => {
@@ -260,8 +260,8 @@ export default function AttendanceTab({
                               onClick={() => updateStatus(student._id, status)}
                               className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors disabled:cursor-default ${
                                 active
-                                  ? 'bg-green-600 border-green-600 text-white'
-                                  : 'bg-white border-gray-200 text-gray-600 hover:border-green-300'
+                                  ? 'bg-primary border-primary text-primary-foreground'
+                                  : 'bg-card border-border text-muted-foreground hover:border-primary/40'
                               }`}
                             >
                               {status}
@@ -269,7 +269,7 @@ export default function AttendanceTab({
                           );
                         })}
                         {readOnly && !marks[student._id]?.status && (
-                          <span className="px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 bg-gray-50 text-gray-500">
+                          <span className="px-2.5 py-1 rounded-md text-xs font-medium border border-border bg-muted/50 text-muted-foreground">
                             Not recorded
                           </span>
                         )}
@@ -281,7 +281,7 @@ export default function AttendanceTab({
                         disabled={readOnly}
                         onChange={(event) => updateRemarks(student._id, event.target.value)}
                         placeholder="Optional note"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-400 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:bg-muted/50 disabled:text-muted-foreground"
                       />
                     </TableCell>
                   </TableRow>
@@ -297,8 +297,8 @@ export default function AttendanceTab({
 
 function Summary({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
-      <p className="text-xs text-gray-500">{label}</p>
+    <div className="bg-card rounded-xl border border-border p-4 shadow-sm text-center">
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`text-xl font-bold mt-1 ${color}`}>{value}</p>
     </div>
   );

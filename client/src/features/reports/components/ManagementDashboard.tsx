@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BookOpen, CaretRight, CurrencyDollar, GraduationCap, SpinnerGap, ArrowsClockwise, UserCheck, Users } from '@phosphor-icons/react';
+import { CaretRight, CurrencyDollar, GraduationCap, SpinnerGap, ArrowsClockwise, UserCheck, Users } from '@phosphor-icons/react';
 
 import { reportsApi } from '../api/reportsApi';
 import type { ManagementMetric, ManagementSummary, ManagementTile } from '../types';
@@ -16,11 +16,9 @@ interface Props {
 
 const GROUP_ICONS: Record<string, typeof Users> = {
   Students: Users,
-  'Academic Performance': GraduationCap,
   Attendance: UserCheck,
-  Examinations: BookOpen,
   Finance: CurrencyDollar,
-  Teachers: Users,
+  Teachers: GraduationCap,
 };
 
 /**
@@ -102,18 +100,18 @@ export default function ManagementDashboard({ onDrillTo }: Props) {
   if (loading) {
     return (
       <div className="py-24 flex items-center justify-center">
-        <SpinnerGap size={32} className="animate-spin text-green-600" />
+        <SpinnerGap size={32} className="animate-spin text-primary" />
       </div>
     );
   }
 
   if (error || !summary) {
     return (
-      <div className="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center justify-between gap-3">
+      <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-xl px-4 py-3 text-sm flex items-center justify-between gap-3">
         <span>{error ?? 'No dashboard data.'}</span>
         <Button variant="plain"
           onClick={() => load(false)}
-          className="shrink-0 px-3 py-1.5 border border-red-300 rounded-lg text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+          className="shrink-0 px-3 py-1.5 border border-destructive/40 rounded-lg text-xs font-medium text-destructive hover:bg-destructive/15 transition-colors"
         >
           Retry
         </Button>
@@ -125,15 +123,15 @@ export default function ManagementDashboard({ onDrillTo }: Props) {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">Management Dashboard</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h2 className="text-base font-semibold text-foreground">Management Dashboard</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
             Generated {new Date(summary.generatedAt).toLocaleString()} · click a tile to open the full report
           </p>
         </div>
         <Button variant="plain"
           onClick={() => load(false)}
           disabled={refreshing}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-60 transition"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-card text-xs font-semibold text-foreground hover:bg-muted/50 disabled:opacity-60 transition"
         >
           <ArrowsClockwise size={13} className={refreshing ? 'animate-spin' : undefined} />
           {refreshing ? 'Refreshing…' : 'Refresh'}
@@ -149,23 +147,28 @@ export default function ManagementDashboard({ onDrillTo }: Props) {
   );
 }
 
+const GROUP_TONES: Record<string, string> = {
+  Students: 'bg-tile-blue',
+  Attendance: 'bg-tile-green',
+  Finance: 'bg-tile-yellow',
+  Teachers: 'bg-tile-violet',
+};
+
 function TileCard({ tile, onDrillTo }: { tile: ManagementTile; onDrillTo: (id: string) => void }) {
   const Icon = GROUP_ICONS[tile.group] ?? Users;
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center shrink-0">
-            <Icon size={18} />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">{tile.group}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">{tile.description}</p>
-          </div>
+    <div className={`rounded-2xl p-5 text-tile-foreground ${GROUP_TONES[tile.group] ?? 'bg-tile-pink'}`}>
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/60 dark:bg-white/10">
+          <Icon size={18} weight="bold" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold">{tile.group}</h3>
+          <p className="mt-0.5 text-xs opacity-75">{tile.description}</p>
         </div>
       </div>
 
-      <div className="divide-y divide-gray-50">
+      <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {tile.metrics.map((metric) => {
           const value = formatValue(metric);
           const isPureLink = metric.format === 'link' || metric.value === null || metric.value === undefined;
@@ -173,25 +176,18 @@ function TileCard({ tile, onDrillTo }: { tile: ManagementTile; onDrillTo: (id: s
             <Button variant="plain"
               key={`${tile.group}-${metric.label}`}
               onClick={() => onDrillTo(metric.drillTo)}
-              className="w-full text-left flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group"
+              className="group flex w-full items-start justify-between gap-2 rounded-xl bg-white/60 p-3.5 text-left transition hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-sm dark:bg-white/10 dark:hover:bg-white/15"
             >
               <div className="min-w-0">
-                <p className="text-xs text-gray-500">{metric.label}</p>
+                <p className="text-xs font-medium opacity-75">{metric.label}</p>
                 {isPureLink ? (
-                  <p className="text-sm font-medium text-gray-800 mt-1">
-                    {metric.hint ?? 'Open detailed report'}
-                  </p>
+                  <p className="mt-1 text-sm font-semibold">{metric.hint ?? 'Open detailed report'}</p>
                 ) : (
-                  <p className="text-lg font-bold text-gray-900 mt-1 tabular-nums">{value}</p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
                 )}
-                {!isPureLink && metric.hint && (
-                  <p className="text-[11px] text-gray-400 mt-0.5">{metric.hint}</p>
-                )}
+                {!isPureLink && metric.hint && <p className="mt-0.5 text-[11px] opacity-70">{metric.hint}</p>}
               </div>
-              <CaretRight
-                size={16}
-                className="shrink-0 text-gray-300 group-hover:text-gray-500 transition-colors"
-              />
+              <CaretRight size={14} weight="bold" className="mt-0.5 shrink-0 opacity-50 transition group-hover:opacity-100" />
             </Button>
           );
         })}

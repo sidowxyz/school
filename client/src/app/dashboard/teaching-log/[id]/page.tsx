@@ -40,12 +40,12 @@ export default function TeachingLogDetailPage() {
 
   if (error || !log) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 text-center max-w-xl mx-auto my-12">
+      <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-xl p-6 text-center max-w-xl mx-auto my-12">
         <h3 className="font-bold text-base mb-2">Error Loading Details</h3>
         <p className="text-sm mb-4">{error || 'Teaching log entry not found'}</p>
         <Button variant="plain"
           onClick={() => navigate('/teaching-log')}
-          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-bold px-4 py-2 rounded-lg text-xs"
+          className="bg-card hover:bg-muted/50 border border-border text-foreground/80 font-bold px-4 py-2 rounded-lg text-xs"
         >
           Return to Dashboard
         </Button>
@@ -53,8 +53,8 @@ export default function TeachingLogDetailPage() {
     );
   }
 
-  const labelCls = 'text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1';
-  const valCls = 'text-sm font-semibold text-gray-800';
+  const labelCls = 'text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-1';
+  const valCls = 'text-sm font-semibold text-foreground';
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -66,17 +66,14 @@ export default function TeachingLogDetailPage() {
           <div className="flex gap-3">
             <Button variant="plain"
               onClick={() => readOnly ? navigate(-1) : navigate('/teaching-log')}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 text-xs font-bold transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-border bg-card text-foreground/80 hover:bg-muted/50 text-xs font-bold transition-colors cursor-pointer"
             >
               <ArrowLeft size={14} /> Back
             </Button>
             {!readOnly && (
-              <Link
-                to={`/teaching-log/${log._id}/edit`}
-                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
-              >
-                <Pencil size={14} /> Edit Log
-              </Link>
+              <Button asChild size="sm" className="gap-1.5">
+                <Link to={`/teaching-log/${log._id}/edit`}><PencilSimple size={14} /> Edit Log</Link>
+              </Button>
             )}
           </div>
         }
@@ -88,7 +85,7 @@ export default function TeachingLogDetailPage() {
         {/* Left Column: Academic & Teacher Info */}
         <div className="space-y-6 lg:col-span-1">
           {/* Status Panel */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center justify-between">
+          <div className="bg-card rounded-xl border border-border p-5 shadow-sm flex items-center justify-between">
             <div>
               <span className={labelCls}>Log Status</span>
               <div className="mt-1">
@@ -97,17 +94,17 @@ export default function TeachingLogDetailPage() {
             </div>
             <div className="text-right">
               <span className={labelCls}>Date Logged</span>
-              <span className="text-sm font-bold text-gray-800 flex items-center gap-1.5 justify-end mt-1">
-                <Calendar size={14} className="text-gray-400" />
+              <span className="text-sm font-bold text-foreground flex items-center gap-1.5 justify-end mt-1">
+                <Calendar size={14} className="text-muted-foreground" />
                 {formatDate(log.date)}
               </span>
             </div>
           </div>
 
           {/* Academic Info Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-bold text-gray-900 border-b pb-2 flex items-center gap-2 uppercase tracking-wide">
-              <GraduationCap size={16} className="text-green-600" />
+          <div className="bg-card rounded-xl border border-border p-5 shadow-sm space-y-4">
+            <h3 className="text-xs font-bold text-foreground border-b pb-2 flex items-center gap-2 uppercase tracking-wide">
+              <GraduationCap size={16} className="text-primary" />
               Academic Info
             </h3>
 
@@ -118,14 +115,14 @@ export default function TeachingLogDetailPage() {
               </div>
               <div>
                 <span className={labelCls}>Class & Section</span>
-                <span className={`${valCls} bg-gray-50 px-2.5 py-0.5 rounded border border-gray-200 inline-block`}>
+                <span className={`${valCls} bg-muted/50 px-2.5 py-0.5 rounded border border-border inline-block`}>
                   {log.classId} ({log.section})
                 </span>
               </div>
               <div className="col-span-2">
                 <span className={labelCls}>Period & Time</span>
-                <span className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                  <Clock size={14} className="text-gray-400" />
+                <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <Clock size={14} className="text-muted-foreground" />
                   {log.period}
                 </span>
               </div>
@@ -133,23 +130,23 @@ export default function TeachingLogDetailPage() {
           </div>
 
           {/* Created By Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-bold text-gray-900 border-b pb-2 flex items-center gap-2 uppercase tracking-wide">
-              <User size={16} className="text-green-600" />
+          <div className="bg-card rounded-xl border border-border p-5 shadow-sm space-y-4">
+            <h3 className="text-xs font-bold text-foreground border-b pb-2 flex items-center gap-2 uppercase tracking-wide">
+              <User size={16} className="text-primary" />
               Author Details
             </h3>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-50 text-green-700 font-bold border flex items-center justify-center text-sm shrink-0">
+              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold border flex items-center justify-center text-sm shrink-0">
                 {log.createdBy.name[0]?.toUpperCase() ?? 'T'}
               </div>
               <div>
-                <span className="font-bold text-sm text-gray-800 block leading-tight">{log.createdBy.name}</span>
-                <span className="text-xs text-gray-400 block mt-0.5">{log.createdBy.email}</span>
+                <span className="font-bold text-sm text-foreground block leading-tight">{log.createdBy.name}</span>
+                <span className="text-xs text-muted-foreground block mt-0.5">{log.createdBy.email}</span>
               </div>
             </div>
 
-            <div className="pt-2 border-t text-[10px] text-gray-400 space-y-1">
+            <div className="pt-2 border-t text-[10px] text-muted-foreground space-y-1">
               <div>Created: {new Date(log.createdAt).toLocaleString()}</div>
               <div>Last Updated: {new Date(log.updatedAt).toLocaleString()}</div>
             </div>
@@ -160,20 +157,20 @@ export default function TeachingLogDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Lesson Content Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-5">
-            <h3 className="text-xs font-bold text-gray-900 border-b pb-3 flex items-center gap-2 uppercase tracking-wide">
-              <BookOpen size={16} className="text-green-600" />
+          <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-5">
+            <h3 className="text-xs font-bold text-foreground border-b pb-3 flex items-center gap-2 uppercase tracking-wide">
+              <BookOpen size={16} className="text-primary" />
               Lesson Details
             </h3>
 
             <div>
               <span className={labelCls}>Topic Taught</span>
-              <p className="text-base font-bold text-gray-900 mt-0.5">{log.topicTaught}</p>
+              <p className="text-base font-bold text-foreground mt-0.5">{log.topicTaught}</p>
             </div>
 
             <div>
               <span className={labelCls}>Lesson Objective</span>
-              <p className="text-sm text-gray-650 italic mt-0.5 bg-gray-50/50 border border-gray-100 p-3 rounded-xl">
+              <p className="text-sm text-foreground/80 italic mt-0.5 bg-muted/50 border border-border p-3 rounded-xl">
                 &ldquo;{log.lessonObjective}&rdquo;
               </p>
             </div>
@@ -181,13 +178,13 @@ export default function TeachingLogDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
               <div>
                 <span className={labelCls}>Instructional Summary</span>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line mt-1">
+                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line mt-1">
                   {log.teachingSummary}
                 </p>
               </div>
               <div>
                 <span className={labelCls}>Key Learning Outcomes</span>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line mt-1">
+                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line mt-1">
                   {log.learningOutcomes}
                 </p>
               </div>
@@ -195,40 +192,40 @@ export default function TeachingLogDetailPage() {
           </div>
 
           {/* Student Progress Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-5">
-            <h3 className="text-xs font-bold text-gray-900 border-b pb-3 flex items-center gap-2 uppercase tracking-wide">
-              <ClipboardList size={16} className="text-green-600" />
+          <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-5">
+            <h3 className="text-xs font-bold text-foreground border-b pb-3 flex items-center gap-2 uppercase tracking-wide">
+              <ClipboardText size={16} className="text-primary" />
               Student Engagement & Observations
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <span className={labelCls}>Participation Details</span>
-                <p className="text-sm text-gray-700 leading-relaxed mt-1">
-                  {log.studentParticipation || <span className="text-gray-400 italic">None logged.</span>}
+                <p className="text-sm text-foreground/80 leading-relaxed mt-1">
+                  {log.studentParticipation || <span className="text-muted-foreground italic">None logged.</span>}
                 </p>
               </div>
 
               <div>
                 <span className={labelCls}>Challenges Encountered</span>
-                <p className="text-sm text-gray-700 leading-relaxed mt-1">
-                  {log.challengesFaced || <span className="text-gray-400 italic">None logged.</span>}
+                <p className="text-sm text-foreground/80 leading-relaxed mt-1">
+                  {log.challengesFaced || <span className="text-muted-foreground italic">None logged.</span>}
                 </p>
               </div>
 
               <div>
                 <span className={labelCls}>Additional Notes</span>
-                <p className="text-sm text-gray-700 leading-relaxed mt-1">
-                  {log.extraNotes || <span className="text-gray-400 italic">None logged.</span>}
+                <p className="text-sm text-foreground/80 leading-relaxed mt-1">
+                  {log.extraNotes || <span className="text-muted-foreground italic">None logged.</span>}
                 </p>
               </div>
             </div>
           </div>
 
           {/* Homework Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-5">
-            <h3 className="text-xs font-bold text-gray-900 border-b pb-3 flex items-center gap-2 uppercase tracking-wide">
-              <BookMarked size={16} className="text-green-600" />
+          <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-5">
+            <h3 className="text-xs font-bold text-foreground border-b pb-3 flex items-center gap-2 uppercase tracking-wide">
+              <BookBookmark size={16} className="text-primary" />
               Homework Task
             </h3>
 
@@ -236,18 +233,18 @@ export default function TeachingLogDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2">
                   <span className={labelCls}>Homework Instructions</span>
-                  <p className="text-sm text-gray-700 leading-relaxed mt-1">{log.homeworkGiven}</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed mt-1">{log.homeworkGiven}</p>
                 </div>
                 <div>
                   <span className={labelCls}>Submission Deadline</span>
-                  <p className="text-sm font-semibold text-gray-800 mt-1 flex items-center gap-1.5">
-                    <Calendar size={14} className="text-gray-450" />
+                  <p className="text-sm font-semibold text-foreground mt-1 flex items-center gap-1.5">
+                    <Calendar size={14} className="text-muted-foreground" />
                     {log.submissionDeadline ? formatDate(log.submissionDeadline) : 'None'}
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-gray-400 italic py-2">No homework was assigned for this lesson.</div>
+              <div className="text-sm text-muted-foreground italic py-2">No homework was assigned for this lesson.</div>
             )}
           </div>
         </div>

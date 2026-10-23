@@ -16,6 +16,7 @@ import Term from '../models/Term.js';
 import AppError from '../utils/AppError.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { recomputeFamilyDiscount } from './familyService.js';
+import { abortTransaction, commitTransaction, startTransaction, withTransaction } from '../utils/transaction.js';
 
 // The academic year a newly-enrolled student belongs to, absent an explicit
 // yearId — whichever Term is currently marked active.
@@ -61,7 +62,7 @@ export const createStudentService = async (bodyData) => {
   let familyId = null;
 
   try {
-    await session.withTransaction(async () => {
+    await withTransaction(session, async () => {
       const admissionNumber = await generateAdmissionNumber(session);
       const sectionId = await validateClassAndSection(bodyData.classId, bodyData.sectionId, session);
       const guardianInput = bodyData.guardian || {
@@ -373,7 +374,7 @@ export const bulkImportStudentsService = async (fileBuffer) => {
 
   //  Bilaaw Transaction Session
   const session = await mongoose.startSession();
-  session.startTransaction();
+  await startTransaction(session);
 
   try {
     const importedStudents = [];
@@ -457,13 +458,13 @@ export const bulkImportStudentsService = async (fileBuffer) => {
     }
 
     // Haddii wax walba ay saxmeen, u oggolaan inay database-ka galaan
-    await session.commitTransaction();
+    await commitTransaction(session);
     session.endSession();
     return importedStudents;
 
   } catch (error) {
     //  HADDII HAL JEER ERROR DHACAY - DIB U LABO DHAMMAAN (ROLLBACK)
-    await session.abortTransaction();
+    await abortTransaction(session);
     session.endSession();
     throw error;
   }

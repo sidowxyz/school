@@ -3,7 +3,8 @@ import type { RefSubject, RefClass, RefSection, RefTerm, TimetableSlot } from ".
 export interface RefTeacher {
   _id: string;
   staffId: string;
-  userId: { _id: string; name: string };
+  // The assignments feed populates first/last name, not a combined name.
+  userId: { _id: string; firstName?: string; lastName?: string; name?: string };
 }
 
 // A single teacher's assignment, as returned by GET /api/assignments — same

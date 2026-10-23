@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { aiApi, type AssignmentUploadMeta, type ExamUploadMeta } from '../api/aiApi';
+import { aiApi, type AssignmentUploadMeta } from '../api/aiApi';
 import type { ChatTurn, PageContext, QuickAction } from '../types/ai.types';
 
 
@@ -224,17 +224,6 @@ export function useAiChat(pageContext?: PageContext) {
   // The filename moves out of the sentence and onto the attachment chip, so it
   // stays readable when it is long and doesn't get truncated mid-name by the
   // bubble's max width.
-  const uploadExam = useCallback(
-    (file: File, meta: ExamUploadMeta) =>
-      runUpload(
-        'Sent for exam review',
-        { name: file.name, sizeBytes: file.size, kind: 'exam' },
-        () => aiApi.reviewExamUpload(file, meta),
-        (data) => ({ text: '', upload: { kind: 'exam', data } })
-      ),
-    [runUpload]
-  );
-
   const uploadAssignment = useCallback(
     (file: File, meta: AssignmentUploadMeta) =>
       runUpload(
@@ -292,7 +281,6 @@ export function useAiChat(pageContext?: PageContext) {
     confirm,
     cancel,
     openConversation,
-    uploadExam,
     uploadAssignment,
   };
 }

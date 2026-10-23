@@ -50,12 +50,12 @@ export default function TeachingLogEditPage() {
 
   if (error || !log) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 text-center max-w-xl mx-auto my-12">
+      <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-xl p-6 text-center max-w-xl mx-auto my-12">
         <h3 className="font-bold text-base mb-2">Error Loading Details</h3>
         <p className="text-sm mb-4">{error || 'Teaching log entry not found'}</p>
         <Button variant="plain"
           onClick={() => navigate('/teaching-log')}
-          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-bold px-4 py-2 rounded-lg text-xs"
+          className="bg-card hover:bg-muted/50 border border-border text-foreground/80 font-bold px-4 py-2 rounded-lg text-xs"
         >
           Return to Dashboard
         </Button>

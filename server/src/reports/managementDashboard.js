@@ -3,11 +3,8 @@ import Teacher from '../models/Teacher.js';
 import Class from '../models/Class.js';
 import StudentAttendance from '../models/StudentAttendance.js';
 import StudentInvoice from '../models/StudentInvoice.js';
-import Exam from '../models/Exam.js';
-import ExamMarkSubmission from '../models/ExamMarkSubmission.js';
 import TeacherAssignment from '../models/TeacherAssignment.js';
-import PromotionRecord from '../models/PromotionRecord.js';
-import { getClassResults } from '../services/examResultService.js';
+import Subject from '../models/Subject.js';
 import { round1, percent } from './helpers.js';
 
 /**
@@ -41,46 +38,6 @@ const dateNDaysAgo = (n) => {
 };
 
 /**
- * Most recently published examination sitting across the whole school, or
- * null if nothing has been published yet. Used to seed the Academic
- * Performance tiles with real headline numbers instead of link-only tiles.
- *
- * We pick the exam behind the most recent `publishedAt` submission — an
- * examination is "published" once its first ExamMarkSubmission is published,
- * which is the earliest point real results are visible to anyone.
- */
-const findMostRecentPublishedExam = async () => {
-  const latest = await ExamMarkSubmission.findOne({ status: 'published' })
-    .sort({ publishedAt: -1 })
-    .select('exam_id')
-    .populate({ path: 'exam_id', select: 'ex_name class_id exam_period_id batch_id' });
-  return latest?.exam_id ?? null;
-};
-
-/**
- * Aggregate performance headline for one examination across every class
- * that took it — the number that goes on the "Class Performance" tile.
- * Returns `null` when nothing measurable is published for that exam yet.
- */
-const summarisePublishedExam = async (exam) => {
-  if (!exam) return null;
-
-  // Prefer the batch_id when available — the exam might have been fanned
-  // out across grades, and we want every grade's students in one number.
-  const scope = exam.batch_id ? { batch_id: exam.batch_id } : { exam_id: String(exam._id) };
-  const data = await getClassResults(scope);
-  if (!data.results.length) return null;
-
-  return {
-    examId: String(exam._id),
-    examName: exam.ex_name,
-    students: data.summary.total,
-    passRate: data.summary.passPercentage,
-    classAverage: data.summary.classAverage
-  };
-};
-
-/**
  * Build the dashboard payload. Every metric is computed against live data;
  * empty schools return zero, never fabricated placeholders.
  */
@@ -99,15 +56,7 @@ export const buildManagementSummary = async () => {
     invoiceTotals,
     attendanceThisMonth,
     lowAttendance,
-    upcomingExams,
-    completedExamsThisMonth,
-    submissions,
-    unassignedSubjects,
-    thisMonthPromotions,
-    // Real headline numbers for the Academic Performance tiles: the school's
-    // most recently published examination. `null` if nothing is published,
-    // which keeps those tiles link-only rather than showing fake zeros.
-    latestPublishedExam
+    unassignedSubjects
   ] = await Promise.all([
     Student.countDocuments({ isDeleted: { $ne: true }, status: 'Active' }),
     Student.countDocuments({
@@ -160,33 +109,17 @@ export const buildManagementSummary = async () => {
       { $match: { rate: { $lt: 75 } } },
       { $count: 'count' }
     ]),
-    Exam.countDocuments({ exam_date: { $gte: now } }),
-    Exam.countDocuments({ exam_date: { $gte: startOfMonth, $lt: now } }),
-    // One query, all statuses — the client can show a "3 pending review"
-    // sub-line without a second round-trip.
-    ExamMarkSubmission.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]),
     // Active subjects with no teacher assigned — captured here for the tile,
     // links out to the detailed report for the actual list.
     (async () => {
       const [assignments, activeSubjectIds] = await Promise.all([
         TeacherAssignment.distinct('subjectId'),
-        (await import('../models/Subject.js')).default.distinct('_id', { status: 'active' })
+        Subject.distinct('_id', { status: 'active' })
       ]);
       const assigned = new Set(assignments.map(String));
       return activeSubjectIds.filter((id) => !assigned.has(String(id))).length;
-    })(),
-    // Promotion activity this month — a proxy for "is the academic office
-    // running the promotion workflow?" The detailed report has the audit.
-    PromotionRecord.countDocuments({ performed_at: { $gte: startOfMonth } }),
-    findMostRecentPublishedExam()
+    })()
   ]);
-
-  // The performance-headline aggregation reads ExamMarkSubmission again,
-  // so it runs after the exam has been found — cheap enough to sit outside
-  // the top-level Promise.all rather than making that block more complex.
-  const performance = await summarisePublishedExam(latestPublishedExam);
 
   const totals = invoiceTotals[0] ?? { expected: 0, collected: 0, outstanding: 0 };
 
@@ -199,15 +132,8 @@ export const buildManagementSummary = async () => {
   const attTotal = attended + attCounts.Absent;
   const attendanceRate = percent(attended, attTotal);
 
-  // Marks-submission rollup
-  const submissionCounts = submissions.reduce(
-    (acc, row) => ({ ...acc, [row._id]: row.count }),
-    { draft: 0, submitted: 0, approved: 0, returned: 0, published: 0 }
-  );
-
   // Each tile carries a drillTo report id — the client maps this to the
-  // same report viewer used for everything else. Missing published results
-  // is derived from finished exams minus published submissions.
+  // same report viewer used for everything else.
   const tiles = [
     {
       group: 'Students',
@@ -241,48 +167,6 @@ export const buildManagementSummary = async () => {
       ]
     },
     {
-      group: 'Academic Performance',
-      // When any examination has published results, the tiles below carry the
-      // headline number for the most recent one and name it in the hint —
-      // the drill-through still opens the report where the officer can pick a
-      // different examination. Before anything is published, they degrade to
-      // link tiles rather than showing a zero that would read as failure.
-      description: performance
-        ? `Latest published: ${performance.examName}`
-        : 'No examinations have published results yet',
-      metrics: [
-        {
-          label: 'Overall Pass Rate',
-          value: performance ? performance.passRate : null,
-          hint: performance
-            ? `${performance.students} student${performance.students === 1 ? '' : 's'} in ${performance.examName}`
-            : 'Open report to select an examination',
-          drillTo: 'performance-pass-fail',
-          format: performance ? 'percent' : 'link'
-        },
-        {
-          label: 'Class Average',
-          value: performance ? performance.classAverage : null,
-          hint: performance
-            ? `Average across every class in ${performance.examName}`
-            : 'Open report to select an examination',
-          drillTo: 'performance-by-class',
-          format: performance ? 'percent' : 'link'
-        },
-        {
-          label: 'Subject Performance',
-          value: null,
-          // Subject-level detail is inherently multi-row (one number per
-          // subject); the summary tile stays a link into the detail.
-          hint: performance
-            ? `Latest: ${performance.examName}`
-            : 'Open report to select an examination',
-          drillTo: 'performance-by-subject',
-          format: 'link'
-        }
-      ]
-    },
-    {
       group: 'Attendance',
       description: 'Current month',
       metrics: [
@@ -298,38 +182,6 @@ export const buildManagementSummary = async () => {
           value: lowAttendance[0]?.count ?? 0,
           drillTo: 'teaching-low-attendance',
           format: 'count'
-        }
-      ]
-    },
-    {
-      group: 'Examinations',
-      description: 'Scheduling and marks workflow',
-      metrics: [
-        {
-          label: 'Upcoming',
-          value: upcomingExams,
-          drillTo: 'exam-pending',
-          format: 'count'
-        },
-        {
-          label: 'Completed This Month',
-          value: completedExamsThisMonth,
-          drillTo: 'exam-completed',
-          format: 'count'
-        },
-        {
-          label: 'Marks Awaiting Review',
-          value: submissionCounts.submitted,
-          hint: `${submissionCounts.approved} approved · ${submissionCounts.published} published`,
-          drillTo: 'exam-result-summaries',
-          format: 'count'
-        },
-        {
-          label: 'Missing Marks',
-          value: null,
-          hint: 'Open report for the list',
-          drillTo: 'exam-missing-marks',
-          format: 'link'
         }
       ]
     },
@@ -385,13 +237,6 @@ export const buildManagementSummary = async () => {
           hint: 'Open report for periods per teacher',
           drillTo: 'assignments-workload',
           format: 'link'
-        },
-        {
-          label: 'Promotion Activity',
-          value: thisMonthPromotions,
-          hint: 'This month',
-          drillTo: 'promotion-history',
-          format: 'count'
         }
       ]
     }

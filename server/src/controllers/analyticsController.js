@@ -5,26 +5,20 @@ import StudentAttendance from '../models/StudentAttendance.js';
 import User from '../models/User.js';
 import StudentInvoice from '../models/StudentInvoice.js';
 import StudentFee from '../models/StudentFee.js';
-import Exam from '../models/Exam.js';
 import Term from '../models/Term.js';
 import SystemSetting from '../models/SystemSetting.js';
-import Notification from '../models/notification.model.js';
-import Notice from '../models/notice.model.js';
 import TeacherAssignment from '../models/TeacherAssignment.js';
 import TeachingLog from '../models/TeachingLog.js';
-import ResultSheet from '../models/ResultSheet.js';
+import AuditLog from '../models/auditLog.model.js';
 import AppError from '../utils/AppError.js';
 
 const formatShortDate = (date) =>
   date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-const formatLongDate = (date) =>
-  date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
 /**
  * @desc    Get Admin Dashboard KPIs and Charts Data
  * @route   GET /api/v1/analytics/admin-kpis
- * @access  Private (Admin Only)
+ * @access  Private (admin, principal, academic officer; fee totals for admin and principal only)
  */
 export const getAdminDashboardKPIs = async (req, res, next) => {
   try {
@@ -113,64 +107,10 @@ export const getAdminDashboardKPIs = async (req, res, next) => {
         }
       : { totalCollected: 0, totalPending: 0, totalExpected: 0 };
 
-    // 5. Upcoming exams use the real records managed by Examination.
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
-    const upcomingExamDocs = await Exam.find({
-      exam_date: { $gte: startOfToday },
-      status: { $ne: 'completed' },
-    })
-      .sort({ exam_date: 1, start_time: 1 })
-      .limit(50)
-      .populate('class_id', 'cl_name')
-      .populate('subject_id', 'sub_name');
-
-    const groupedUpcomingExams = new Map();
-    upcomingExamDocs
-      .filter((exam) => {
-        const examStartsAt = new Date(exam.exam_date);
-        const [hours = 0, minutes = 0] = (exam.start_time || '00:00').split(':').map(Number);
-        examStartsAt.setHours(hours, minutes, 0, 0);
-        return examStartsAt >= now;
-      })
-      .forEach((exam) => {
-        const key = exam.batch_id || exam._id.toString();
-        const existing = groupedUpcomingExams.get(key);
-        const grade = exam.class_id?.cl_name;
-        if (existing) {
-          if (grade && !existing.grades.includes(grade)) existing.grades.push(grade);
-          return;
-        }
-        groupedUpcomingExams.set(key, {
-          id: exam._id,
-          title: exam.ex_name,
-          grades: grade ? [grade] : [],
-          subject: exam.subject_id?.sub_name || null,
-          date: formatLongDate(exam.exam_date),
-          time: `${exam.start_time} - ${exam.end_time}`,
-          status: 'scheduled',
-        });
-      });
-
-    const upcomingExams = Array.from(groupedUpcomingExams.values())
-      .slice(0, 5)
-      .map((exam) => ({
-        id: exam.id,
-        title: exam.title,
-        grade: exam.grades.join(', ') || 'Grade not assigned',
-        subject: exam.subject,
-        date: exam.date,
-        time: exam.time,
-        status: exam.status,
-      }));
-
-    // 6. Academic calendar — merges upcoming exam start dates with term start/end dates
-    const [upcomingTerms, calendarExams, systemSettings] = await Promise.all([
+    // 5. Academic calendar — term start/end dates, holidays and school events
+    const [upcomingTerms, systemSettings] = await Promise.all([
       Term.find({ $or: [{ startDate: { $gte: now } }, { endDate: { $gte: now } }] })
         .sort({ startDate: 1 }),
-      Exam.find({ exam_date: { $gte: now } })
-        .select('ex_name exam_date batch_id')
-        .sort({ exam_date: 1 }),
       SystemSetting.findOne().select('holidays calendarEvents').lean(),
     ]);
 
@@ -182,15 +122,6 @@ export const getAdminDashboardKPIs = async (req, res, next) => {
       if (term.endDate && term.endDate >= now) {
         calendarItems.push({ date: term.endDate, label: `${term.name} Ends`, type: 'Term', color: 'bg-emerald-600' });
       }
-    });
-
-    const seenExams = new Set();
-    calendarExams.forEach((exam) => {
-      const dateKey = exam.exam_date.toISOString().slice(0, 10);
-      const key = `${exam.batch_id || exam.ex_name}-${dateKey}`;
-      if (seenExams.has(key)) return;
-      seenExams.add(key);
-      calendarItems.push({ date: exam.exam_date, label: exam.ex_name, type: 'Exam', color: 'bg-orange-500' });
     });
 
     (systemSettings?.holidays || []).forEach((holiday) => {
@@ -218,31 +149,42 @@ export const getAdminDashboardKPIs = async (req, res, next) => {
         color: event.color,
       }));
 
-    // 7. Recent notifications for the logged-in admin
-    const recentNotificationCandidates = await Notification.find({ user_id: req.user._id })
+    // 6. Recent activity — the latest audited changes (who did what, to which module)
+    const recentAudit = await AuditLog.find()
       .sort({ createDate: -1 })
-      .limit(25)
-      .select('type title body createDate reference_id reference_model');
+      .limit(6)
+      .populate('user_id', 'firstName lastName')
+      .populate('action_no', 'action_name')
+      .populate('module_no', 'module_name')
+      .lean();
+    const recentActivity = recentAudit.map((a) => {
+      const who = a.user_id ? `${a.user_id.firstName ?? ''} ${a.user_id.lastName ?? ''}`.trim() : 'Someone';
+      const action = String(a.action_no?.action_name ?? 'changed').toLowerCase().replace(/_/g, ' ');
+      const module = a.module_no?.module_name ?? 'record';
+      return { type: module, title: `${who} · ${action}`, desc: module, time: a.createDate };
+    });
 
-    const noticeReferenceIds = recentNotificationCandidates
-      .filter((notification) => notification.reference_model === 'Notice' && notification.reference_id)
-      .map((notification) => notification.reference_id);
-    const existingNoticeIds = new Set(
-      (await Notice.find({ _id: { $in: noticeReferenceIds } }).distinct('_id'))
-        .map((id) => id.toString())
-    );
-    const recentNotificationDocs = recentNotificationCandidates
-      .filter((notification) =>
-        notification.reference_model !== 'Notice' ||
-        (notification.reference_id && existingNoticeIds.has(notification.reference_id.toString()))
-      )
-      .slice(0, 5);
-
-    const recentNotifications = recentNotificationDocs.map(n => ({
-      type: n.type,
-      title: n.title,
-      desc: n.body,
-      time: n.createDate
+    // 7. Newest students, and how many people joined in the last 7 days
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const [recentStudentDocs, newStudents, newTeachers, newParents] = await Promise.all([
+      Student.find({ isDeleted: { $ne: true } })
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .select('firstName lastName admissionNumber email parentName status classId createdAt')
+        .populate('classId', 'cl_name'),
+      Student.countDocuments({ status: 'Active', createdAt: { $gte: weekAgo } }),
+      Teacher.countDocuments({ createdAt: { $gte: weekAgo } }),
+      User.countDocuments({ role: 'parent', createdAt: { $gte: weekAgo } })
+    ]);
+    const recentStudents = recentStudentDocs.map(s => ({
+      _id: s._id,
+      name: `${s.firstName} ${s.lastName}`,
+      admissionNumber: s.admissionNumber,
+      email: s.email ?? null,
+      parentName: s.parentName ?? null,
+      className: s.classId?.cl_name ?? null,
+      status: s.status,
+      createdAt: s.createdAt
     }));
 
     res.status(200).json({
@@ -250,63 +192,16 @@ export const getAdminDashboardKPIs = async (req, res, next) => {
       message: "Admin dashboard KPIs fetched successfully",
       data: {
         summary: { totalStudents, totalTeachers, totalParents, totalClasses },
+        newThisWeek: { students: newStudents, teachers: newTeachers, parents: newParents },
+        recentStudents,
         attendanceOverview: { attendanceRate, weeklyData },
         studentDistribution,
-        feeCollectionSummary,
-        upcomingExams,
+        feeCollectionSummary: ['admin', 'principal'].includes(req.user.role) ? feeCollectionSummary : null,
         academicCalendar,
-        recentNotifications
+        recentActivity: ['admin', 'principal'].includes(req.user.role) ? recentActivity : []
       }
     });
 
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Academic performance aggregates — average score per class and per
- *          subject, plus overall pass rate — computed from published result sheets.
- * @route   GET /api/v1/analytics/academic-performance
- * @access  Private (Admin / Principal / Academic Officer)
- */
-export const getAcademicPerformance = async (req, res, next) => {
-  try {
-    // Average overall score per class: ResultSheet.class → CourseClass.cl_no → Class.
-    const byClassRaw = await ResultSheet.aggregate([
-      { $match: { overallScore: { $ne: null } } },
-      { $lookup: { from: 'courseclasses', localField: 'class', foreignField: '_id', as: 'cc' } },
-      { $unwind: '$cc' },
-      { $lookup: { from: 'classes', localField: 'cc.cl_no', foreignField: '_id', as: 'cls' } },
-      { $unwind: '$cls' },
-      { $group: { _id: '$cls.cl_name', avgScore: { $avg: '$overallScore' } } },
-      { $sort: { _id: 1 } },
-    ]);
-    const byClass = byClassRaw.map((r) => ({ class: r._id || 'Unknown', score: Math.round(r.avgScore || 0) }));
-
-    // Average score per subject: unwind ResultSheet.marks → Subject.
-    const bySubjectRaw = await ResultSheet.aggregate([
-      { $unwind: '$marks' },
-      { $group: { _id: '$marks.subject', avgScore: { $avg: '$marks.score' } } },
-      { $lookup: { from: 'subjects', localField: '_id', foreignField: '_id', as: 'sub' } },
-      { $unwind: '$sub' },
-      { $project: { subject: '$sub.sub_name', avgScore: 1 } },
-      { $sort: { subject: 1 } },
-    ]);
-    const bySubject = bySubjectRaw.map((r) => ({ subject: r.subject || 'Unknown', score: Math.round(r.avgScore || 0) }));
-
-    // Overall pass rate (overallScore >= 50).
-    const [total, passed] = await Promise.all([
-      ResultSheet.countDocuments({ overallScore: { $ne: null } }),
-      ResultSheet.countDocuments({ overallScore: { $gte: 50 } }),
-    ]);
-    const passRate = total > 0 ? Math.round((passed / total) * 1000) / 10 : 0;
-
-    res.status(200).json({
-      success: true,
-      message: 'Academic performance fetched successfully',
-      data: { passRate, byClass, bySubject },
-    });
   } catch (error) {
     next(error);
   }
@@ -357,6 +252,7 @@ export const getTeacherDashboardKPIs = async (req, res, next) => {
     ]);
 
     const recentLogs = recentLogDocs.map(log => ({
+      _id: log._id,
       subject: log.subject,
       classId: log.classId,
       topicTaught: log.topicTaught,

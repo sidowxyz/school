@@ -3,11 +3,11 @@ import path from 'path';
 import AppError from '../utils/AppError.js';
 
 /**
- * Document uploads for AI review (exam papers, assignments).
+ * Document uploads for AI review (student assignments).
  *
  * Memory storage, mirroring uploadCSVMiddleware — the file is read once for
  * text extraction and never needs to touch disk. Size limit is generous
- * relative to CSV imports because exam papers and assignments run longer than
+ * relative to CSV imports because assignments run longer than
  * a data file, but still bounded: an unlimited upload is a resource-exhaustion
  * vector on a route that also makes paid model calls downstream.
  */

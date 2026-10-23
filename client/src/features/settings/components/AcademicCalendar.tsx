@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { WarningCircle, CalendarBlank, CalendarPlus, CaretLeft, CaretRight, Clock, SpinnerGap, PencilSimple, Plus, Trash, X } from '@phosphor-icons/react';
+import { WarningCircle, CalendarBlank, CalendarPlus, CaretLeft, CaretRight, Clock, SpinnerGap, PencilSimple, Plus, Trash } from '@phosphor-icons/react';
 import {
   settingsApi,
   type AcademicCalendarData,
@@ -25,11 +25,10 @@ import {
 } from '@/components/ui/dialog';
 
 const EVENT_STYLE: Record<CalendarEventType, { dot: string; badge: string; label: string }> = {
-  session: { dot: 'bg-emerald-600', badge: 'bg-emerald-50 text-emerald-700', label: 'Academic session' },
-  term: { dot: 'bg-blue-600', badge: 'bg-blue-50 text-blue-700', label: 'Term' },
-  exam: { dot: 'bg-orange-500', badge: 'bg-orange-50 text-orange-700', label: 'Exam' },
-  holiday: { dot: 'bg-purple-600', badge: 'bg-purple-50 text-purple-700', label: 'Holiday' },
-  event: { dot: 'bg-cyan-600', badge: 'bg-cyan-50 text-cyan-700', label: 'Event' },
+  session: { dot: 'bg-success', badge: 'bg-success/10 text-success', label: 'Academic session' },
+  term: { dot: 'bg-info', badge: 'bg-info/10 text-info', label: 'Term' },
+  holiday: { dot: 'bg-violet', badge: 'bg-violet/10 text-violet', label: 'Holiday' },
+  event: { dot: 'bg-info', badge: 'bg-info/10 text-info', label: 'Event' },
 };
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -143,35 +142,35 @@ function CalendarMonth({ month, events, onPrevious, onNext }: { month: Date; eve
   const today = dateOnly(new Date());
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-2">
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:col-span-2">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-gray-900">Calendar</h3>
-          <p className="text-xs text-gray-500">All scheduled academic dates in one view</p>
+          <h3 className="font-semibold text-foreground">Calendar</h3>
+          <p className="text-xs text-muted-foreground">All scheduled academic dates in one view</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="plain" onClick={onPrevious} className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50" aria-label="Previous month"><CaretLeft size={17} /></Button>
-          <span className="min-w-32 text-center text-sm font-semibold text-gray-800">{month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
-          <Button variant="plain" onClick={onNext} className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50" aria-label="Next month"><CaretRight size={17} /></Button>
+          <Button variant="plain" onClick={onPrevious} className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted/50" aria-label="Previous month"><CaretLeft size={17} /></Button>
+          <span className="min-w-32 text-center text-sm font-semibold text-foreground">{month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+          <Button variant="plain" onClick={onNext} className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted/50" aria-label="Next month"><CaretRight size={17} /></Button>
         </div>
       </div>
-      <div className="grid grid-cols-7 border-l border-t border-gray-100">
-        {WEEKDAYS.map((day) => <div key={day} className="border-b border-r border-gray-100 bg-gray-50 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500">{day}</div>)}
+      <div className="grid grid-cols-7 border-l border-t border-border">
+        {WEEKDAYS.map((day) => <div key={day} className="border-b border-r border-border bg-muted/50 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{day}</div>)}
         {cells.map((day, index) => {
-          if (!day) return <div key={`empty-${index}`} className="min-h-24 border-b border-r border-gray-100 bg-gray-50/40" />;
+          if (!day) return <div key={`empty-${index}`} className="min-h-24 border-b border-r border-border bg-muted/40" />;
           const cellDate = new Date(month.getFullYear(), month.getMonth(), day);
-          const dayEvents = events.Funnel((event) => {
+          const dayEvents = events.filter((event) => {
             const start = dateOnly(event.date);
             const end = dateOnly(event.endDate || event.date);
             return cellDate >= start && cellDate <= end;
           });
           const isToday = cellDate.getTime() === today.getTime();
           return (
-            <div key={day} className={`min-h-24 border-b border-r border-gray-100 p-2 ${dayEvents.length ? 'bg-green-50/25' : ''}`}>
-              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${isToday ? 'bg-green-600 text-white' : 'text-gray-700'}`}>{day}</span>
+            <div key={day} className={`min-h-24 border-b border-r border-border p-2 ${dayEvents.length ? 'bg-primary/10' : ''}`}>
+              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${isToday ? 'bg-primary text-primary-foreground' : 'text-foreground/80'}`}>{day}</span>
               <div className="mt-1 space-y-1">
                 {dayEvents.slice(0, 2).map((event) => <div key={event.id} title={event.title} className={`truncate rounded px-1.5 py-1 text-[10px] font-medium ${EVENT_STYLE[event.type].badge}`}><span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${EVENT_STYLE[event.type].dot}`} />{event.title}</div>)}
-                {dayEvents.length > 2 && <p className="pl-1 text-[10px] font-medium text-gray-500">+{dayEvents.length - 2} more</p>}
+                {dayEvents.length > 2 && <p className="pl-1 text-[10px] font-medium text-muted-foreground">+{dayEvents.length - 2} more</p>}
               </div>
             </div>
           );
@@ -217,7 +216,7 @@ export default function AcademicCalendar() {
   useEffect(() => { void load(); }, [load]);
 
   const upcoming = useMemo(() => data?.events
-    .Funnel((event) => dateOnly(event.endDate || event.date) >= dateOnly(new Date()))
+    .filter((event) => dateOnly(event.endDate || event.date) >= dateOnly(new Date()))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) || [], [data]);
 
   const managedItems = useMemo(() => [
@@ -260,77 +259,74 @@ export default function AcademicCalendar() {
     }
   };
 
-  if (loading && !data) return <div className="flex min-h-96 items-center justify-center"><SpinnerGap className="animate-spin text-green-600" size={28} /><span className="ml-3 text-sm text-gray-500">Loading academic calendar…</span></div>;
+  if (loading && !data) return <div className="flex min-h-96 items-center justify-center"><SpinnerGap className="animate-spin text-primary" size={28} /><span className="ml-3 text-sm text-muted-foreground">Loading academic calendar…</span></div>;
 
   return (
     <div className="space-y-7">
       <div>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Academic Calendar</h2>
-          <p className="mt-1 text-sm text-gray-500">Terms and exams are synchronized automatically; manage Buildings holidays and events here.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Academic Calendar</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Terms are synchronized automatically; manage school holidays and events here.</p>
         </div>
       </div>
 
-      {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><WarningCircle size={17} />{error}<Button variant="plain" className="ml-auto font-medium" onClick={() => setError('')}>Dismiss</Button></div>}
-      {notice && <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{notice}</div>}
+      {error && <div className="flex items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"><WarningCircle size={17} />{error}<Button variant="plain" className="ml-auto font-medium" onClick={() => setError('')}>Dismiss</Button></div>}
+      {notice && <div className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">{notice}</div>}
 
       {!data?.academicYears.length ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center"><CalendarBlank className="mx-auto text-gray-400" size={34} /><h3 className="mt-3 font-semibold text-gray-800">No academic year configured</h3><p className="mt-1 text-sm text-gray-500">Create an academic year and its terms under Academic Structure. Calendar dates will appear here automatically.</p></div>
+        <div className="rounded-xl border border-dashed border-border bg-muted/50 px-6 py-14 text-center"><CalendarBlank className="mx-auto text-muted-foreground" size={34} /><h3 className="mt-3 font-semibold text-foreground">No academic year configured</h3><p className="mt-1 text-sm text-muted-foreground">Create an academic year and its terms under Academic Structure. Calendar dates will appear here automatically.</p></div>
       ) : (
         <>
-          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <div className="flex flex-col justify-between gap-3 border-b border-gray-100 bg-gray-50/70 px-5 py-4 sm:flex-row sm:items-center">
+          <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex flex-col justify-between gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center">
               <div>
-                <h3 className="font-semibold text-gray-900">Academic Session</h3>
-                <p className="mt-0.5 text-xs text-gray-500">The calendar is created automatically from your academic year and dated terms.</p>
+                <h3 className="font-semibold text-foreground">Academic Session</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">The calendar is created automatically from your academic year and dated terms.</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Link
-                  to="/academic-structure"
-                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition hover:border-green-500 hover:text-green-700"
-                >
-                  Edit Years & Terms
-                </Link>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/academic-structure">Edit Years & Terms</Link>
+                </Button>
                 <Button variant="plain"
                   onClick={() => setModal({ kind: 'event' })}
-                  className="inline-flex items-center gap-2 rounded-lg border border-green-600 bg-white px-3.5 py-2 text-sm font-medium text-green-700 hover:bg-green-50"
+                  className="inline-flex items-center gap-2 h-10 rounded-xl border border-primary bg-card px-4 text-sm font-semibold text-primary hover:bg-primary/10"
                 >
                   <Plus size={16} /> Add Event
                 </Button>
                 <Button variant="plain"
                   onClick={() => setModal({ kind: 'holiday' })}
-                  className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-green-700"
+                  className="inline-flex items-center gap-2 h-10 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                 >
                   <CalendarPlus size={16} /> Add Holiday
                 </Button>
               </div>
             </div>
             <div className="grid gap-5 p-5 md:grid-cols-2 xl:grid-cols-4">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-foreground/80">
                 Academic Year
                 <NativeSelect
                   value={selectedYearId}
                   onChange={(event) => void load(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-3.5 py-3 text-sm font-medium text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                  className="mt-2 h-11 w-full rounded-xl border border-border bg-muted/40 px-3.5 text-sm font-medium text-foreground"
                 >
                   {data?.academicYears.map((year) => <option key={year._id} value={year._id}>{year.y_name}</option>)}
                 </NativeSelect>
               </label>
               <div>
-                <p className="text-sm font-medium text-gray-700">Current Term</p>
-                <div className="mt-2 flex min-h-12 items-center rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-sm font-semibold text-gray-900">
+                <p className="text-sm font-medium text-foreground/80">Current Term</p>
+                <div className="mt-2 flex min-h-11 items-center rounded-xl bg-tile-green px-3.5 py-2.5 text-sm font-semibold text-tile-foreground">
                   {data?.activeTerm?.name || 'No active term'}
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-700">Session Start Date</p>
-                <div className="mt-2 flex min-h-12 items-center rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-sm font-semibold text-gray-900">
+                <p className="text-sm font-medium text-foreground/80">Session Start Date</p>
+                <div className="mt-2 flex min-h-11 items-center rounded-xl bg-tile-blue px-3.5 py-2.5 text-sm font-semibold text-tile-foreground">
                   {formatDate(data?.sessionStart)}
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-700">Session End Date</p>
-                <div className="mt-2 flex min-h-12 items-center rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-sm font-semibold text-gray-900">
+                <p className="text-sm font-medium text-foreground/80">Session End Date</p>
+                <div className="mt-2 flex min-h-11 items-center rounded-xl bg-tile-yellow px-3.5 py-2.5 text-sm font-semibold text-tile-foreground">
                   {formatDate(data?.sessionEnd)}
                 </div>
               </div>
@@ -339,34 +335,34 @@ export default function AcademicCalendar() {
 
           <div className="grid gap-6 lg:grid-cols-3">
             <CalendarMonth month={month} events={data?.events || []} onPrevious={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} onNext={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} />
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center gap-2"><Clock size={18} className="text-green-600" /><div><h3 className="font-semibold text-gray-900">Upcoming dates</h3><p className="text-xs text-gray-500">Next important academic activities</p></div></div>
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="mb-4 flex items-center gap-2"><Clock size={18} className="text-primary" /><div><h3 className="font-semibold text-foreground">Upcoming dates</h3><p className="text-xs text-muted-foreground">Next important academic activities</p></div></div>
               <div className="max-h-[560px] space-y-3 overflow-y-auto pr-1">
                 {upcoming.length ? upcoming.slice(0, 12).map((event) => (
-                  <div key={`${event.type}-${event.id}`} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div key={`${event.type}-${event.id}`} className="rounded-xl border border-border bg-muted/50 p-3">
                     <div className="flex items-start gap-3">
                       <div className={`mt-1 h-9 w-1 shrink-0 rounded-full ${EVENT_STYLE[event.type].dot}`} />
-                      <div className="min-w-0"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${EVENT_STYLE[event.type].badge}`}>Upcoming {EVENT_STYLE[event.type].label}</span><p className="mt-2 text-sm font-semibold text-gray-900">{event.title}</p><p className="mt-1 text-xs text-gray-500">{formatDate(event.date)}{event.endDate ? ` – ${formatDate(event.endDate)}` : ''}</p></div>
+                      <div className="min-w-0"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${EVENT_STYLE[event.type].badge}`}>Upcoming {EVENT_STYLE[event.type].label}</span><p className="mt-2 text-sm font-semibold text-foreground">{event.title}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(event.date)}{event.endDate ? ` – ${formatDate(event.endDate)}` : ''}</p></div>
                     </div>
                   </div>
-                )) : <p className="rounded-xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">No upcoming dates for this academic year.</p>}
+                )) : <p className="rounded-xl bg-muted/50 px-4 py-8 text-center text-sm text-muted-foreground">No upcoming dates for this academic year.</p>}
               </div>
             </section>
           </div>
 
-          <div className="flex flex-wrap gap-x-5 gap-y-2">{(Object.keys(EVENT_STYLE) as CalendarEventType[]).map((type) => <span key={type} className="inline-flex items-center gap-2 text-xs text-gray-600"><span className={`h-2.5 w-2.5 rounded-full ${EVENT_STYLE[type].dot}`} />{EVENT_STYLE[type].label}</span>)}</div>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">{(Object.keys(EVENT_STYLE) as CalendarEventType[]).map((type) => <span key={type} className="inline-flex items-center gap-2 text-xs text-muted-foreground"><span className={`h-2.5 w-2.5 rounded-full ${EVENT_STYLE[type].dot}`} />{EVENT_STYLE[type].label}</span>)}</div>
 
-          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-            <div className="flex flex-col justify-between gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center">
-              <div><h3 className="text-lg font-semibold text-gray-900">Holidays & Buildings events</h3><p className="mt-1 text-sm text-gray-500">Create and maintain dates that are specific to your school.</p></div>
-              <div className="flex gap-2"><Button variant="plain" onClick={() => setModal({ kind: 'event' })} className="inline-flex items-center gap-2 rounded-lg border border-green-600 px-3.5 py-2 text-sm font-medium text-green-700 hover:bg-green-50"><Plus size={16} />Add Event</Button><Button variant="plain" onClick={() => setModal({ kind: 'holiday' })} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-green-700"><CalendarPlus size={16} />Add Holiday</Button></div>
+          <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex flex-col justify-between gap-4 border-b border-border p-5 sm:flex-row sm:items-center">
+              <div><h3 className="text-lg font-semibold text-foreground">Holidays & school events</h3><p className="mt-1 text-sm text-muted-foreground">Create and maintain dates that are specific to your school.</p></div>
+              <div className="flex gap-2"><Button variant="plain" onClick={() => setModal({ kind: 'event' })} className="inline-flex items-center gap-2 h-10 rounded-xl border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary/10"><Plus size={16} />Add Event</Button><Button variant="plain" onClick={() => setModal({ kind: 'holiday' })} className="inline-flex items-center gap-2 h-10 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><CalendarPlus size={16} />Add Holiday</Button></div>
             </div>
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[720px] text-left text-sm">
-                <TableHeader className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><TableRow><TableHead className="px-5 py-3.5">Name</TableHead><TableHead className="px-5 py-3.5">Type</TableHead><TableHead className="px-5 py-3.5">Date</TableHead><TableHead className="px-5 py-3.5">Status</TableHead><TableHead className="px-5 py-3.5 text-right">Actions</TableHead></TableRow></TableHeader>
-                <TableBody className="divide-y divide-gray-100">
-                  {managedItems.map((item) => { const status = itemStatus(item); return <TableRow key={`${item.kind}-${item._id}`} className="hover:bg-gray-50"><TableCell className="px-5 py-4"><p className="font-medium text-gray-900">{item.name || item.title}</p>{item.description && <p className="mt-0.5 max-w-md truncate text-xs text-gray-500">{item.description}</p>}</TableCell><TableCell className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${EVENT_STYLE[item.kind].badge}`}>{EVENT_STYLE[item.kind].label}</span></TableCell><TableCell className="px-5 py-4 text-gray-600">{formatDate(item.date)}{item.endDate ? ` – ${formatDate(item.endDate)}` : ''}</TableCell><TableCell className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status === 'Upcoming' ? 'bg-amber-50 text-amber-700' : status === 'Ongoing' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{status}</span></TableCell><TableCell className="px-5 py-4"><div className="flex justify-end gap-1"><Button variant="plain" onClick={() => setModal({ kind: item.kind, item })} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50" aria-label={`Edit ${item.name || item.title}`}><PencilSimple size={17} /></Button><Button variant="plain" onClick={() => setDeleting({ kind: item.kind, item })} className="rounded-lg p-2 text-red-600 hover:bg-red-50" aria-label={`Delete ${item.name || item.title}`}><Trash size={17} /></Button></div></TableCell></TableRow>; })}
-                  {!managedItems.length && <TableRow><TableCell colSpan={5} className="px-5 py-12 text-center"><CalendarBlank className="mx-auto text-gray-300" size={28} /><p className="mt-2 text-sm font-medium text-gray-600">No holidays or events added</p><p className="mt-1 text-xs text-gray-400">Use the buttons above to add the first real calendar date.</p></TableCell></TableRow>}
+                <TableHeader className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground"><TableRow><TableHead className="px-5 py-3.5">Name</TableHead><TableHead className="px-5 py-3.5">Type</TableHead><TableHead className="px-5 py-3.5">Date</TableHead><TableHead className="px-5 py-3.5">Status</TableHead><TableHead className="px-5 py-3.5 text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableBody className="divide-y divide-border">
+                  {managedItems.map((item) => { const status = itemStatus(item); return <TableRow key={`${item.kind}-${item._id}`} className="hover:bg-muted/50"><TableCell className="px-5 py-4"><p className="font-medium text-foreground">{item.name || item.title}</p>{item.description && <p className="mt-0.5 max-w-md truncate text-xs text-muted-foreground">{item.description}</p>}</TableCell><TableCell className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${EVENT_STYLE[item.kind].badge}`}>{EVENT_STYLE[item.kind].label}</span></TableCell><TableCell className="px-5 py-4 text-muted-foreground">{formatDate(item.date)}{item.endDate ? ` – ${formatDate(item.endDate)}` : ''}</TableCell><TableCell className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status === 'Upcoming' ? 'bg-warning/10 text-warning' : status === 'Ongoing' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>{status}</span></TableCell><TableCell className="px-5 py-4"><div className="flex justify-end gap-1"><Button variant="plain" onClick={() => setModal({ kind: item.kind, item })} className="rounded-lg p-2 text-info hover:bg-info/10" aria-label={`Edit ${item.name || item.title}`}><PencilSimple size={17} /></Button><Button variant="plain" onClick={() => setDeleting({ kind: item.kind, item })} className="rounded-lg p-2 text-destructive hover:bg-destructive/10" aria-label={`Delete ${item.name || item.title}`}><Trash size={17} /></Button></div></TableCell></TableRow>; })}
+                  {!managedItems.length && <TableRow><TableCell colSpan={5} className="px-5 py-12 text-center"><CalendarBlank className="mx-auto text-muted-foreground/70" size={28} /><p className="mt-2 text-sm font-medium text-muted-foreground">No holidays or events added</p><p className="mt-1 text-xs text-muted-foreground">Use the buttons above to add the first real calendar date.</p></TableCell></TableRow>}
                 </TableBody>
               </Table>
             </div>
@@ -376,7 +372,7 @@ export default function AcademicCalendar() {
 
       {modal && <ItemModal kind={modal.kind} item={modal.item} academicYearId={selectedYearId || undefined} saving={saving} onClose={() => setModal(null)} onSave={saveItem} />}
       <Dialog open={!!deleting} onOpenChange={(open) => { if (!open) setDeleting(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent centered className="max-w-md">
           <DialogHeader>
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-2">
               <Trash size={20} />

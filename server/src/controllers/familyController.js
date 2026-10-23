@@ -6,6 +6,7 @@ import User from '../models/User.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { recomputeFamilyDiscount } from '../services/familyService.js';
+import { withTransaction } from '../utils/transaction.js';
 
 export const createFamily = async (req, res, next) => {
   const session = await mongoose.startSession();
@@ -13,7 +14,7 @@ export const createFamily = async (req, res, next) => {
   try {
     let newFamily, newGuardian;
 
-    await session.withTransaction(async () => {
+    await withTransaction(session, async () => {
       const { familyName, primaryContactPhone, primaryContactEmail, guardianName, relationship } = req.body;
 
       const createdFamilies = await Family.create([{

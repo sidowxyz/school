@@ -1,43 +1,47 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, CalendarBlank, Clock, CalendarX, BookOpen } from '@phosphor-icons/react';
+import { BookOpen, CalendarBlank, ChalkboardTeacher, Clock, Plus, SpinnerGap, Student, type Icon } from '@phosphor-icons/react';
 import PageHeader from "../../../components/common/PageHeader";
 import { academicApi } from "../../academic-structure/api/academicApi";
 import type { Term, Class, Section, Subject, Period } from "../../academic-structure/types";
 import { teachersApi } from "../../teachers/api/teachersApi";
 import type { Teacher, Weekday } from "../../teachers/types";
 import { timetableApi } from "../api/timetableApi";
-import type { Assignment } from "../types";
+import type { Assignment, RefTeacher } from "../types";
 import AssignmentFormModal, { termLabel, type TeacherOption } from "../../teachers/components/AssignmentFormModal";
 import { Button } from '@/components/ui/button';
-import FilterSelect from '@/components/shared/FilterSelect';
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import StatStrip from '@/components/shared/StatStrip';
+import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
 
-// Somali Buildings week â€” Saturday through Thursday, Friday off by default. Terms
+// Somali school week — Saturday through Thursday, Friday off by default. Terms
 // can customize this via workingDays, so the grid always follows the term.
 const WEEK_ORDER: Weekday[] = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const JS_DAY: Record<Weekday, number> = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
 
-const BADGE_COLORS = [
-  "bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200/70 dark:border-sky-800/60",
-  "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60",
-  "bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200/70 dark:border-violet-800/60",
-  "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/60",
-  "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60",
-  "bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/70 dark:border-teal-800/60",
-  "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/70 dark:border-rose-800/60",
-  "bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/70 dark:border-purple-800/60",
-];
-function badgeColor(key: string) {
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
-  return BADGE_COLORS[Math.abs(hash) % BADGE_COLORS.length];
-}
+// Pastel fills handed out to subjects in name order, so up to five subjects never share a colour.
+const SUBJECT_FILLS = ["bg-tile-blue", "bg-tile-green", "bg-tile-yellow", "bg-tile-pink", "bg-tile-violet"];
+
+const teacherName = (t?: RefTeacher | null) =>
+  t?.userId?.name || [t?.userId?.firstName, t?.userId?.lastName].filter(Boolean).join(" ") || t?.staffId || "—";
+
+const sectionClass = (s: Section) => (typeof s.class === "string" ? s.class : s.class._id);
+
+type View = "class" | "teacher";
 
 type ModalState =
   | { mode: "add"; initialSlot?: { day: Weekday; periodId: string } }
   | { mode: "edit"; assignment: Assignment };
 
 export default function TimetablePage() {
+  const { role, user } = useAuth();
+  const isTeacher = role === "teacher";
+  // Assignment changes are admin-only on the server; everyone else just reads.
+  const canEdit = role === "admin";
+
   const [terms, setTerms] = useState<Term[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
@@ -46,7 +50,7 @@ export default function TimetablePage() {
   const [refLoading, setRefLoading] = useState(true);
   const [refError, setRefError] = useState("");
 
-  const [viewType, setViewType] = useState<"teacher" | "class">("teacher");
+  const [view, setView] = useState<View>(isTeacher ? "teacher" : "class");
   const [termId, setTermId] = useState("");
   const [teacherId, setTeacherId] = useState("");
   const [classId, setClassId] = useState("");
@@ -54,49 +58,29 @@ export default function TimetablePage() {
 
   const [periods, setPeriods] = useState<Period[]>([]);
   const [periodsLoading, setPeriodsLoading] = useState(false);
-
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
-
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  // Reference data â€” terms, classes, sections, subjects, teachers.
+  // Reference data — terms, classes, sections, subjects, teachers — in one go.
   useEffect(() => {
-    (async () => {
-      try {
-        setRefLoading(true);
-        const [termList, classList, sectionList, subjectList, teacherList] = await Promise.all([
-          academicApi.getTerms(),
-          academicApi.getClasses(),
-          academicApi.getSections(),
-          academicApi.getSubjects(),
-          teachersApi.getAll(),
-        ]);
+    Promise.all([academicApi.getTerms(), academicApi.getClasses(), academicApi.getSections(), academicApi.getSubjects(), teachersApi.getAll()])
+      .then(([termList, classList, sectionList, subjectList, teacherList]) => {
         setTerms(termList);
         setClasses(classList);
         setSections(sectionList);
         setSubjects(subjectList);
         setTeachers(teacherList);
-
-        const defaultTerm = termList.find((t) => t.status === "active") ?? termList[0];
-        if (defaultTerm) setTermId(defaultTerm._id);
-        if (teacherList[0]) setTeacherId(teacherList[0]._id);
-        if (classList[0]) {
-          setClassId(classList[0]._id);
-          const firstSection = sectionList.find(
-            (s) => (typeof s.class === "string" ? s.class : s.class._id) === classList[0]._id
-          );
-          if (firstSection) setSectionId(firstSection._id);
-        }
+        setTermId((termList.find((t) => t.status === "active") ?? termList[0])?._id ?? "");
+        // A teacher opens on their own week; everyone else on the first teacher/class.
+        const mine = teacherList.find((t) => t.userId?._id === user?.id);
+        setTeacherId((isTeacher ? mine : teacherList[0])?._id ?? "");
+        setClassId(classList[0]?._id ?? "");
         setRefError("");
-      } catch (err) {
-        console.error(err);
-        setRefError("Failed to load timetable reference data.");
-      } finally {
-        setRefLoading(false);
-      }
-    })();
-  }, []);
+      })
+      .catch(() => setRefError("Could not load the timetable."))
+      .finally(() => setRefLoading(false));
+  }, [isTeacher, user?.id]);
 
   // Periods are term-scoped.
   useEffect(() => {
@@ -110,288 +94,222 @@ export default function TimetablePage() {
     return () => { cancelled = true; };
   }, [termId]);
 
-  // Keep section in sync with class in Class View.
+  const classSections = useMemo(() => sections.filter((s) => sectionClass(s) === classId), [sections, classId]);
+
+  // Keep the section in step with the class (first section, or none if the class has none).
   useEffect(() => {
-    if (viewType !== "class" || !classId) return;
-    const stillValid = sections.some((s) => s._id === sectionId && (typeof s.class === "string" ? s.class : s.class._id) === classId);
-    if (stillValid) return;
-    const firstSection = sections.find((s) => (typeof s.class === "string" ? s.class : s.class._id) === classId);
-    setSectionId(firstSection?._id ?? "");
-  }, [viewType, classId, sections, sectionId]);
+    if (!classSections.some((s) => s._id === sectionId)) setSectionId(classSections[0]?._id ?? "");
+  }, [classSections, sectionId]);
 
   const loadAssignments = useCallback(async () => {
-    if (!termId) { setAssignments([]); return; }
-    if (viewType === "teacher" && !teacherId) { setAssignments([]); return; }
-    if (viewType === "class" && (!classId || !sectionId)) { setAssignments([]); return; }
-
+    if (!termId || (view === "teacher" && !teacherId) || (view === "class" && !classId)) { setAssignments([]); return; }
+    setAssignmentsLoading(true);
     try {
-      setAssignmentsLoading(true);
-      const data = await timetableApi.getAssignments(
-        viewType === "teacher" ? { termId, teacherId } : { termId, classId, sectionId }
-      );
-      setAssignments(data);
-    } catch (err) {
-      console.error(err);
+      setAssignments(await timetableApi.getAssignments(
+        view === "teacher" ? { termId, teacherId } : { termId, classId, sectionId: sectionId || undefined },
+      ));
+    } catch {
       setAssignments([]);
     } finally {
       setAssignmentsLoading(false);
     }
-  }, [termId, viewType, teacherId, classId, sectionId]);
+  }, [termId, view, teacherId, classId, sectionId]);
 
   useEffect(() => { loadAssignments(); }, [loadAssignments]);
 
   const selectedTerm = terms.find((t) => t._id === termId);
   const workingDays: Weekday[] = selectedTerm?.workingDays?.length ? selectedTerm.workingDays : WEEK_ORDER;
-  const days = WEEK_ORDER.Funnel((d) => workingDays.includes(d));
-  const offDays = WEEK_ORDER.Funnel((d) => !workingDays.includes(d));
+  const days = WEEK_ORDER.filter((d) => workingDays.includes(d));
   const sortedPeriods = useMemo(
     () => periods.slice().sort((a, b) => (Number(a.per_no) || 0) - (Number(b.per_no) || 0)),
-    [periods]
+    [periods],
   );
+  const todayName = WEEK_ORDER.find((d) => JS_DAY[d] === new Date().getDay());
 
-  const sectionsForClass = sections.Funnel((s) => (typeof s.class === "string" ? s.class : s.class._id) === classId);
-  const teacherOptions: TeacherOption[] = teachers.map((t) => ({ _id: t._id, label: t.userId?.name || t.staffId }));
+  // day|periodId -> assignment, built once per load instead of searched per cell.
+  const cellMap = useMemo(() => {
+    const map = new Map<string, Assignment>();
+    for (const a of assignments) for (const slot of a.timetableSlots) map.set(`${slot.day}|${slot.periodId?._id}`, a);
+    return map;
+  }, [assignments]);
 
-  const cellFor = (day: Weekday, periodId: string) => {
+  const lessons = assignments.reduce((n, a) => n + a.timetableSlots.filter((s) => days.includes(s.day)).length, 0);
+  const totalSlots = days.length * sortedPeriods.length;
+  const subjectTotals = useMemo(() => {
+    const m = new Map<string, number>();
     for (const a of assignments) {
-      const slot = a.timetableSlots.find((s) => s.day === day && s.periodId._id === periodId);
-      if (slot) return a;
+      const name = a.subjectId?.sub_name ?? "—";
+      m.set(name, (m.get(name) ?? 0) + a.timetableSlots.length);
     }
-    return null;
-  };
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [assignments]);
+  const fillBySubject = useMemo(
+    () => new Map(subjectTotals.map(([name]) => name).sort().map((name, i) => [name, SUBJECT_FILLS[i % SUBJECT_FILLS.length]])),
+    [subjectTotals],
+  );
+  const subjectFill = (name: string) => fillBySubject.get(name) ?? SUBJECT_FILLS[0];
 
-  const canCreate = viewType === "teacher" ? !!teacherId : !!(classId && sectionId);
-
+  const canCreate = canEdit && (view === "teacher" ? !!teacherId : !!classId);
   const openAdd = (day?: Weekday, periodId?: string) => {
     if (!termId || !canCreate) return;
     setModal({ mode: "add", initialSlot: day && periodId ? { day, periodId } : undefined });
   };
-  const openEdit = (assignment: Assignment) => setModal({ mode: "edit", assignment });
+  const teacherOptions: TeacherOption[] = teachers.map((t) => ({ _id: t._id, label: t.userId?.name || t.staffId }));
 
-  if (refLoading) return <div className="text-center py-24 text-gray-500">Loading timetable...</div>;
-  if (refError) return <div className="text-center py-24 text-red-500">{refError}</div>;
+  if (refLoading) return <div className="flex justify-center py-24"><SpinnerGap size={28} className="animate-spin text-primary" /></div>;
+  if (refError) return <p className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">{refError}</p>;
+
+  const filterLabel: { icon: Icon; text: string } = view === "teacher"
+    ? { icon: ChalkboardTeacher, text: teachers.find((t) => t._id === teacherId)?.userId?.name ?? "" }
+    : { icon: Student, text: [classes.find((c) => c._id === classId)?.cl_name, classSections.find((s) => s._id === sectionId)?.name].filter(Boolean).join(" · ") };
 
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
         title="Timetable"
-        subtitle="Weekly timetable for teachers and classes"
-        action={
-          <Button
-            onClick={() => openAdd()}
-            disabled={!termId || !canCreate}
-            className="gap-2 text-sm font-semibold"
-          >
-            <Plus size={16} /> Add Timetable Entry
+        subtitle={isTeacher ? "Your lessons for the week." : "Who teaches what, and when, for every class."}
+        action={canEdit ? (
+          <Button onClick={() => openAdd()} disabled={!termId || !canCreate} className="gap-2">
+            <Plus size={16} /> Add lesson
           </Button>
-        }
+        ) : undefined}
       />
 
-      {/* 4 Stat KPI Cards matching the Admin Dashboard standard */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-5">
-        <Card className="border-t-2 border-t-emerald-500 border-border/80 shadow-2xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Teaching Days</p>
-              <h4 className="text-2xl font-bold tracking-tight text-foreground mt-1">{days.length} Days</h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{days.length ? `${days[0]} â€“ ${days[days.length - 1]}` : "No schedule"}</p>
+      <Card className="rounded-2xl border-border/70 shadow-none">
+        <CardContent className="flex flex-wrap items-end gap-3 p-4">
+          {!isTeacher && (
+            <Tabs value={view} onValueChange={(v) => setView(v as View)}>
+              <TabsList>
+                <TabsTrigger value="class" className="gap-2"><Student size={16} /> By class</TabsTrigger>
+                <TabsTrigger value="teacher" className="gap-2"><ChalkboardTeacher size={16} /> By teacher</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          {terms.length > 1 && (
+            <div className="min-w-[160px] space-y-1.5">
+              <Label htmlFor="tt-term" className="text-xs">Term</Label>
+              <NativeSelect id="tt-term" value={termId} onChange={(e) => setTermId(e.target.value)}>
+                {terms.map((t) => <option key={t._id} value={t._id}>{termLabel(t)}</option>)}
+              </NativeSelect>
             </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-              <CalendarBlank size={18} />
+          )}
+          {view === "teacher" && !isTeacher && (
+            <div className="min-w-[200px] space-y-1.5">
+              <Label htmlFor="tt-teacher" className="text-xs">Teacher</Label>
+              <NativeSelect id="tt-teacher" value={teacherId} onChange={(e) => setTeacherId(e.target.value)}>
+                {teachers.length === 0 && <option value="">No teachers yet</option>}
+                {teachers.map((t) => <option key={t._id} value={t._id}>{t.userId?.name || t.staffId}</option>)}
+              </NativeSelect>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-t-2 border-t-sky-500 border-border/80 shadow-2xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Periods Per Day</p>
-              <h4 className="text-2xl font-bold tracking-tight text-foreground mt-1">{sortedPeriods.length} Periods</h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Active daily schedule</p>
-            </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60">
-              <Clock size={18} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-t-2 border-t-indigo-500 border-border/80 shadow-2xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Scheduled Slots</p>
-              <h4 className="text-2xl font-bold tracking-tight text-foreground mt-1">
-                {assignments.reduce((acc, a) => acc + (a.timetableSlots?.length || 0), 0)} Slots
-              </h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">In current selection</p>
-            </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60">
-              <BookOpen size={18} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-t-2 border-t-rose-500 border-border/80 shadow-2xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{offDays.length === 1 ? "Day Off" : "Days Off"}</p>
-              <h4 className="text-base font-bold tracking-tight text-foreground truncate max-w-[130px] mt-1">
-                {offDays.length ? offDays.join(", ") : "None"}
-              </h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{offDays.length ? "Weekend / recess" : "7 days active"}</p>
-            </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60">
-              <CalendarX size={18} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters Bar */}
-      <Card className="mb-5 border-border/80 shadow-2xs">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <FilterSelect
-              label="View Type"
-              value={viewType}
-              onChange={(v) => setViewType(v as "teacher" | "class")}
-              options={[{ value: "teacher", label: "Teacher View" }, { value: "class", label: "Class View" }]}
-              className="min-w-[160px]"
-            />
-
-            <FilterSelect
-              label="Academic Term"
-              value={termId}
-              onChange={setTermId}
-              options={terms.length ? terms.map((t) => ({ value: t._id, label: termLabel(t) })) : [{ value: "", label: "No terms yet" }]}
-              className="min-w-[180px]"
-            />
-
-            {viewType === "teacher" && (
-              <FilterSelect
-                label="Assigned Teacher"
-                value={teacherId}
-                onChange={setTeacherId}
-                options={teachers.length ? teachers.map((t) => ({ value: t._id, label: t.userId?.name || t.staffId })) : [{ value: "", label: "No teachers yet" }]}
-                className="min-w-[200px]"
-              />
-            )}
-
-            {viewType === "class" && (
-              <>
-                <FilterSelect
-                  label="Target Class"
-                  value={classId}
-                  onChange={setClassId}
-                  options={classes.length ? classes.map((c) => ({ value: c._id, label: c.cl_name })) : [{ value: "", label: "No classes yet" }]}
-                  className="min-w-[160px]"
-                />
-                <FilterSelect
-                  label="Section Division"
-                  value={sectionId}
-                  onChange={setSectionId}
-                  options={sectionsForClass.length ? sectionsForClass.map((s) => ({ value: s._id, label: s.name })) : [{ value: "", label: "No sections yet" }]}
-                  className="min-w-[160px]"
-                />
-              </>
-            )}
-          </div>
+          )}
+          {view === "class" && (
+            <>
+              <div className="min-w-[160px] space-y-1.5">
+                <Label htmlFor="tt-class" className="text-xs">Class</Label>
+                <NativeSelect id="tt-class" value={classId} onChange={(e) => setClassId(e.target.value)}>
+                  {classes.length === 0 && <option value="">No classes yet</option>}
+                  {classes.map((c) => <option key={c._id} value={c._id}>{c.cl_name}</option>)}
+                </NativeSelect>
+              </div>
+              {classSections.length > 0 && (
+                <div className="min-w-[120px] space-y-1.5">
+                  <Label htmlFor="tt-section" className="text-xs">Section</Label>
+                  <NativeSelect id="tt-section" value={sectionId} onChange={(e) => setSectionId(e.target.value)}>
+                    {classSections.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+                  </NativeSelect>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
+      <StatStrip items={[
+        { label: "Lessons a week", value: lessons, icon: BookOpen, tone: "sky", hint: filterLabel.text || "Selected timetable" },
+        { label: "Subjects", value: subjectTotals.length, icon: ChalkboardTeacher, tone: "violet", hint: subjectTotals[0] ? `Most: ${subjectTotals[0][0]}` : "None scheduled" },
+        { label: "Free periods", value: Math.max(0, totalSlots - lessons), icon: Clock, tone: "amber", hint: `of ${totalSlots} in the week` },
+        { label: "School days", value: days.length, icon: CalendarBlank, tone: "emerald", hint: days.length ? `${days[0].slice(0, 3)} – ${days[days.length - 1].slice(0, 3)}` : "Set in the term" },
+      ]} />
+
       {!termId ? (
-        <Card className="border-border/80 p-12 text-center text-sm text-muted-foreground shadow-2xs">
-          Create an academic term under Academic Structure first to activate timetable scheduling.
+        <Card className="rounded-2xl border-border/70 p-12 text-center text-sm text-muted-foreground shadow-none">
+          Create a term in Academic Structure to start the timetable.
         </Card>
       ) : periodsLoading ? (
-        <Card className="border-border/80 p-12 text-center text-sm text-muted-foreground shadow-2xs">
-          Loading timetable periods...
-        </Card>
+        <div className="flex justify-center py-16"><SpinnerGap size={24} className="animate-spin text-primary" /></div>
       ) : sortedPeriods.length === 0 ? (
-        <Card className="border-border/80 p-12 text-center text-sm text-amber-600 dark:text-amber-400 shadow-2xs">
-          This term has no periods defined yet â€” configure timetable periods under Academic Structure first.
+        <Card className="rounded-2xl border-warning/20 bg-warning/10 p-8 text-center text-sm text-warning shadow-none">
+          This term has no periods yet. Add them in Academic Structure → Periods.
         </Card>
       ) : (
-        <Card className="overflow-x-auto border-border/80 shadow-2xs">
-          <Table className="w-full">
-            <TableHeader>
-              <TableRow className="border-b border-border/60 bg-muted/20">
-                <TableHead className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground min-w-[140px]">Period</TableHead>
-                {days.map((day) => (
-                  <TableHead key={day} className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground min-w-[130px]">{day}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <Card className="overflow-hidden rounded-2xl border-border/70 shadow-none">
+          <div className="overflow-x-auto">
+            <div className={cn("grid min-w-[760px]", assignmentsLoading && "opacity-60")}
+              style={{ gridTemplateColumns: `120px repeat(${days.length}, minmax(110px, 1fr))` }}>
+              {/* Header row */}
+              <div className="border-b border-border bg-muted/50 px-3 py-3 text-xs font-medium text-muted-foreground">Period</div>
+              {days.map((day) => (
+                <div key={day} className={cn("border-b border-l border-border px-3 py-3 text-sm font-semibold", day === todayName ? "bg-primary/10 text-primary" : "bg-muted/50 text-foreground")}>
+                  {day}
+                  {day === todayName && <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">Today</span>}
+                </div>
+              ))}
+
+              {/* One row per period */}
               {sortedPeriods.map((period) => (
-                <TableRow key={period._id} className="border-b border-border/40 transition-colors hover:bg-muted/30">
-                  <TableCell className="whitespace-nowrap bg-muted/20 py-3 px-4 font-medium">
-                    <div className="text-sm font-semibold text-foreground">{period.per_name}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{period.time_in} - {period.time_out}</div>
-                  </TableCell>
-
+                <div key={period._id} className="contents">
+                  <div className="border-b border-border px-3 py-2.5">
+                    <p className="text-sm font-semibold">{period.per_name}</p>
+                    <p className="text-xs tabular-nums text-muted-foreground">{period.time_in}–{period.time_out}</p>
+                  </div>
                   {days.map((day) => {
-                    const assignment = cellFor(day, period._id);
-                    const cellKey = `${day}-${period._id}`;
-
-                    if (assignmentsLoading) {
-                      return <TableCell key={cellKey} className="p-2"><span className="text-muted-foreground/50">â€¦</span></TableCell>;
-                    }
-
-                    if (!assignment) {
-                      return (
-                        <TableCell key={cellKey} className="p-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => openAdd(day, period._id)}
-                            disabled={!canCreate}
-                            className="flex h-full min-h-[58px] w-full items-center justify-center rounded-lg border border-dashed border-border/70 text-muted-foreground/40 hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all disabled:cursor-not-allowed disabled:hover:border-border/70 disabled:hover:bg-transparent"
-                            title={canCreate ? "Add timetable entry" : undefined}
-                          >
-                            <Plus size={15} />
-                          </Button>
-                        </TableCell>
-                      );
-                    }
-
+                    const a = cellMap.get(`${day}|${period._id}`);
+                    const today = day === todayName;
                     return (
-                      <TableCell key={cellKey} className="p-2">
-                        <Button
-                          variant="plain"
-                          type="button"
-                          onClick={() => openEdit(assignment)}
-                          className={`h-auto min-h-[58px] w-full flex-col justify-center rounded-lg p-2.5 text-center font-normal ${badgeColor(assignment.subjectId?.sub_name || "")} shadow-2xs hover:shadow-xs transition-all hover:Scales-[1.01]`}
-                        >
-                          <p className="font-bold text-xs leading-snug">{assignment.subjectId?.sub_name || "â€”"}</p>
-                          {viewType === "teacher" ? (
-                            <p className="text-[11px] opacity-80 mt-1">{assignment.classId?.cl_name} &middot; {assignment.sectionId?.name}</p>
-                          ) : (
-                            <p className="text-[11px] opacity-80 mt-1">{assignment.teacherId?.userId?.name || "â€”"}</p>
-                          )}
-                        </Button>
-                      </TableCell>
+                      <div key={day} className={cn("border-b border-l border-border p-1.5", today && "bg-primary/[0.04]")}>
+                        {a ? (
+                          <Button variant="plain" type="button" onClick={() => canEdit && setModal({ mode: "edit", assignment: a })}
+                            className={cn("flex h-full min-h-[56px] w-full flex-col items-start justify-center rounded-lg px-2.5 py-2 text-left text-tile-foreground", subjectFill(a.subjectId?.sub_name ?? ""), canEdit ? "hover:brightness-95" : "cursor-default")}>
+                            <span className="w-full truncate text-xs font-semibold">{a.subjectId?.sub_name ?? "—"}</span>
+                            <span className="w-full truncate text-[11px] opacity-75">
+                              {view === "teacher" ? `${a.classId?.cl_name ?? ""}${a.sectionId?.name ? ` · ${a.sectionId.name}` : ""}` : teacherName(a.teacherId)}
+                            </span>
+                          </Button>
+                        ) : canCreate ? (
+                          <Button variant="plain" type="button" onClick={() => openAdd(day, period._id)} aria-label={`Add a lesson on ${day}, ${period.per_name}`}
+                            className="group flex h-full min-h-[56px] w-full items-center justify-center rounded-lg text-muted-foreground/0 transition-colors hover:bg-muted hover:text-muted-foreground">
+                            <Plus size={14} />
+                          </Button>
+                        ) : (
+                          <div className="min-h-[56px]" />
+                        )}
+                      </div>
                     );
                   })}
-                </TableRow>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          </div>
+
+          {subjectTotals.length > 0 && (
+            <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+              {subjectTotals.map(([name, n]) => (
+                <span key={name} className={cn("rounded-full px-2.5 py-1 text-xs font-medium text-tile-foreground", subjectFill(name))}>
+                  {name} · {n}/week
+                </span>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
       {modal && (
         <AssignmentFormModal
           mode={modal.mode}
-          teacherId={
-            modal.mode === "edit"
-              ? modal.assignment.teacherId._id
-              : viewType === "teacher"
-              ? teacherId
-              : undefined
-          }
-          teacherOptions={modal.mode === "add" && viewType === "class" ? teacherOptions : undefined}
-          lockedClassId={viewType === "class" ? classId : undefined}
-          lockedSectionId={viewType === "class" ? sectionId : undefined}
+          teacherId={modal.mode === "edit" ? modal.assignment.teacherId._id : view === "teacher" ? teacherId : undefined}
+          teacherOptions={modal.mode === "add" && view === "class" ? teacherOptions : undefined}
+          lockedClassId={view === "class" ? classId : undefined}
+          lockedSectionId={view === "class" ? sectionId : undefined}
           lockedTermId={termId}
           initialSlot={modal.mode === "add" ? modal.initialSlot : undefined}
           initial={modal.mode === "edit" ? modal.assignment : undefined}

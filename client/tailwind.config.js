@@ -19,6 +19,18 @@ export default {
         accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
         popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
+        success: { DEFAULT: 'hsl(var(--success) / <alpha-value>)', foreground: 'hsl(var(--success-foreground))' },
+        warning: { DEFAULT: 'hsl(var(--warning) / <alpha-value>)', foreground: 'hsl(var(--warning-foreground))' },
+        info: { DEFAULT: 'hsl(var(--info) / <alpha-value>)', foreground: 'hsl(var(--info-foreground))' },
+        violet: { DEFAULT: 'hsl(var(--violet) / <alpha-value>)', foreground: 'hsl(var(--violet-foreground))' },
+        tile: {
+          pink: 'hsl(var(--tile-pink) / <alpha-value>)',
+          yellow: 'hsl(var(--tile-yellow) / <alpha-value>)',
+          blue: 'hsl(var(--tile-blue) / <alpha-value>)',
+          violet: 'hsl(var(--tile-violet) / <alpha-value>)',
+          green: 'hsl(var(--tile-green) / <alpha-value>)',
+          foreground: 'hsl(var(--tile-foreground) / <alpha-value>)',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

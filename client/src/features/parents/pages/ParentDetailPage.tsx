@@ -70,7 +70,7 @@ function AssignStudentModal({ parentId, onClose, onAssigned }: { parentId: strin
               <option value="" disabled>Select a student</option>
               {students.map((s) => (
                 <option key={s._id} value={s._id}>
-                  {s.firstName} {s.lastName} â€” {s.admissionNumber}
+                  {s.firstName} {s.lastName} — {s.admissionNumber}
                 </option>
               ))}
             </NativeSelect>
@@ -149,56 +149,56 @@ function SiblingRulesPanel() {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5">
+    <div className="bg-card rounded-xl border border-border p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Percent size={16} className="text-orange-500" />
-          <h3 className="text-sm font-semibold text-gray-900">Sibling Discount Rules</h3>
+          <Percent size={16} className="text-warning" />
+          <h3 className="text-sm font-semibold text-foreground">Sibling Discount Rules</h3>
         </div>
-        <Button variant="plain" onClick={() => setShowAdd((v) => !v)} className="flex items-center gap-1.5 text-xs font-semibold text-green-700 hover:text-green-800">
+        <Button variant="plain" onClick={() => setShowAdd((v) => !v)} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary">
           <Plus size={14} /> Add Rule
         </Button>
       </div>
 
       {showAdd && (
-        <form onSubmit={handleAdd} className="grid grid-cols-3 gap-3 mb-4 bg-gray-50 rounded-lg p-3">
+        <form onSubmit={handleAdd} className="grid grid-cols-3 gap-3 mb-4 bg-muted/50 rounded-lg p-3">
           <Input required placeholder="Rule name" value={ruleName} onChange={(e) => setRuleName(e.target.value)}
-            className="col-span-3 border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            className="col-span-3 border border-border rounded-lg px-3 py-2 text-sm" />
           <div>
-            <label className="text-xs text-gray-500">Min. siblings</label>
+            <label className="text-xs text-muted-foreground">Min. siblings</label>
             <Input required type="number" min={2} value={minSiblings} onChange={(e) => setMinSiblings(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-gray-500">Discount %</label>
+            <label className="text-xs text-muted-foreground">Discount %</label>
             <Input required type="number" min={0} max={100} value={discountPct} onChange={(e) => setDiscountPct(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm" />
           </div>
-          <Button variant="plain" type="submit" disabled={submitting} className="self-end bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg px-3 py-2">
+          <Button variant="plain" type="submit" disabled={submitting} className="self-end bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground text-sm font-semibold rounded-lg px-3 py-2">
             {submitting ? "Saving..." : "Save"}
           </Button>
         </form>
       )}
 
-      {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
+      {error && <p className="text-sm text-destructive mb-3">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-gray-400">Loading...</p>
+        <p className="text-sm text-muted-foreground">Loading...</p>
       ) : rules.length === 0 ? (
-        <p className="text-sm text-gray-400">No sibling discount rules configured yet.</p>
+        <p className="text-sm text-muted-foreground">No sibling discount rules configured yet.</p>
       ) : (
         <div className="space-y-2">
           {rules.map((r) => (
-            <div key={r._id} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2">
+            <div key={r._id} className="flex items-center justify-between border border-border rounded-lg px-3 py-2">
               <div>
-                <p className="text-sm font-medium text-gray-800">{r.rule_name}</p>
-                <p className="text-xs text-gray-400">{r.minimum_siblings}+ siblings â†’ {r.discount_percentage}% off</p>
+                <p className="text-sm font-medium text-foreground">{r.rule_name}</p>
+                <p className="text-xs text-muted-foreground">{r.minimum_siblings}+ siblings → {r.discount_percentage}% off</p>
               </div>
               <div className="flex items-center gap-3">
-                <Button variant="plain" onClick={() => toggleActive(r)} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${r.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                <Button variant="plain" onClick={() => toggleActive(r)} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${r.is_active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
                   {r.is_active ? "Active" : "Inactive"}
                 </Button>
-                <Button variant="plain" onClick={() => remove(r)} className="text-gray-400 hover:text-red-500"><Trash size={15} /></Button>
+                <Button variant="plain" onClick={() => remove(r)} className="text-muted-foreground hover:text-destructive"><Trash size={15} /></Button>
               </div>
             </div>
           ))}
@@ -237,64 +237,64 @@ export default function ParentDetailPage() {
     load();
   }
 
-  if (loading) return <div className="text-center py-12 text-gray-400 text-sm">Loading...</div>;
-  if (error || !detail) return <div className="text-center py-12 text-red-500 text-sm">{error || "Not found"}</div>;
+  if (loading) return <div className="text-center py-12 text-muted-foreground text-sm">Loading...</div>;
+  if (error || !detail) return <div className="text-center py-12 text-destructive text-sm">{error || "Not found"}</div>;
 
   const { parent, children, discountPercent } = detail;
 
   return (
     <div className="space-y-6">
-      <Button variant="plain" onClick={() => navigate("/parents")} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+      <Button variant="plain" onClick={() => navigate("/parents")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground/80">
         <ArrowLeft size={16} /> Back to Parents
       </Button>
 
-      <div className="bg-white rounded-xl border border-gray-100 p-6 flex items-start justify-between">
+      <div className="bg-card rounded-xl border border-border p-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{parent.name}</h1>
-          <p className="text-sm text-gray-500 mt-1">{parent.relationship} â€¢ {parent.phone}{parent.email ? ` â€¢ ${parent.email}` : ""}</p>
+          <h1 className="text-2xl font-bold text-foreground">{parent.name}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{parent.relationship} • {parent.phone}{parent.email ? ` • ${parent.email}` : ""}</p>
           {discountPercent > 0 && (
-            <span className="inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+            <span className="inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary">
               {discountPercent}% sibling discount applies to this household
             </span>
           )}
         </div>
         <Button variant="plain"
           onClick={() => setShowAssign(true)}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold"
+          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-semibold"
         >
           <UserPlus size={16} /> Assign a Student
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Children ({children.length})</h2>
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-foreground">Children ({children.length})</h2>
         </div>
         <div className="overflow-x-auto">
           <Table className="w-full text-sm">
             <TableHeader>
-              <TableRow className="border-b border-gray-100 bg-gray-50">
-                <TableHead className="text-left font-semibold text-gray-600 px-6 py-3">Name</TableHead>
-                <TableHead className="text-left font-semibold text-gray-600 px-4 py-3">Admission No.</TableHead>
-                <TableHead className="text-left font-semibold text-gray-600 px-4 py-3">Class</TableHead>
-                <TableHead className="text-left font-semibold text-gray-600 px-4 py-3">Status</TableHead>
-                <TableHead className="text-left font-semibold text-gray-600 px-4 py-3">Actions</TableHead>
+              <TableRow className="border-b border-border bg-muted/50">
+                <TableHead className="text-left font-semibold text-muted-foreground px-6 py-3">Name</TableHead>
+                <TableHead className="text-left font-semibold text-muted-foreground px-4 py-3">Admission No.</TableHead>
+                <TableHead className="text-left font-semibold text-muted-foreground px-4 py-3">Class</TableHead>
+                <TableHead className="text-left font-semibold text-muted-foreground px-4 py-3">Status</TableHead>
+                <TableHead className="text-left font-semibold text-muted-foreground px-4 py-3">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {children.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-10 text-gray-400 text-sm">No students assigned yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground text-sm">No students assigned yet.</TableCell></TableRow>
               ) : (
                 children.map((child) => (
-                  <TableRow key={child._id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <TableCell className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                      <Link to={`/students/${child._id}`} className="hover:text-green-600">{child.firstName} {child.lastName}</Link>
+                  <TableRow key={child._id} className="border-b border-border hover:bg-muted/50">
+                    <TableCell className="px-6 py-4 font-medium text-foreground whitespace-nowrap">
+                      <Link to={`/students/${child._id}`} className="hover:text-primary">{child.firstName} {child.lastName}</Link>
                     </TableCell>
-                    <TableCell className="px-4 py-4 text-gray-600 whitespace-nowrap">{child.admissionNumber}</TableCell>
-                    <TableCell className="px-4 py-4 text-gray-600 whitespace-nowrap">{child.classId?.cl_name || "â€”"}</TableCell>
-                    <TableCell className="px-4 py-4 text-gray-600 whitespace-nowrap">{child.status}</TableCell>
+                    <TableCell className="px-4 py-4 text-muted-foreground whitespace-nowrap">{child.admissionNumber}</TableCell>
+                    <TableCell className="px-4 py-4 text-muted-foreground whitespace-nowrap">{child.classId?.cl_name || "—"}</TableCell>
+                    <TableCell className="px-4 py-4 text-muted-foreground whitespace-nowrap">{child.status}</TableCell>
                     <TableCell className="px-4 py-4 whitespace-nowrap">
-                      <Button variant="plain" onClick={() => handleRemoveChild(child._id)} className="text-gray-500 hover:text-red-600 text-sm font-medium">
+                      <Button variant="plain" onClick={() => handleRemoveChild(child._id)} className="text-muted-foreground hover:text-destructive text-sm font-medium">
                         Remove
                       </Button>
                     </TableCell>

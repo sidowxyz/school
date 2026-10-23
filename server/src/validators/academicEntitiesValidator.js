@@ -33,29 +33,6 @@ export const createCourseClassSchema = z.object({
 });
 export const updateCourseClassSchema = createCourseClassSchema.partial();
 
-// ExamReg Schemas
-export const createExamRegSchema = z.object({
-  ex_r_no: z.string().min(1, 'ExamReg number (ex_r_no) is required'),
-  ex_no: objectIdSchema,
-  y_no: objectIdSchema,
-  started: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid start date' }).optional(),
-  ended: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid end date' }).optional(),
-  total_marks: z.number().min(0, 'Total marks must be non-negative').optional()
-});
-export const updateExamRegSchema = createExamRegSchema.partial();
-
-// Result Schemas
-export const createResultSchema = z.object({
-  res_no: z.string().min(1, 'Result number (res_no) is required'),
-  ex_r_no: objectIdSchema,
-  cc_no: objectIdSchema,
-  id: objectIdSchema,
-  marks: z.number().min(0, 'Marks must be non-negative').optional(),
-  grade: z.string().optional(),
-  remarks: z.string().optional()
-});
-export const updateResultSchema = createResultSchema.partial();
-
 // Syllabus Schemas
 export const createSyllabusSchema = z.object({
   syllabus_no: z.string().min(1, 'Syllabus number is required'),

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import FixedAsset from '../models/FixedAsset.js';
 import ChartOfAccount from '../models/ChartOfAccount.js';
 import { postJournalEntry } from '../services/journalService.js';
+import { abortTransaction, commitTransaction, startTransaction } from '../utils/transaction.js';
 
 export const getFixedAssets = async (req, res) => {
   try {
@@ -27,7 +28,7 @@ export const getFixedAssets = async (req, res) => {
 
 export const createFixedAsset = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
+  await startTransaction(session);
 
   try {
     const {
@@ -45,7 +46,7 @@ export const createFixedAsset = async (req, res) => {
     } = req.body;
 
     if (!purchaseCost || purchaseCost <= 0) {
-      await session.abortTransaction();
+      await abortTransaction(session);
       session.endSession();
       return res.status(400).json({ success: false, message: 'Purchase cost must be greater than 0' });
     }
@@ -110,12 +111,12 @@ export const createFixedAsset = async (req, res) => {
       }
     }
 
-    await session.commitTransaction();
+    await commitTransaction(session);
     session.endSession();
 
     res.status(201).json({ success: true, message: 'Fixed asset created successfully', data: asset });
   } catch (error) {
-    await session.abortTransaction();
+    await abortTransaction(session);
     session.endSession();
     res.status(500).json({ success: false, message: error.message });
   }
@@ -123,19 +124,19 @@ export const createFixedAsset = async (req, res) => {
 
 export const runDepreciation = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
+  await startTransaction(session);
 
   try {
     const { assetId } = req.params;
     const asset = await FixedAsset.findById(assetId).session(session);
     if (!asset) {
-      await session.abortTransaction();
+      await abortTransaction(session);
       session.endSession();
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }
 
     if (asset.currentBookValue <= asset.salvageValue) {
-      await session.abortTransaction();
+      await abortTransaction(session);
       session.endSession();
       return res.status(400).json({ success: false, message: 'Asset is already fully depreciated' });
     }
@@ -165,7 +166,7 @@ export const runDepreciation = async (req, res) => {
       session,
     });
 
-    await session.commitTransaction();
+    await commitTransaction(session);
     session.endSession();
 
     res.json({
@@ -174,7 +175,7 @@ export const runDepreciation = async (req, res) => {
       data: asset,
     });
   } catch (error) {
-    await session.abortTransaction();
+    await abortTransaction(session);
     session.endSession();
     res.status(500).json({ success: false, message: error.message });
   }

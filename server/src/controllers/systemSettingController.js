@@ -1,7 +1,6 @@
 import SystemSetting from '../models/SystemSetting.js';
 import Year from '../models/Year.js';
 import Term from '../models/Term.js';
-import Exam from '../models/Exam.js';
 import mongoose from 'mongoose';
 
 const getOrCreateSettings = async () => {
@@ -69,7 +68,7 @@ export const uploadSchoolLogo = async (req, res, next) => {
 };
 
 // GET /api/v1/settings/academic-calendar
-// Consolidates real Academic Structure, Examination and Settings data.
+// Consolidates real Academic Structure and Settings data.
 export const getAcademicCalendar = async (req, res, next) => {
   try {
     const now = new Date();
@@ -104,12 +103,6 @@ export const getAcademicCalendar = async (req, res, next) => {
       .map((term) => new Date(term.endDate))
       .sort((a, b) => b - a)[0] || null;
 
-    const examFilter = selectedYearId ? { academic_year_id: selectedYearId } : {};
-    const exams = await Exam.find(examFilter)
-      .select('ex_name exam_date description batch_id')
-      .sort({ exam_date: 1 })
-      .lean();
-
     const events = [];
     if (sessionStart) events.push({
       id: `session-start-${selectedYearId}`,
@@ -129,14 +122,6 @@ export const getAcademicCalendar = async (req, res, next) => {
     terms.forEach((term) => {
       if (term.startDate) events.push({ id: `term-start-${term._id}`, title: `${term.name} Begins`, date: term.startDate, type: 'term', source: 'academic-structure' });
       if (term.endDate) events.push({ id: `term-end-${term._id}`, title: `${term.name} Ends`, date: term.endDate, type: 'term', source: 'academic-structure' });
-    });
-
-    const seenExams = new Set();
-    exams.forEach((exam) => {
-      const key = `${exam.batch_id || exam.ex_name}-${new Date(exam.exam_date).toISOString().slice(0, 10)}`;
-      if (seenExams.has(key)) return;
-      seenExams.add(key);
-      events.push({ id: `exam-${exam._id}`, title: exam.ex_name, date: exam.exam_date, type: 'exam', source: 'examinations', description: exam.description || '' });
     });
 
     settings.holidays

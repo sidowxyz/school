@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const ROLES: UserRole[] = ["admin", "principal", "academic_officer", "teacher", "accountant", "student", "parent", "librarian"];
+const ROLES: UserRole[] = ["admin", "principal", "academic_officer", "teacher", "accountant", "student", "parent"];
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Admin",
@@ -29,7 +29,6 @@ const ROLE_LABELS: Record<UserRole, string> = {
   accountant: "Accountant",
   student: "Student",
   parent: "Parent",
-  librarian: "Librarian",
 };
 
 function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -67,7 +66,7 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           <DialogDescription>
             {created
               ? "The account has been created and can log in now."
-              : "For staff roles without their own creation flow (principal, accountant, librarian, academic officer, admin)"}
+              : "For staff roles without their own creation flow (principal, accountant, academic officer, admin)"}
           </DialogDescription>
         </DialogHeader>
 
@@ -107,7 +106,7 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
             </div>
 
             <p className="text-[11px] text-muted-foreground">
-              A temporary login password is generated automatically â€” you'll see it once, right after saving.
+              A temporary login password is generated automatically — you'll see it once, right after saving.
             </p>
 
             {error && (
@@ -142,7 +141,7 @@ export default function UserListPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const { users: list } = await usersApi.getAll({ limit: 200, search: MagnifyingGlass || undefined, role: roleFilter || undefined });
+      const { users: list } = await usersApi.getAll({ limit: 200, search: search || undefined, role: roleFilter || undefined });
       setUsers(list);
       setError("");
     } catch (err) {
@@ -172,7 +171,7 @@ export default function UserListPage() {
     <div className="space-y-6">
       <PageHeader
         title="User Management"
-        subtitle="Manage all system accounts and their roles â€” teachers, parents, and students already get accounts through their own pages; use this for principal, accountant, librarian, academic officer, and admin accounts"
+        subtitle="Manage all system accounts and their roles — teachers, parents, and students already get accounts through their own pages; use this for principal, accountant, academic officer, and admin accounts"
         action={
           <Button onClick={() => setShowAdd(true)} className="gap-2">
             <Plus size={16} /> Add User
@@ -186,7 +185,7 @@ export default function UserListPage() {
           <Input
             type="text"
             placeholder="Search by name or email..."
-            value={MagnifyingGlass}
+            value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-10 text-xs"
           />

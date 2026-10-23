@@ -19,9 +19,9 @@ export default function SuccessModal({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="w-[420px] text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-          <ClipboardText className="h-8 w-8 text-green-600" />
+      <DialogContent centered className="w-[420px] text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/15">
+          <ClipboardText className="h-8 w-8 text-primary" />
         </div>
         <DialogTitle className="mt-5 text-2xl">{title}</DialogTitle>
         <DialogDescription className="mt-2">{description}</DialogDescription>

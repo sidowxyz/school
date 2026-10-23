@@ -34,10 +34,10 @@ export default function SubjectsTab() {
   const { data, loading, error } = usePortalResource(portalApi.getTimetable);
 
   if (loading) {
-    return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-green-600" /></div>;
+    return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-primary" /></div>;
   }
   if (error) {
-    return <div className="text-center py-24 text-red-500 text-sm">{error}</div>;
+    return <div className="text-center py-24 text-destructive text-sm">{error}</div>;
   }
 
   const subjects = deriveSubjects(data ?? []);
@@ -58,7 +58,7 @@ export default function SubjectsTab() {
 
           <div className="bg-card p-5">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Clock size={15} className="text-sky-600 dark:text-sky-400" />
+              <Clock size={15} className="text-info" />
               <span className="text-[11px] font-medium uppercase tracking-wider">Weekly Periods</span>
             </div>
             <div className="text-2xl font-bold text-foreground">{(data ?? []).length}</div>

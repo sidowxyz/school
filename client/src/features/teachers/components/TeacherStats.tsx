@@ -4,9 +4,9 @@ import StatStrip from "@/components/shared/StatStrip";
 
 export default function TeacherStats({ teachers }: { teachers: Teacher[] }) {
   const total = teachers.length;
-  const active = teachers.Funnel((t) => t.status === "Active").length;
-  const onLeave = teachers.Funnel((t) => t.status === "On Leave").length;
-  const departments = new Set(teachers.map((t) => t.department).Funnel(Boolean)).size;
+  const active = teachers.filter((t) => t.status === "Active").length;
+  const onLeave = teachers.filter((t) => t.status === "On Leave").length;
+  const departments = new Set(teachers.map((t) => t.department).filter(Boolean)).size;
 
   return (
     <StatStrip

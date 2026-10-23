@@ -1,17 +1,17 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
+import { SpinnerGap,
   Plus,
   MagnifyingGlass,
   DownloadSimple,
-  LayoutGrid,
+  SquaresFour,
   List,
   ArrowCounterClockwise,
   X,
   GraduationCap,
   Envelope,
   Buildings,
-  ExternalLink,
+  ArrowSquareOut,
   Users,
 } from '@phosphor-icons/react';
 
@@ -77,7 +77,7 @@ export default function TeacherListPage() {
   }, [teachers]);
 
   const filteredTeachers = useMemo(() => {
-    return teachers.Funnel((teacher) => {
+    return teachers.filter((teacher) => {
       const term = searchTerm.toLowerCase().trim();
       const name = teacher.userId?.name || "";
       const email = teacher.userId?.email || "";
@@ -128,14 +128,14 @@ export default function TeacherListPage() {
       case "Active":
         return (
           <Badge variant="success" className="text-[11px] font-medium gap-1.5 py-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-success" />
             Active
           </Badge>
         );
       case "On Leave":
         return (
           <Badge variant="warning" className="text-[11px] font-medium gap-1.5 py-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-warning" />
             On Leave
           </Badge>
         );
@@ -177,11 +177,11 @@ export default function TeacherListPage() {
       {/* KPI Stats Strip */}
       <TeacherStats teachers={teachers} />
 
-      {/* Main Unified Card: MagnifyingGlass, Filters & Faculty Records */}
+      {/* Main Unified Card: search, Filters & Faculty Records */}
       {loading ? (
         <Card className="p-12 text-center border-border">
           <div className="flex flex-col items-center justify-center space-y-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <SpinnerGap size={32} className="animate-spin text-primary" />
             <p className="text-xs text-muted-foreground">Loading teacher records...</p>
           </div>
         </Card>
@@ -194,7 +194,7 @@ export default function TeacherListPage() {
         </Card>
       ) : (
         <Card className="overflow-hidden border border-border shadow-xs">
-          {/* Combined Header with Title, Badge, MagnifyingGlass, Filters & View Switcher */}
+          {/* Combined Header with Title, Badge, search, Filters & View Switcher */}
           <CardHeader className="py-3 px-4 border-b">
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -207,7 +207,7 @@ export default function TeacherListPage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-start lg:justify-end gap-2 flex-1">
-                {/* MagnifyingGlass */}
+                {/* Search */}
                 <div className="relative flex-1 min-w-[200px] max-w-xs">
                   <MagnifyingGlass
                     size={14}
@@ -221,17 +221,17 @@ export default function TeacherListPage() {
                     className="pl-9 pr-8 h-9 text-xs"
                   />
                   {searchTerm && (
-                    <button
+                    <Button variant="plain"
                       type="button"
                       onClick={() => setSearchTerm("")}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       <X size={13} />
-                    </button>
+                    </Button>
                   )}
                 </div>
 
-                {/* Department Funnel */}
+                {/* Department Filter */}
                 <NativeSelect
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
@@ -245,7 +245,7 @@ export default function TeacherListPage() {
                   ))}
                 </NativeSelect>
 
-                {/* Status Funnel */}
+                {/* Status Filter */}
                 <NativeSelect
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
@@ -271,7 +271,7 @@ export default function TeacherListPage() {
 
                 {/* View Switcher */}
                 <div className="flex items-center border border-border rounded-lg p-0.5 bg-muted/40 ml-auto lg:ml-0">
-                  <button
+                  <Button variant="plain"
                     type="button"
                     onClick={() => setViewMode("table")}
                     className={`p-1.5 rounded-md transition-colors ${
@@ -282,8 +282,8 @@ export default function TeacherListPage() {
                     title="Table View"
                   >
                     <List size={15} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="plain"
                     type="button"
                     onClick={() => setViewMode("grid")}
                     className={`p-1.5 rounded-md transition-colors ${
@@ -293,8 +293,8 @@ export default function TeacherListPage() {
                     }`}
                     title="Grid View"
                   >
-                    <LayoutGrid size={15} />
-                  </button>
+                    <SquaresFour size={15} />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -309,7 +309,7 @@ export default function TeacherListPage() {
                 <h3 className="font-semibold text-sm text-foreground">No faculty members found</h3>
                 <p className="text-xs text-muted-foreground">
                   {hasActiveFilters
-                    ? "No teachers matched your MagnifyingGlass or Funnel criteria. Try adjusting your MagnifyingGlass query."
+                    ? "No teachers matched your search or filter criteria. Try adjusting your search query."
                     : "No teachers registered yet. Click 'Add Teacher' to create the first faculty member."}
                 </p>
                 {hasActiveFilters ? (
@@ -358,7 +358,7 @@ export default function TeacherListPage() {
                   const initials = name
                     .split(" ")
                     .map((n) => n[0])
-                    .Funnel(Boolean)
+                    .filter(Boolean)
                     .slice(0, 2)
                     .join("")
                     .toUpperCase() || "T";
@@ -420,7 +420,7 @@ export default function TeacherListPage() {
                           }}
                           className="h-7 px-2 text-xs text-primary gap-1"
                         >
-                          View <ExternalLink size={12} />
+                          View <ArrowSquareOut size={12} />
                         </Button>
                       </TableCell>
                     </TableRow>

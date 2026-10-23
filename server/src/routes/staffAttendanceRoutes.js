@@ -8,7 +8,8 @@ import {
   getAttendanceById,
   updateAttendance,
   deleteAttendance,
-  getMonthlyReport
+  getMonthlyReport,
+  getSummary
 } from '../controllers/staffAttendanceController.js';
 import {
   recordStaffAttendanceSchema,
@@ -25,6 +26,8 @@ router.use(authorize('admin', 'principal', 'academic_officer'));
 router.post('/', validate(recordStaffAttendanceSchema), recordAttendance);
 router.get('/', getAttendance);
 router.get('/report', getMonthlyReport);
+// Overview figures for the staff attendance page (before /:id so it isn't read as an id).
+router.get('/summary', getSummary);
 router.get('/:id', getAttendanceById);
 router.put('/:id', validate(updateStaffAttendanceSchema), updateAttendance);
 router.delete('/:id', deleteAttendance);

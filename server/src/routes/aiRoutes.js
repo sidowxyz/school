@@ -7,7 +7,6 @@ import {
   deleteConversation,
   confirmAction,
   cancelAction,
-  reviewExamUpload,
   reviewAssignmentUpload,
 } from '../controllers/aiController.js';
 import { authenticate } from '../middleware/authenticate.js';
@@ -40,7 +39,6 @@ router.delete('/conversations/:id', deleteConversation);
 // fit a Zod args object — so role gating happens explicitly inside
 // aiUploadService.js rather than via resolveTool. Reuses aiLimiter: these
 // calls are no more expensive than a chat request that hits the model.
-router.post('/exams/review-upload', aiLimiter, uploadDocumentMiddleware, reviewExamUpload);
 router.post('/assignments/review-upload', aiLimiter, uploadDocumentMiddleware, reviewAssignmentUpload);
 
 export default router;

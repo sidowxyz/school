@@ -13,10 +13,10 @@ import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 
 const CALENDAR_CELL: Record<string, string> = {
-  Present: 'bg-emerald-500 text-white',
-  Absent: 'bg-rose-500 text-white',
-  Late: 'bg-amber-400 text-white',
-  Excused: 'bg-sky-500 text-white',
+  Present: 'bg-success text-success-foreground',
+  Absent: 'bg-destructive text-destructive-foreground',
+  Late: 'bg-warning/15 text-warning',
+  Excused: 'bg-info text-info-foreground',
 };
 
 function formatDate(iso: string) {
@@ -90,7 +90,7 @@ export default function AttendanceTab() {
   }, [records]);
 
   const monthRecords = useMemo(
-    () => records.Funnel((r) => monthKey(r.att_date) === month).sort((a, b) => b.att_date.localeCompare(a.att_date)),
+    () => records.filter((r) => monthKey(r.att_date) === month).sort((a, b) => b.att_date.localeCompare(a.att_date)),
     [records, month]
   );
 
@@ -139,11 +139,11 @@ export default function AttendanceTab() {
       {/* Hairline Divided KPI Strip */}
       <Card className="overflow-hidden border-border bg-border shadow-2xs">
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-px">
-          <KPICell icon={CheckCircle} iconClass="text-emerald-600 dark:text-emerald-400" label="Present" value={String(present)} sub="Sessions attended" />
-          <KPICell icon={XCircle} iconClass="text-rose-600 dark:text-rose-400" label="Absent" value={String(absent)} sub="Sessions missed" />
-          <KPICell icon={Clock} iconClass="text-amber-600 dark:text-amber-400" label="Late" value={String(late)} sub="Tardy arrivals" />
-          <KPICell icon={Info} iconClass="text-sky-600 dark:text-sky-400" label="Excused" value={String(excused)} sub="Excused absences" />
-          <KPICell icon={TrendUp} iconClass="text-emerald-600 dark:text-emerald-400" label="Overall %" value={`${overallRate}%`} sub="Attendance rate" />
+          <KPICell icon={CheckCircle} iconClass="text-success" label="Present" value={String(present)} sub="Sessions attended" />
+          <KPICell icon={XCircle} iconClass="text-destructive" label="Absent" value={String(absent)} sub="Sessions missed" />
+          <KPICell icon={Clock} iconClass="text-warning" label="Late" value={String(late)} sub="Tardy arrivals" />
+          <KPICell icon={Info} iconClass="text-info" label="Excused" value={String(excused)} sub="Excused absences" />
+          <KPICell icon={TrendUp} iconClass="text-success" label="Overall %" value={`${overallRate}%`} sub="Attendance rate" />
         </div>
       </Card>
 
@@ -161,7 +161,7 @@ export default function AttendanceTab() {
         </Card>
       ) : (
         <>
-          {/* Month Funnel + Export */}
+          {/* Month filter + Export */}
           <Card className="border-border/80 shadow-2xs">
             <CardContent className="p-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div className="max-w-xs w-full">
@@ -206,7 +206,7 @@ export default function AttendanceTab() {
                       wrapperStyle={{ fontSize: 12 }}
                     />
                     <Line type="monotone" dataKey="present" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-                    <Line type="monotone" dataKey="absent" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="absent" stroke="hsl(var(--destructive))" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -218,10 +218,10 @@ export default function AttendanceTab() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold text-foreground">{monthLabel(month)}</CardTitle>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <LegendDot color="bg-emerald-500" label="Present" />
-                    <LegendDot color="bg-rose-500" label="Absent" />
-                    <LegendDot color="bg-amber-400" label="Late" />
-                    <LegendDot color="bg-sky-500" label="Excused" />
+                    <LegendDot color="bg-success" label="Present" />
+                    <LegendDot color="bg-destructive" label="Absent" />
+                    <LegendDot color="bg-warning/80" label="Late" />
+                    <LegendDot color="bg-info" label="Excused" />
                   </div>
                 </div>
               </CardHeader>
@@ -259,7 +259,7 @@ export default function AttendanceTab() {
           <Card className="border-border/80 shadow-2xs">
             <CardHeader className="border-b border-border/60 pb-4">
               <CardTitle className="text-base font-semibold text-foreground">Attendance Records</CardTitle>
-              <CardDescription className="text-xs mt-0.5">Detailed per-period ClockCounterClockwise · {monthLabel(month)}</CardDescription>
+              <CardDescription className="text-xs mt-0.5">Detailed per-period history · {monthLabel(month)}</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {monthRecords.length === 0 ? (

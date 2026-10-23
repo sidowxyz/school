@@ -153,10 +153,7 @@ describe('AI tool registry — role gating', () => {
       'getFinanceSummary',
       'searchStudents',
       'getDailySchoolSummary',
-      'getAcademicPerformance',
-      'getOverdueBooks',
       'getTeacherWorkload',
-      'getPendingMarks',
     ];
     for (const role of ['student', 'parent']) {
       const names = toolsForRole(role).map((t) => t.name);
@@ -283,7 +280,6 @@ describe('AI actor — credential containment', () => {
 describe('AI router — deterministic intent matching (no LLM)', () => {
   it.each([
     ['who is absent today?', 'admin', 'getAttendanceForDate'],
-    ['show me overdue library books', 'admin', 'getOverdueBooks'],
     ['which students have outstanding fees?', 'admin', 'getFinanceSummary'],
     ['give me the monthly attendance report', 'admin', 'getMonthlyAttendanceReport'],
     ['what is my timetable', 'teacher', 'getMyTimetable'],
@@ -311,9 +307,6 @@ describe('AI router — vocabulary matching (no LLM)', () => {
   it.each([
     ['how many teachers are there', 'getTeacherWorkload'],
     ['who owes money', 'getFinanceSummary'],
-    ['books not returned', 'getOverdueBooks'],
-    ['library status', 'getOverdueBooks'],
-    ['best performing class', 'getAcademicPerformance'],
     ['students without a class', 'getStudentsWithoutClass'],
     ['who has not submitted their lesson diary', 'getMissingTeachingLogs'],
     ['monthly absenteeism rate', 'getMonthlyAttendanceReport'],

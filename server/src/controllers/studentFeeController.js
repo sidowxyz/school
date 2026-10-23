@@ -1,172 +1,30 @@
 import StudentFee from '../models/StudentFee.js';
 import StudentInvoice from '../models/StudentInvoice.js';
-import Ledger from '../models/Ledger.js';
-import PaymentMethod from '../models/PaymentMethod.js';
-import Counter from '../models/Counter.js';
-import { generateReceiptPDF } from '../utils/receiptPdfGenerator.js';
+import { applyPaymentToInvoice, attachReceiptPdf } from '../services/paymentService.js';
 import path from 'path';
 import fs from 'fs';
-
-// RCPT-<year>-<seq>, the same atomic per-year Counter pattern examService uses
-// for exam numbers. Every StudentFee is a real, receipted payment, so this
-// number doubles as the receipt reference the Finance "Payment Receipts"
-// report shows — it is generated here rather than trusted from the client so
-// it is guaranteed unique and sequential, not arbitrary client-supplied text.
-const generateFeeNumber = async () => {
-  const year = new Date().getFullYear();
-  const counter = await Counter.findOneAndUpdate(
-    { year },
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
-  );
-  return `RCPT-${year}-${String(counter.seq).padStart(4, '0')}`;
-};
 
 export const createStudentFee = async (req, res) => {
   try {
     const { invoice_no, payment_method_no, paid_amount, acc_no } = req.body;
-    let { student_fee_no } = req.body;
+    const { student_fee_no } = req.body;
 
-    if (student_fee_no) {
-      // A caller-supplied number still has to be unique.
-      const existing = await StudentFee.findOne({ student_fee_no });
-      if (existing) {
-        return res.status(400).json({ success: false, message: 'Fee payment number already exists' });
-      }
-    } else {
-      student_fee_no = await generateFeeNumber();
+    // A caller-supplied number still has to be unique.
+    if (student_fee_no && await StudentFee.exists({ student_fee_no })) {
+      return res.status(400).json({ success: false, message: 'Fee payment number already exists' });
     }
 
-    // Find invoice
-    const invoice = await StudentInvoice.findById(invoice_no).populate(
-      'student',
-      'firstName lastName admissionNumber'
-    );
-    if (!invoice) {
-      return res.status(404).json({ success: false, message: 'Invoice not found' });
-    }
-
-    // Guard against overpayment: a payment cannot exceed the invoice's
-    // outstanding balance (otherwise the invoice records a negative balance).
-    const outstanding = invoice.invoice_amount - invoice.paid_amount;
-    if (paid_amount > outstanding) {
-      return res.status(400).json({
-        success: false,
-        message: `Paid amount (${paid_amount}) exceeds outstanding balance (${outstanding})`
-      });
-    }
-
-    // Register payment record
-    const newFee = await StudentFee.create({
-      student_fee_no,
-      invoice_no,
+    const { fee, invoice } = await applyPaymentToInvoice({
+      invoiceId: invoice_no,
+      amount: paid_amount,
       payment_method_no,
-      paid_amount,
       acc_no,
+      student_fee_no,
       registerBy: req.user ? req.user.name || req.user.id : 'system',
-      registerDate: new Date()
     });
+    await attachReceiptPdf(fee, invoice);
 
-    // Update invoice paid amount and balance
-    invoice.paid_amount += paid_amount;
-    invoice.balance = invoice.invoice_amount - invoice.paid_amount;
-    
-    if (invoice.paid_amount >= invoice.invoice_amount) {
-      invoice.status = 'Paid';
-    } else if (invoice.paid_amount > 0) {
-      invoice.status = 'Partially_Paid';
-    } else {
-      invoice.status = 'Unpaid';
-    }
-    
-    await invoice.save();
-
-    // ── Auto-post double-entry Ledger entries ──
-    // Determine the debit account based on the payment method name.
-    let debitAccount = 'Cash in Hand';
-    try {
-      const method = await PaymentMethod.findById(payment_method_no);
-      if (method) {
-        const name = method.payment_method_name.toLowerCase();
-        if (name.includes('bank') || name.includes('transfer') || name.includes('cheque') || name.includes('check')) {
-          debitAccount = 'Bank Account';
-        }
-      }
-    } catch { /* fallback to Cash in Hand */ }
-
-    const invoiceRef = invoice.invoice_no || invoice._id.toString();
-    const studentDoc = await StudentInvoice.findById(invoice._id)
-      .populate('student', 'firstName lastName');
-    const studentName = studentDoc?.student ? `${studentDoc.student.firstName} ${studentDoc.student.lastName}` : 'Student';
-
-    // Check if scholarship discount exists on this invoice and hasn't been posted to Ledger yet
-    const discountAmount = Number(invoice.discount_amount || 0);
-    let scholarshipExpenseAmount = 0;
-    if (discountAmount > 0) {
-      const existingExpense = await Ledger.findOne({
-        referenceNo: invoiceRef,
-        accountName: 'Scholarship Expense'
-      });
-      if (!existingExpense) {
-        scholarshipExpenseAmount = discountAmount;
-      }
-    }
-
-    const entriesToPost = [
-      {
-        date: new Date(),
-        accountName: debitAccount,
-        referenceNo: invoiceRef,
-        description: `Payment received from ${studentName}`,
-        debit: paid_amount,
-        credit: 0
-      }
-    ];
-
-    if (scholarshipExpenseAmount > 0) {
-      entriesToPost.push({
-        date: new Date(),
-        accountName: 'Scholarship Expense',
-        referenceNo: invoiceRef,
-        description: `Scholarship discount applied for ${studentName}`,
-        debit: scholarshipExpenseAmount,
-        credit: 0
-      });
-    }
-
-    entriesToPost.push({
-      date: new Date(),
-      accountName: 'Tuition Revenue',
-      referenceNo: invoiceRef,
-      description: `Tuition revenue — ${studentName}`,
-      debit: 0,
-      credit: paid_amount + scholarshipExpenseAmount
-    });
-
-    await Ledger.insertMany(entriesToPost);
-    // Generate the PDF receipt now that the payment and invoice are both
-    // committed. This is a side effect, not the transaction itself — a
-    // failure here must not turn an already-successful payment into a 500,
-    // so it's logged and left for the record to simply have no pdfPath.
-    try {
-      const studentFullName = invoice.student
-        ? `${invoice.student.firstName ?? ''} ${invoice.student.lastName ?? ''}`.trim()
-        : 'Student';
-      const pdfPath = await generateReceiptPDF({
-        studentName: studentFullName,
-        paymentId: student_fee_no,
-        receiptNumber: student_fee_no,
-        amount: paid_amount,
-        date: newFee.registerDate,
-        accNo: acc_no,
-        remarks: `Invoice ${invoice.invoice_no}`
-      });
-      newFee.pdfPath = pdfPath;
-      await newFee.save();
-    } catch (pdfError) {
-      console.error('Failed to generate receipt PDF for', student_fee_no, pdfError);
-    }
-    const populated = await StudentFee.findById(newFee._id)
+    const populated = await StudentFee.findById(fee._id)
       .populate('payment_method_no')
       .populate({
         path: 'invoice_no',
@@ -178,7 +36,7 @@ export const createStudentFee = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Fee payment recorded successfully', data: populated });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.statusCode || 500).json({ success: false, message: error.message });
   }
 };
 
@@ -346,10 +204,19 @@ export const downloadStudentFeeReceipt = async (req, res) => {
     if (!fee) {
       return res.status(404).json({ success: false, message: 'Fee payment record not found' });
     }
+    // Payments taken at the counter (one receipt for several siblings/months)
+    // don't render a PDF per line up front, and old files can be cleaned off
+    // disk — so render it on first request instead of failing.
+    if (!fee.pdfPath || !fs.existsSync(path.resolve(fee.pdfPath))) {
+      const invoice = await StudentInvoice.findById(fee.invoice_no).populate('student', 'firstName lastName');
+      if (invoice) {
+        await attachReceiptPdf(fee, invoice, invoice.period ? `Monthly fee ${invoice.period}` : undefined);
+      }
+    }
     if (!fee.pdfPath) {
       return res.status(404).json({
         success: false,
-        message: 'No receipt PDF was generated for this payment'
+        message: 'No receipt PDF could be generated for this payment'
       });
     }
 

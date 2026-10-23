@@ -8,7 +8,7 @@ import { academicApi } from '../../academic-structure/api/academicApi';
 vi.mock('../api/studentsApi', () => ({
   studentsApi: {
     getById: vi.fn(), getReferenceData: vi.fn(), getAttendance: vi.fn(),
-    getReportCards: vi.fn(), getInvoices: vi.fn(), getDocuments: vi.fn(),
+    getInvoices: vi.fn(), getDocuments: vi.fn(),
     update: vi.fn(), uploadDocument: vi.fn(), verifyDocument: vi.fn(), deleteDocument: vi.fn(),
   },
 }));
@@ -25,7 +25,6 @@ describe('StudentProfilePage', () => {
     vi.mocked(studentsApi.getReferenceData).mockRejectedValue(new Error('reference unavailable'));
     vi.mocked(academicApi.getSubjects).mockRejectedValue(new Error('subjects unavailable'));
     vi.mocked(studentsApi.getAttendance).mockRejectedValue(new Error('attendance unavailable'));
-    vi.mocked(studentsApi.getReportCards).mockRejectedValue(new Error('results unavailable'));
     vi.mocked(studentsApi.getInvoices).mockRejectedValue(new Error('fees unavailable'));
     vi.mocked(studentsApi.getDocuments).mockRejectedValue(new Error('documents unavailable'));
 

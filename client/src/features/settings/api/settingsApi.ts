@@ -1,6 +1,6 @@
 import api from '../../../lib/axios';
 
-export type CalendarEventType = 'session' | 'term' | 'exam' | 'holiday' | 'event';
+export type CalendarEventType = 'session' | 'term' | 'holiday' | 'event';
 
 export interface AcademicCalendarEvent {
   id: string;
@@ -9,7 +9,7 @@ export interface AcademicCalendarEvent {
   endDate?: string;
   description?: string;
   type: CalendarEventType;
-  source: 'academic-structure' | 'examinations' | 'settings';
+  source: 'academic-structure' | 'settings';
   editable?: boolean;
 }
 

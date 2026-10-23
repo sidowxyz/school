@@ -17,16 +17,15 @@ import Period from '../../src/models/Period.js';
 import Subject from '../../src/models/Subject.js';
 import StudentAttendance from '../../src/models/StudentAttendance.js';
 import StudentInvoice from '../../src/models/StudentInvoice.js';
-import Result from '../../src/models/Result.js';
 import TimetableSlot from '../../src/models/TimetableSlot.js';
 
-// Verifies Task 2 (parent portal + IDOR), Task 3 (student portal), Task 4 (promotion).
+// Verifies Task 2 (parent portal + IDOR) and Task 3 (student portal).
 const signToken = (id, role) =>
   jwt.sign({ id, role, name: `${role}-user` }, process.env.JWT_ACCESS_SECRET);
 
 const admarks = { $in: ['POR-A', 'POR-B'] };
 
-describe('Portals & Promotion', () => {
+describe('Portals', () => {
   let studentAUserId, parentUserId, adminUserId;
   let studentAId, studentBId, guardianId;
   let fromClassId, toClassId, toSectionId, yearId, targetYearId;
@@ -176,11 +175,9 @@ describe('Portals & Promotion', () => {
   // student_id field, and timetable read an undefined student.class. Each test
   // seeds a real linked record and asserts the endpoint returns it correctly.
   describe('Portal main flows — correct linked records', () => {
-    let ccId, examRegId, feeStrucId;
+    let feeStrucId;
 
     beforeAll(async () => {
-      ccId = new mongoose.Types.ObjectId();
-      examRegId = new mongoose.Types.ObjectId();
       feeStrucId = new mongoose.Types.ObjectId();
 
       const status = await Status.create({ st_no: 'POR-ST', st_name: 'Present' });
@@ -196,10 +193,6 @@ describe('Portals & Promotion', () => {
       await StudentAttendance.create({
         studentId: studentAId, periodId: period._id, status: 'Present',
         att_date: new Date('2026-07-01')
-      });
-      await Result.create({
-        res_no: 'POR-RES', ex_r_no: examRegId, cc_no: ccId, id: studentAId,
-        marks: 88, grade: 'A', remarks: 'Excellent'
       });
       await StudentInvoice.create({
         invoice_no: 'POR-INV', student: studentAId, fee_struc_no: feeStrucId,
@@ -217,7 +210,6 @@ describe('Portals & Promotion', () => {
         Period.deleteMany({ per_no: 'POR-P' }),
         Subject.deleteMany({ sub_no: 'POR-SUB' }),
         StudentAttendance.deleteMany({ studentId: studentAId }),
-        Result.deleteMany({ res_no: 'POR-RES' }),
         StudentInvoice.deleteMany({ invoice_no: 'POR-INV' }),
         TimetableSlot.deleteMany({ room: 'R1', class: fromClassId })
       ]);
@@ -238,13 +230,6 @@ describe('Portals & Promotion', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.total).toBe(1);
       expect(res.body.data.summary).toMatchObject({ Present: 1 });
-    });
-
-    it('student /results returns results linked by student id', async () => {
-      const res = await request(app).get('/api/portal/student/results').set('Authorization', studentAuth());
-      expect(res.status).toBe(200);
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0].res_no).toBe('POR-RES');
     });
 
     it('student /invoices returns the invoice with correct totals', async () => {
@@ -269,15 +254,6 @@ describe('Portals & Promotion', () => {
       expect(res.body.data.total).toBe(1);
     });
 
-    it('parent child /results returns the linked child\'s results', async () => {
-      const res = await request(app)
-        .get(`/api/portal/parent/children/${studentAId}/results`)
-        .set('Authorization', parentAuth());
-      expect(res.status).toBe(200);
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0].res_no).toBe('POR-RES');
-    });
-
     it('parent child /invoices returns the linked child\'s invoice', async () => {
       const res = await request(app)
         .get(`/api/portal/parent/children/${studentAId}/invoices`)
@@ -285,38 +261,25 @@ describe('Portals & Promotion', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.invoices).toHaveLength(1);
     });
-  });
 
-  describe('Promotion (Task 4)', () => {
-    // The previous "previews and commits" test that lived here targeted the
-    // old POST /api/promotions/preview + /commit contract (and its
-    // PromotionRun audit model), which was replaced during the frontend
-    // integration merge with the current promotion system —
-    // /promotions/ladder + /preview (GET) + /class + /special + /history in
-    // src/routes/promotionRoutes.js, backed by PromotionRecord, not
-    // PromotionRun. Coverage for the new contract belongs alongside those
-    // routes as a separate suite; keeping the old test would just 404 on
-    // every request. See src/controllers/promotionController.js.
+    // Exams, marks/results, library and communication were removed from the
+    // MVP, so their portal endpoints must no longer exist.
+    it.each(['results', 'report-cards', 'library', 'notifications', 'messages'])(
+      'student /%s is no longer served (404)',
+      async (path) => {
+        const res = await request(app).get(`/api/portal/student/${path}`).set('Authorization', studentAuth());
+        expect(res.status).toBe(404);
+      }
+    );
 
-    it('promotes a student and records an enrollment row', async () => {
-      const res = await request(app)
-        .post(`/api/students/${studentAId}/promote`)
-        .set('Authorization', `Bearer ${signToken(adminUserId, 'admin')}`)
-        .send({ toClassId: toClassId.toString(), toSectionId: toSectionId.toString(), yearId: yearId.toString() });
-      expect(res.status).toBe(200);
-      expect(res.body.data.student.class).toBe(toClassId.toString());
-      expect(res.body.data.student.admissionType).toBe('Promoted');
-
-      const enrollments = await StudentClass.find({ student: studentAId });
-      expect(enrollments.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('rejects promotion by a non-privileged role (403)', async () => {
-      const res = await request(app)
-        .post(`/api/students/${studentAId}/promote`)
-        .set('Authorization', `Bearer ${signToken(studentAUserId, 'student')}`)
-        .send({ toClassId: toClassId.toString(), toSectionId: toSectionId.toString(), yearId: yearId.toString() });
-      expect(res.status).toBe(403);
+    it.each([
+      [`children/:id/results`],
+      ['notices'],
+      ['messages'],
+    ])('parent /%s is no longer served (404)', async (path) => {
+      const url = `/api/portal/parent/${path.replace(':id', studentAId)}`;
+      const res = await request(app).get(url).set('Authorization', parentAuth());
+      expect(res.status).toBe(404);
     });
   });
 

@@ -24,7 +24,7 @@ export default function QuickActions({ actions, disabled, onRun }: Props) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-gray-400">Ask a question, or start with one of these:</p>
+      <p className="text-xs text-muted-foreground">Ask a question, or start with one of these:</p>
 
       <div className="flex flex-wrap gap-1.5">
         {actions.map((action) => (
@@ -34,12 +34,12 @@ export default function QuickActions({ actions, disabled, onRun }: Props) {
             disabled={disabled}
             onClick={() => onRun(action)}
             title={`${action.group}${action.prompt ? ' — needs a detail from you' : ''}`}
-            className="rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:border-green-300 hover:bg-green-50 hover:text-green-800 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+            className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             {action.label}
             {/* Signals that this one opens the composer rather than running
                 immediately, so a click that "does nothing" is not a surprise. */}
-            {action.prompt && <span className="ml-1 text-gray-300">…</span>}
+            {action.prompt && <span className="ml-1 text-muted-foreground/70">…</span>}
           </Button>
         ))}
       </div>

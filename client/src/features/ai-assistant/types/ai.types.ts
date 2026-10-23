@@ -74,8 +74,8 @@ export interface ActionExecutedResponse {
 
 /**
  * The request matched a tool but is missing a detail. Deliberately distinct
- * from an error: "generate an exam for Grade 8" is a reasonable thing to say,
- * and answering it with "subject: Required" is not.
+ * from an error: an incomplete request is answered with a question, not
+ * "field: Required".
  */
 export interface NeedsInputResponse extends BaseResponse {
   type: 'needs_input';
@@ -102,7 +102,7 @@ export interface ChatTurn {
    * while the review is still running, and survive a failed review — the three
    * moments a user most needs to see which file they sent.
    */
-  attachment?: { name: string; sizeBytes: number; kind: 'exam' | 'assignment' };
+  attachment?: { name: string; sizeBytes: number; kind: 'assignment' };
   /** Present only on assistant turns that carried structured data. */
   tool?: string | null;
   data?: unknown;
@@ -118,13 +118,10 @@ export interface ChatTurn {
   };
   /**
    * Set on the assistant turn produced by a file upload. Rendered with a
-   * dedicated card rather than the generic ResultRenderer, since these two
-   * shapes (redo banner, grammar list; writing-integrity signals, feedback)
-   * don't fit the stat-tile/table pattern the rest of the assistant uses.
+   * dedicated card rather than the generic ResultRenderer, since its shape
+   * (writing-integrity signals, feedback) doesn't fit the stat-tile/table pattern the rest of the assistant uses.
    */
-  upload?:
-    | { kind: 'exam'; data: ExamUploadReviewResult }
-    | { kind: 'assignment'; data: AssignmentReviewResult };
+  upload?: { kind: 'assignment'; data: AssignmentReviewResult };
 }
 
 export interface ConversationSummary {
@@ -149,32 +146,6 @@ export interface StoredConversation {
 export interface PageContext {
   pageType?: string;
   entityId?: string;
-}
-
-export interface ExamUploadReviewResult {
-  fileName: string;
-  subject: string;
-  class: string;
-  extractionMethod: 'deterministic';
-  questionsDetected: number;
-  questions: { text: string; marks: number }[];
-  quality: {
-    totalMarks: number;
-    expectedTotalMarks: number | null;
-    structureValid: boolean;
-    issues: { severity: 'high' | 'medium' | 'low'; type: string; message: string }[];
-    difficultyMix: Record<string, number>;
-    topicCoverage: string[];
-  };
-  grammar: {
-    issues: { questionNumber: number; quote: string; suggestion: string }[];
-    available: boolean;
-    note?: string;
-  };
-  repeatedFromArchivePercent: number;
-  redoThresholdPercent: number;
-  redoRecommended: boolean;
-  redoReason: string | null;
 }
 
 export interface AssignmentReviewResult {

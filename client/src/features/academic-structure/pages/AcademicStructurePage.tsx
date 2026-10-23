@@ -10,9 +10,12 @@ import {
   BookOpen,
   Buildings,
   GraduationCap,
-  LayoutGrid,
+  SquaresFour,
   Stack,
   Clock,
+  Check,
+  SpinnerGap,
+  type Icon,
 } from '@phosphor-icons/react';
 
 import { academicApi } from "../api/academicApi";
@@ -23,7 +26,6 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -34,13 +36,86 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import PageHeader from '@/components/common/PageHeader';
-import StatStrip from '@/components/shared/StatStrip';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 
 type Tab = "Academic Years" | "Terms" | "Levels" | "Periods" | "Classes" | "Sections" | "Subjects";
 
 // Shared Helpers
+
+/** The white card every tab sits in: title, one line of help, the add button. */
+function TabPanel({ title, description, action, toolbar, children }: {
+  title: string; description: string; action?: React.ReactNode; toolbar?: React.ReactNode; children: React.ReactNode;
+}) {
+  return (
+    <Card className="overflow-hidden rounded-2xl border-border/70 shadow-none">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">{toolbar}{action}</div>
+      </div>
+      {children}
+    </Card>
+  );
+}
+
+function AddButton({ label, onClick, disabled, title }: { label: string; onClick: () => void; disabled?: boolean; title?: string }) {
+  return (
+    <Button size="sm" onClick={onClick} disabled={disabled} title={title} className="gap-1.5">
+      <Plus size={15} weight="bold" /> {label}
+    </Button>
+  );
+}
+
+/** Loading, error and empty states shared by every list. */
+function ListState({ loading, error, empty, emptyText, children }: {
+  loading: boolean; error: string; empty: boolean; emptyText: string; children: React.ReactNode;
+}) {
+  if (loading) return <div className="flex justify-center py-12"><SpinnerGap size={22} className="animate-spin text-primary" /></div>;
+  if (error) return <p className="px-5 py-10 text-center text-sm text-destructive">{error}</p>;
+  if (empty) return <p className="px-5 py-12 text-center text-sm text-muted-foreground">{emptyText}</p>;
+  return <>{children}</>;
+}
+
+const ICON_TINTS = {
+  blue: "bg-tile-blue", green: "bg-tile-green", yellow: "bg-tile-yellow", pink: "bg-tile-pink", violet: "bg-tile-violet",
+} as const;
+
+/** One row of a list: pastel icon, name, details, then badges and edit/delete. */
+function ItemRow({ icon: RowIcon, tint, title, meta, badges, onEdit, onDelete }: {
+  icon: Icon; tint: keyof typeof ICON_TINTS; title: React.ReactNode; meta?: React.ReactNode; badges?: React.ReactNode;
+  onEdit: () => void; onDelete: () => void;
+}) {
+  return (
+    <li className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-tile-foreground ${ICON_TINTS[tint]}`}>
+        <RowIcon size={18} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+        {meta && <p className="truncate text-xs text-muted-foreground">{meta}</p>}
+      </div>
+      {badges && <div className="hidden shrink-0 items-center gap-2 sm:flex">{badges}</div>}
+      <div className="flex shrink-0 items-center gap-1">
+        <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Edit">
+          <PencilSimple size={15} />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Delete">
+          <Trash size={15} />
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+function ItemList({ children }: { children: React.ReactNode }) {
+  return <ul className="divide-y divide-border">{children}</ul>;
+}
+
+const fmtDay = (iso?: string) =>
+  iso ? new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "";
 
 function StatusPill({ status }: { status: string }) {
   return (
@@ -51,8 +126,8 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function refName(ref: string | { _id: string } | undefined, field: string): string {
-  if (!ref || typeof ref === "string") return "â€”";
-  return (ref as unknown as Record<string, string>)[field] ?? "â€”";
+  if (!ref || typeof ref === "string") return "—";
+  return (ref as unknown as Record<string, string>)[field] ?? "—";
 }
 
 function classTeacherName(ref: Section["classTeacherId"]): string {
@@ -227,30 +302,34 @@ function useAcademicList<T>(fetcher: () => Promise<T[]>) {
 
 interface OverviewCounts {
   years: number;
-  activeTerms: number;
+  terms: number;
+  levels: number;
   classes: number;
   sections: number;
   subjects: number;
 }
 
 /** Fetches headline counts for the overview stat strip on the main page. */
-function useOverviewCounts() {
+function useOverviewCounts(refreshKey: string) {
   const [counts, setCounts] = useState<OverviewCounts | null>(null);
 
+  // Re-counted whenever the open tab changes, so a step ticks once it is done.
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       academicApi.getYears(),
       academicApi.getTerms(),
+      academicApi.getLevels(),
       academicApi.getClasses(),
       academicApi.getSections(),
       academicApi.getSubjects(),
     ])
-      .then(([years, terms, classes, sections, subjects]) => {
+      .then(([years, terms, levels, classes, sections, subjects]) => {
         if (cancelled) return;
         setCounts({
           years: years.length,
-          activeTerms: terms.Funnel((t) => t.status === "active").length,
+          terms: terms.length,
+          levels: levels.length,
           classes: classes.length,
           sections: sections.length,
           subjects: subjects.length,
@@ -258,7 +337,7 @@ function useOverviewCounts() {
       })
       .catch((err) => console.error("Failed to load overview counts", err));
     return () => { cancelled = true; };
-  }, []);
+  }, [refreshKey]);
 
   return counts;
 }
@@ -280,7 +359,7 @@ function YearFormModal({
     try {
       await onSave({ y_no: yNo, y_name: yName });
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to FloppyDisk academic year.");
+      setError(err?.response?.data?.message || "Failed to save academic year.");
       setSubmitting(false);
     }
   };
@@ -310,55 +389,17 @@ function AcademicYearsTab() {
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Academic Years</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Manage academic year periods</p>
-          </div>
-          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2">
-            <Plus size={15} /> Add Academic Year
-          </Button>
-        </div>
 
-        {loading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-        ) : error ? (
-          <p className="py-8 text-center text-sm text-destructive">{error}</p>
-        ) : years.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No academic years yet.</p>
-        ) : (
-          <div className="space-y-3">
+      <TabPanel title="Academic Years" description="The school years, e.g. 2026–2027." action={<AddButton label="Add year" onClick={() => setShowAdd(true)} />}>
+        <ListState loading={loading} error={error} empty={years.length === 0} emptyText="No academic years yet. Add the current school year to start.">
+          <ItemList>
             {years.map((year) => (
-              <div key={year._id} className="flex items-center justify-between rounded-xl bg-muted/50 px-5 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 dark:bg-emerald-950/50">
-                    <Calendar size={20} className="text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{year.y_name}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{year.y_no}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button variant="plain"
-                    onClick={() => setEditTarget(year)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <PencilSimple size={15} />
-                  </Button>
-                  <Button variant="plain"
-                    onClick={() => setDeleteTarget(year)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/30 bg-card text-destructive transition-colors hover:bg-destructive/10"
-                  >
-                    <Trash size={15} />
-                  </Button>
-                </div>
-              </div>
+              <ItemRow key={year._id} icon={CalendarBlank} tint="blue" title={year.y_name} meta={year.y_no}
+                onEdit={() => setEditTarget(year)} onDelete={() => setDeleteTarget(year)} />
             ))}
-          </div>
-        )}
-      </div>
+          </ItemList>
+        </ListState>
+      </TabPanel>
 
       {showAdd && (
         <YearFormModal
@@ -412,7 +453,7 @@ function TermFormModal({
   const [error, setError] = useState("");
 
   const toggleDay = (day: Weekday) => {
-    setWorkingDays((prev) => prev.includes(day) ? prev.Funnel((d) => d !== day) : [...prev, day]);
+    setWorkingDays((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -426,7 +467,7 @@ function TermFormModal({
     try {
       await onSave({ name, academicYearId, startDate, endDate, status, workingDays });
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to FloppyDisk term.");
+      setError(err?.response?.data?.message || "Failed to save term.");
       setSubmitting(false);
     }
   };
@@ -494,59 +535,20 @@ function TermsTab() {
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Terms</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Manage academic terms within years</p>
-          </div>
-          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2">
-            <Plus size={15} /> Add Term
-          </Button>
-        </div>
 
-        {loading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-        ) : error ? (
-          <p className="py-8 text-center text-sm text-destructive">{error}</p>
-        ) : terms.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No terms yet.</p>
-        ) : (
-          <div className="space-y-3">
+      <TabPanel title="Terms" description="Terms inside each year, with their dates and school days."
+        action={<AddButton label="Add term" onClick={() => setShowAdd(true)} disabled={years.length === 0} title={years.length === 0 ? "Add an academic year first" : undefined} />}>
+        <ListState loading={loading} error={error} empty={terms.length === 0} emptyText={years.length === 0 ? "Add an academic year first, then its terms." : "No terms yet."}>
+          <ItemList>
             {terms.map((term) => (
-              <div key={term._id} className="flex items-center justify-between rounded-xl bg-muted/50 px-5 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100/80 dark:bg-sky-950/50">
-                    <Buildings size={20} className="text-sky-600 dark:text-sky-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{term.name}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{refName(term.academicYearId, "y_name")}</p>
-                    {(term.startDate || term.endDate) && (
-                      <p className="text-xs text-muted-foreground">{term.startDate?.slice(0, 10)} to {term.endDate?.slice(0, 10)}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <StatusPill status={term.status} />
-                  <Button variant="plain"
-                    onClick={() => setEditTarget(term)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <PencilSimple size={15} />
-                  </Button>
-                  <Button variant="plain"
-                    onClick={() => setDeleteTarget(term)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/30 bg-card text-destructive transition-colors hover:bg-destructive/10"
-                  >
-                    <Trash size={15} />
-                  </Button>
-                </div>
-              </div>
+              <ItemRow key={term._id} icon={Buildings} tint="violet" title={term.name}
+                meta={[refName(term.academicYearId, "y_name"), term.startDate || term.endDate ? `${fmtDay(term.startDate)} – ${fmtDay(term.endDate)}` : "", term.workingDays?.length ? `${term.workingDays.length} school days a week` : ""].filter(Boolean).join(" · ")}
+                badges={<StatusPill status={term.status} />}
+                onEdit={() => setEditTarget(term)} onDelete={() => setDeleteTarget(term)} />
             ))}
-          </div>
-        )}
-      </div>
+          </ItemList>
+        </ListState>
+      </TabPanel>
 
       {showAdd && (
         <TermFormModal
@@ -594,7 +596,7 @@ function LevelFormModal({
     try {
       await onSave({ lev_no: levNo, lev_name: levName });
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to FloppyDisk level.");
+      setError(err?.response?.data?.message || "Failed to save level.");
       setSubmitting(false);
     }
   };
@@ -624,55 +626,17 @@ function LevelsTab() {
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Levels</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Groupings classes belong to (e.g. Primary, Secondary)</p>
-          </div>
-          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2">
-            <Plus size={15} /> Add Level
-          </Button>
-        </div>
 
-        {loading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-        ) : error ? (
-          <p className="py-8 text-center text-sm text-destructive">{error}</p>
-        ) : levels.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No levels yet â€” add one before creating classes.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <TabPanel title="Levels" description="Groups of classes, e.g. Primary and Secondary." action={<AddButton label="Add level" onClick={() => setShowAdd(true)} />}>
+        <ListState loading={loading} error={error} empty={levels.length === 0} emptyText="No levels yet. Add one before creating classes.">
+          <ItemList>
             {levels.map((lvl) => (
-              <div key={lvl._id} className="flex items-center justify-between rounded-xl bg-muted/50 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 dark:bg-emerald-950/50">
-                    <Stack size={20} className="text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{lvl.lev_name}</p>
-                    <p className="text-xs text-muted-foreground">{lvl.lev_no}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="plain"
-                    onClick={() => setEditTarget(lvl)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <PencilSimple size={14} />
-                  </Button>
-                  <Button variant="plain"
-                    onClick={() => setDeleteTarget(lvl)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/30 bg-card text-destructive transition-colors hover:bg-destructive/10"
-                  >
-                    <Trash size={14} />
-                  </Button>
-                </div>
-              </div>
+              <ItemRow key={lvl._id} icon={Stack} tint="green" title={lvl.lev_name} meta={lvl.lev_no}
+                onEdit={() => setEditTarget(lvl)} onDelete={() => setDeleteTarget(lvl)} />
             ))}
-          </div>
-        )}
-      </div>
+          </ItemList>
+        </ListState>
+      </TabPanel>
 
       {showAdd && (
         <LevelFormModal
@@ -702,7 +666,7 @@ function LevelsTab() {
 }
 
 // Periods Tab
-// Periods are scoped to a term â€” one term might run 6 periods/day, another 7 â€” so
+// Periods are scoped to a term — one term might run 6 periods/day, another 7 — so
 // the admin picks a term first, then manages that term's period list.
 
 function PeriodFormModal({
@@ -728,7 +692,7 @@ function PeriodFormModal({
     try {
       await onSave({ termId, per_no: perNo, per_name: perName, time_in: timeIn, time_out: timeOut });
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to FloppyDisk period.");
+      setError(err?.response?.data?.message || "Failed to save period.");
       setSubmitting(false);
     }
   };
@@ -786,63 +750,29 @@ function PeriodsTab() {
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Periods</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Daily teaching periods for a term</p>
-          </div>
-          <div className="flex items-center gap-3">
+
+      <TabPanel title="Periods" description="The lessons in a school day, for the chosen term."
+        toolbar={terms.length > 0 ? (
+          <div className="w-44">
             <SelectField value={termId} onChange={setTermId}>
-              <option value="" disabled>Select term</option>
               {terms.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
             </SelectField>
-            <Button size="sm" onClick={() => setShowAdd(true)} disabled={!termId} className="gap-2 whitespace-nowrap">
-              <Plus size={15} /> Add Period
-            </Button>
           </div>
-        </div>
-
+        ) : undefined}
+        action={<AddButton label="Add period" onClick={() => setShowAdd(true)} disabled={!termId} title={!termId ? "Add a term first" : undefined} />}>
         {!termId ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Select a term to manage its periods.</p>
-        ) : loading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-        ) : error ? (
-          <p className="py-8 text-center text-sm text-destructive">{error}</p>
-        ) : periods.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No periods yet for this term.</p>
+          <p className="px-5 py-12 text-center text-sm text-muted-foreground">Add a term first, then its periods.</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {periods.map((p) => (
-              <div key={p._id} className="flex items-center justify-between rounded-xl bg-muted/50 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-sky-100/80 dark:bg-sky-950/50">
-                    <Clock size={20} className="text-sky-600 dark:text-sky-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{p.per_name}</p>
-                    <p className="text-xs text-muted-foreground">{p.time_in} - {p.time_out}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="plain"
-                    onClick={() => setEditTarget(p)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <PencilSimple size={14} />
-                  </Button>
-                  <Button variant="plain"
-                    onClick={() => setDeleteTarget(p)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/30 bg-card text-destructive transition-colors hover:bg-destructive/10"
-                  >
-                    <Trash size={14} />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ListState loading={loading} error={error} empty={periods.length === 0} emptyText="No periods for this term yet.">
+            <ItemList>
+              {periods.slice().sort((a, b) => (Number(a.per_no) || 0) - (Number(b.per_no) || 0)).map((p) => (
+                <ItemRow key={p._id} icon={Clock} tint="yellow" title={p.per_name} meta={`${p.time_in} – ${p.time_out}`}
+                  onEdit={() => setEditTarget(p)} onDelete={() => setDeleteTarget(p)} />
+              ))}
+            </ItemList>
+          </ListState>
         )}
-      </div>
+      </TabPanel>
 
       {showAdd && termId && (
         <PeriodFormModal
@@ -898,7 +828,7 @@ function ClassFormModal({
     try {
       await onSave({ cl_no: clNo, cl_name: clName, lev_no: levNo });
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to FloppyDisk class.");
+      setError(err?.response?.data?.message || "Failed to save class.");
       setSubmitting(false);
     }
   };
@@ -936,66 +866,19 @@ function ClassesTab() {
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Classes</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Manage class levels and grades</p>
-          </div>
-          <Button
-            size="sm"
-            onClick={() => setShowAdd(true)}
-            disabled={levels.length === 0}
-            title={levels.length === 0 ? "Add a Level first" : undefined}
-            className="gap-2"
-          >
-            <Plus size={15} /> Add Class
-          </Button>
-        </div>
 
-        {loading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-        ) : error ? (
-          <p className="py-8 text-center text-sm text-destructive">{error}</p>
-        ) : classes.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No classes yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <TabPanel title="Classes" description="The grades students are placed in."
+        action={<AddButton label="Add class" onClick={() => setShowAdd(true)} disabled={levels.length === 0} title={levels.length === 0 ? "Add a level first" : undefined} />}>
+        <ListState loading={loading} error={error} empty={classes.length === 0} emptyText={levels.length === 0 ? "Add a level first, then its classes." : "No classes yet."}>
+          <ItemList>
             {classes.map((cls) => (
-              <div key={cls._id} className="rounded-xl bg-muted/50 p-5">
-                <div className="mb-3 flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 dark:bg-emerald-950/50">
-                      <GraduationCap size={32} className="text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground">{cls.cl_name}</p>
-                      <p className="text-xs text-muted-foreground">{cls.cl_no}</p>
-                      <span className="mt-1 inline-block rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
-                        {refName(cls.lev_no, "lev_name")}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="plain"
-                      onClick={() => setEditTarget(cls)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <PencilSimple size={14} />
-                    </Button>
-                    <Button variant="plain"
-                      onClick={() => setDeleteTarget(cls)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/30 bg-card text-destructive transition-colors hover:bg-destructive/10"
-                    >
-                      <Trash size={14} />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <ItemRow key={cls._id} icon={GraduationCap} tint="green" title={cls.cl_name} meta={cls.cl_no}
+                badges={<Badge variant="secondary">{refName(cls.lev_no, "lev_name")}</Badge>}
+                onEdit={() => setEditTarget(cls)} onDelete={() => setDeleteTarget(cls)} />
             ))}
-          </div>
-        )}
-      </div>
+          </ItemList>
+        </ListState>
+      </TabPanel>
 
       {showAdd && (
         <ClassFormModal
@@ -1055,7 +938,7 @@ function SectionFormModal({
     try {
       await onSave({ name, class: classId, classTeacherId: classTeacherId || null });
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to FloppyDisk section.");
+      setError(err?.response?.data?.message || "Failed to save section.");
       setSubmitting(false);
     }
   };
@@ -1100,64 +983,19 @@ function SectionsTab() {
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Sections</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Manage class sections</p>
-          </div>
-          <Button
-            size="sm"
-            onClick={() => setShowAdd(true)}
-            disabled={classes.length === 0}
-            title={classes.length === 0 ? "Add a Class first" : undefined}
-            className="gap-2"
-          >
-            <Plus size={15} /> Add Section
-          </Button>
-        </div>
 
-        {loading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-        ) : error ? (
-          <p className="py-8 text-center text-sm text-destructive">{error}</p>
-        ) : sections.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No sections yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <TabPanel title="Sections" description="Divisions of a class (A, B…) and their class teacher."
+        action={<AddButton label="Add section" onClick={() => setShowAdd(true)} disabled={classes.length === 0} title={classes.length === 0 ? "Add a class first" : undefined} />}>
+        <ListState loading={loading} error={error} empty={sections.length === 0} emptyText={classes.length === 0 ? "Add a class first, then its sections." : "No sections yet. Classes without sections work too."}>
+          <ItemList>
             {sections.map((sec) => (
-              <div key={sec._id} className="rounded-xl border border-border bg-muted/50 p-5">
-                <div className="mb-4 flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-violet-100/80 dark:bg-violet-950/50">
-                      <LayoutGrid size={22} className="text-violet-600 dark:text-violet-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground">{sec.name}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{refName(sec.class, "cl_name")}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">Advisor: {classTeacherName(sec.classTeacherId)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="plain"
-                      onClick={() => setEditTarget(sec)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <PencilSimple size={14} />
-                    </Button>
-                    <Button variant="plain"
-                      onClick={() => setDeleteTarget(sec)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/30 bg-card text-destructive transition-colors hover:bg-destructive/10"
-                    >
-                      <Trash size={14} />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <ItemRow key={sec._id} icon={SquaresFour} tint="pink" title={`${refName(sec.class, "cl_name")} · ${sec.name}`}
+                meta={`Class teacher: ${classTeacherName(sec.classTeacherId)}`}
+                onEdit={() => setEditTarget(sec)} onDelete={() => setDeleteTarget(sec)} />
             ))}
-          </div>
-        )}
-      </div>
+          </ItemList>
+        </ListState>
+      </TabPanel>
 
       {showAdd && (
         <SectionFormModal
@@ -1216,7 +1054,7 @@ function SubjectFormModal({
     try {
       await onSave({ sub_no: subNo, sub_name: subName, subjectCode: subjectCode || undefined, classId: classId || undefined, status });
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to FloppyDisk subject.");
+      setError(err?.response?.data?.message || "Failed to save subject.");
       setSubmitting(false);
     }
   };
@@ -1260,69 +1098,23 @@ function SubjectsTab() {
   const [editTarget, setEditTarget] = useState<Subject | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Subject | null>(null);
 
-  const getClassName = (id?: string) => classes.find((c) => c._id === id)?.cl_name ?? "â€”";
+  const getClassName = (id?: string) => classes.find((c) => c._id === id)?.cl_name ?? "—";
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Subjects</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Manage subjects and curriculum</p>
-          </div>
-          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2">
-            <Plus size={15} /> Add Subject
-          </Button>
-        </div>
 
-        {loading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-        ) : error ? (
-          <p className="py-8 text-center text-sm text-destructive">{error}</p>
-        ) : subjects.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No subjects yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table className="w-full text-sm">
-              <TableHeader>
-                <TableRow className="border-b border-border">
-                  <TableHead className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Code</TableHead>
-                  <TableHead className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Subject Name</TableHead>
-                  <TableHead className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Class</TableHead>
-                  <TableHead className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                  <TableHead className="pb-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {subjects.map((sub) => (
-                  <TableRow key={sub._id} className="border-b border-border/60 transition-colors hover:bg-muted/50">
-                    <TableCell className="py-4 pr-4 font-medium text-primary">{sub.subjectCode || sub.sub_no}</TableCell>
-                    <TableCell className="py-4 pr-4 font-semibold text-foreground">{sub.sub_name}</TableCell>
-                    <TableCell className="py-4 pr-4 text-muted-foreground">{getClassName(sub.classId)}</TableCell>
-                    <TableCell className="py-4 pr-4"><StatusPill status={sub.status} /></TableCell>
-                    <TableCell className="py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="plain"
-                          onClick={() => setEditTarget(sub)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        >
-                          <PencilSimple size={14} />
-                        </Button>
-                        <Button variant="plain"
-                          onClick={() => setDeleteTarget(sub)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/30 bg-card text-destructive transition-colors hover:bg-destructive/10"
-                        >
-                          <Trash size={14} />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
+      <TabPanel title="Subjects" description="What is taught, optionally tied to one class." action={<AddButton label="Add subject" onClick={() => setShowAdd(true)} />}>
+        <ListState loading={loading} error={error} empty={subjects.length === 0} emptyText="No subjects yet.">
+          <ItemList>
+            {subjects.map((sub) => (
+              <ItemRow key={sub._id} icon={BookOpen} tint="blue" title={sub.sub_name}
+                meta={[sub.subjectCode || sub.sub_no, sub.classId ? getClassName(sub.classId) : "All classes"].join(" · ")}
+                badges={<StatusPill status={sub.status} />}
+                onEdit={() => setEditTarget(sub)} onDelete={() => setDeleteTarget(sub)} />
+            ))}
+          </ItemList>
+        </ListState>
+      </TabPanel>
 
       {showAdd && (
         <SubjectFormModal
@@ -1355,47 +1147,43 @@ function SubjectsTab() {
 
 // Main Page
 
-const TABS: Tab[] = ["Academic Years", "Terms", "Levels", "Periods", "Classes", "Sections", "Subjects"];
+// In setup order: each step needs the one before it.
+// Periods are per term, so that step shows no count.
+const TABS: { value: Tab; count?: keyof OverviewCounts }[] = [
+  { value: "Academic Years", count: "years" },
+  { value: "Terms", count: "terms" },
+  { value: "Levels", count: "levels" },
+  { value: "Periods" },
+  { value: "Classes", count: "classes" },
+  { value: "Sections", count: "sections" },
+  { value: "Subjects", count: "subjects" },
+];
 
 export default function AcademicStructurePage() {
   const [activeTab, setActiveTab] = useState<Tab>("Academic Years");
-  const counts = useOverviewCounts();
+  const counts = useOverviewCounts(activeTab);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Academic Structure"
-        subtitle="Manage academic years, terms, grade levels, periods, classes, sections, and subjects."
-        action={
-          <Button size="sm" asChild>
-            <Link to="/settings?tab=Academic" className="gap-2">
-              <Calendar size={14} />
-              Open Academic Calendar
-            </Link>
-          </Button>
-        }
+        subtitle="Set up the school year step by step: years, terms, levels, periods, classes, sections and subjects."
       />
 
-      <StatStrip
-        items={[
-          { label: "Academic Years", value: counts?.years ?? "â€”", icon: CalendarBlank, tone: "sky", hint: "Configured year periods" },
-          { label: "Active Terms", value: counts?.activeTerms ?? "â€”", icon: Buildings, tone: "violet", hint: "Terms currently active" },
-          { label: "Classes / Sections", value: counts ? `${counts.classes} / ${counts.sections}` : "â€”", icon: GraduationCap, tone: "emerald", hint: "Grades and their sections" },
-          { label: "Subjects", value: counts?.subjects ?? "â€”", icon: BookOpen, tone: "amber", hint: "Curriculum subjects" },
-        ]}
-      />
-
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="space-y-6">
-        <TabsList className="flex h-auto w-full flex-wrap gap-1 border border-border bg-card p-1.5 shadow-sm">
-          {TABS.map((tab) => (
-            <TabsTrigger
-              key={tab}
-              value={tab}
-              className="flex-1 rounded-lg px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary sm:text-sm"
-            >
-              {tab}
-            </TabsTrigger>
-          ))}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+          {TABS.map(({ value, count }, i) => {
+            const n = count && counts ? counts[count] : undefined;
+            return (
+              <TabsTrigger key={value} value={value} className="gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
+                  {n ? <Check size={11} weight="bold" className="text-success" /> : i + 1}
+                </span>
+                {value}
+                {n !== undefined && <span className="rounded-full bg-background/70 px-1.5 text-[11px] tabular-nums">{n}</span>}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
       </Tabs>
 
@@ -1407,33 +1195,18 @@ export default function AcademicStructurePage() {
       {activeTab === "Sections"       && <SectionsTab />}
       {activeTab === "Subjects"       && <SubjectsTab />}
 
-      <Card className="overflow-hidden border-primary/20 bg-gradient-to-r from-primary/10 via-card to-card shadow-sm">
-        <div className="grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Calendar size={23} />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Academic Calendar Setup</h2>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Your academic calendar is generated from the academic year and term dates configured above. After setting those dates, add Buildings holidays and events in the Academic Calendar.
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-medium">
-                <span className="rounded-full bg-card px-3 py-1.5 text-foreground ring-1 ring-border">1. Create Academic Year</span>
-                <span className="text-muted-foreground/50">â†’</span>
-                <span className="rounded-full bg-card px-3 py-1.5 text-foreground ring-1 ring-border">2. Add Term Dates</span>
-                <span className="text-muted-foreground/50">â†’</span>
-                <span className="rounded-full bg-card px-3 py-1.5 text-foreground ring-1 ring-border">3. Add Holidays & Events</span>
-              </div>
-            </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-5 py-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tile-yellow text-tile-foreground"><Calendar size={18} /></span>
+          <div>
+            <p className="text-sm font-semibold">Holidays and events</p>
+            <p className="text-xs text-muted-foreground">Term dates appear in the calendar automatically. Add holidays and school events there.</p>
           </div>
-          <Button asChild className="gap-2">
-            <Link to="/settings?tab=Academic">
-              <Plus size={16} /> Open Academic Calendar
-            </Link>
-          </Button>
         </div>
-      </Card>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/settings?tab=Academic" className="gap-2"><Calendar size={14} /> Open calendar</Link>
+        </Button>
+      </div>
     </div>
   );
 }

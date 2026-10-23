@@ -6,6 +6,8 @@ import User from '../../src/models/User.js';
 import Subject from '../../src/models/Subject.js';
 import Class from '../../src/models/Class.js';
 import TeacherAssignment from '../../src/models/TeacherAssignment.js';
+import Period from '../../src/models/Period.js';
+import Section from '../../src/models/Section.js';
 import { generateAccessToken } from '../../src/utils/tokenService.js';
 
 describe('Teacher & Assignment Integration Tests', () => {
@@ -44,6 +46,8 @@ describe('Teacher & Assignment Integration Tests', () => {
     await Subject.deleteMany({});
     await Class.deleteMany({});
     await TeacherAssignment.deleteMany({});
+    await Period.deleteMany({});
+    await Section.deleteMany({});
   }, 30000);
 
   afterAll(async () => {
@@ -72,6 +76,19 @@ describe('Teacher & Assignment Integration Tests', () => {
     const subject = await Subject.create({ code: `PHY101-${Date.now()}`, name: 'Physics', sub_no: `PHY-${Date.now()}`, sub_name: 'Physics' });
     const classObj = await Class.create({ cl_no: 'G11', cl_name: 'Grade 11', lev_no: new mongoose.Types.ObjectId() });
 
+    // Timetable slots reference configured periods ({ day, periodId }), not
+    // free-form times — the controller resolves start/end from the Period.
+    const termId = new mongoose.Types.ObjectId();
+    const [period1, period2] = await Period.create([
+      { termId, per_no: 'P1', per_name: 'Period 1', time_in: '08:00', time_out: '09:00' },
+      { termId, per_no: 'P2', per_name: 'Period 2', time_in: '10:00', time_out: '11:00' },
+    ]);
+    // Assignments are scoped to a class section and a term.
+    const section = await Section.create({ name: 'Section A', class: classObj._id });
+    // The test database is dropped between runs; the duplicate check relies on
+    // the unique index, so make sure it exists.
+    await TeacherAssignment.syncIndexes();
+
     // 3. Add first assignment
     const firstAssignRes = await request(app)
       .post(`/api/teachers/${teacherId}/assignments`)
@@ -79,9 +96,12 @@ describe('Teacher & Assignment Integration Tests', () => {
       .send({
         subjectId: subject._id,
         classId: classObj._id,
-        timetableSlots: [{ day: 'Monday', startTime: '08:00', endTime: '09:00' }]
+        sectionId: section._id,
+        termId,
+        timetableSlots: [{ day: 'Monday', periodId: period1._id }]
       });
 
+    if (firstAssignRes.statusCode !== 201) console.log('Assignment create failed:', firstAssignRes.body);
     expect(firstAssignRes.statusCode).toBe(201);
 
     // 4. Try adding the exact same assignment again
@@ -91,7 +111,9 @@ describe('Teacher & Assignment Integration Tests', () => {
       .send({
         subjectId: subject._id,
         classId: classObj._id,
-        timetableSlots: [{ day: 'Tuesday', startTime: '10:00', endTime: '11:00' }]
+        sectionId: section._id,
+        termId,
+        timetableSlots: [{ day: 'Tuesday', periodId: period2._id }]
       });
 
     // 5. Verify it is rejected as a bad request due to unique index

@@ -11,7 +11,7 @@ export default function ProfileTab() {
   const { child } = useParentPortal();
 
   if (!child) {
-    return <div className="bg-white border rounded-xl py-16 text-center text-gray-400 text-sm">Select a child to view their profile.</div>;
+    return <div className="bg-card border rounded-xl py-16 text-center text-muted-foreground text-sm">Select a child to view their profile.</div>;
   }
 
   return (
@@ -45,9 +45,9 @@ export default function ProfileTab() {
 
 function InfoRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) {
   return (
-    <div className={`flex items-center justify-between gap-4 py-2.5 ${last ? '' : 'border-b border-gray-50'}`}>
-      <span className="text-sm text-gray-500 shrink-0">{label}</span>
-      <span className="text-sm font-medium text-right text-gray-900">{value}</span>
+    <div className={`flex items-center justify-between gap-4 py-2.5 ${last ? '' : 'border-b border-border'}`}>
+      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+      <span className="text-sm font-medium text-right text-foreground">{value}</span>
     </div>
   );
 }

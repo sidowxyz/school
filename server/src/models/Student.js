@@ -51,9 +51,7 @@ const studentSchema = new mongoose.Schema(
     },
 
     // Optional: not every school streams its classes into sections, and a
-    // student in a section-less class must still be a valid record (and still
-    // be promotable). Where sections are used, the promotion and enrolment
-    // flows require one for the destination class.
+    // student in a section-less class must still be a valid record.
     sectionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Section',
@@ -97,7 +95,7 @@ const studentSchema = new mongoose.Schema(
 
     admissionType: {
       type: String,
-      enum: ['Regular', 'Promoted', 'Transfer'],
+      enum: ['Regular', 'Transfer'],
       default: 'Regular'
     },
 
@@ -115,6 +113,14 @@ const studentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Family',
       default: null
+    },
+
+    // Standing discount on this student's monthly fee, applied each time the
+    // month is charged (on top of any sibling or scholarship discount).
+    fee_discount: {
+      kind: { type: String, enum: ['percent', 'amount'] },
+      value: { type: Number, min: 0 },
+      reason: { type: String, trim: true }
     },
 
     bloodGroup: {

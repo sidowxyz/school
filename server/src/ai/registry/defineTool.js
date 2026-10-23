@@ -35,7 +35,7 @@ export const SCOPE = Object.freeze({
 
 /**
  * Roles that legitimately see across the whole school, at least within their own
- * domain — an accountant sees every invoice, a librarian every loan. A tool may
+ * domain — an accountant sees every invoice. A tool may
  * expose unnarrowed data to these roles.
  */
 export const DOMAIN_WIDE_ROLES = Object.freeze([
@@ -43,7 +43,6 @@ export const DOMAIN_WIDE_ROLES = Object.freeze([
   'principal',
   'academic_officer',
   'accountant',
-  'librarian',
 ]);
 
 /**

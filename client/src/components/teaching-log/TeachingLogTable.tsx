@@ -42,7 +42,7 @@ export default function TeachingLogTable({
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="bg-[#f3f7f5] hover:bg-[#f3f7f5]">
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead>Date</TableHead><TableHead>Subject</TableHead><TableHead>Class & Sec</TableHead>
               <TableHead>Topic Taught</TableHead><TableHead>Lesson Objective</TableHead><TableHead>Homework</TableHead>
               <TableHead>Status</TableHead><TableHead>Logged By</TableHead><TableHead className="text-right">Actions</TableHead>
@@ -59,12 +59,12 @@ export default function TeachingLogTable({
               logs.map((log) => (
                 <TableRow key={log._id}>
                   <TableCell className="whitespace-nowrap font-medium flex items-center gap-2">
-                    <Calendar size={14} className="text-gray-400" />
+                    <Calendar size={14} className="text-muted-foreground" />
                     {formatDate(log.date)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-medium">{log.subject}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    <span className="bg-gray-100 text-gray-750 px-2 py-0.5 rounded text-xs font-semibold">
+                    <span className="bg-muted text-foreground px-2 py-0.5 rounded text-xs font-semibold">
                       {log.classId}-{log.section}
                     </span>
                   </TableCell>
@@ -77,26 +77,26 @@ export default function TeachingLogTable({
                   <TableCell className="max-w-[150px] truncate" title={log.homeworkGiven}>
                     {log.homeworkGiven ? (
                       <span className="flex items-center gap-1.5">
-                        <FileText size={13} className="text-green-550 shrink-0" />
+                        <FileText size={13} className="text-primary shrink-0" />
                         <span className="truncate">{log.homeworkGiven}</span>
                       </span>
                     ) : (
-                      <span className="text-gray-405 text-xs">-</span>
+                      <span className="text-muted-foreground text-xs">-</span>
                     )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <StatusBadge status={log.status} />
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-xs">
-                    <div className="font-semibold text-gray-800">{log.createdBy.name}</div>
-                    <div className="text-[10px] text-gray-400">{log.createdBy.email}</div>
+                    <div className="font-semibold text-foreground">{log.createdBy.name}</div>
+                    <div className="text-[10px] text-muted-foreground">{log.createdBy.email}</div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-right text-xs font-medium">
                     <div className="flex justify-end gap-2.5">
                       <Button
                         variant="ghost" size="icon"
                         onClick={() => navigate(`/teaching-log/${log._id}${readOnly ? '?readonly=1' : ''}`)}
-                        className="text-gray-400 hover:text-green-600 p-1 rounded hover:bg-gray-100 transition-colors"
+                        className="text-muted-foreground hover:text-primary p-1 rounded hover:bg-muted transition-colors"
                         title="View Details"
                       >
                         <Eye size={15} />
@@ -105,14 +105,14 @@ export default function TeachingLogTable({
                         <>
                           <Button variant="ghost" size="icon"
                             onClick={() => navigate(`/teaching-log/${log._id}/edit`)}
-                            className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-gray-100 transition-colors"
+                            className="text-muted-foreground hover:text-info p-1 rounded hover:bg-muted transition-colors"
                             title="Edit Log"
                           >
                             <PencilSimple size={15} />
                           </Button>
                           <Button variant="ghost" size="icon"
                             onClick={() => onDeleteClick(log._id)}
-                            className="text-gray-400 hover:text-red-650 p-1 rounded hover:bg-gray-100 transition-colors"
+                            className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-muted transition-colors"
                             title="Delete Log"
                           >
                             <Trash size={15} />
@@ -130,18 +130,18 @@ export default function TeachingLogTable({
 
       {/* Pagination Footer */}
       {totalPages > 1 && (
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-          <p className="text-xs text-gray-500">
-            Showing <span className="font-semibold text-gray-900">{Math.min((page - 1) * limit + 1, total)}</span> to{' '}
-            <span className="font-semibold text-gray-900">{Math.min(page * limit, total)}</span> of{' '}
-            <span className="font-semibold text-gray-900">{total}</span> records
+        <div className="px-6 py-4 bg-muted/50 border-t border-border flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Showing <span className="font-semibold text-foreground">{Math.min((page - 1) * limit + 1, total)}</span> to{' '}
+            <span className="font-semibold text-foreground">{Math.min(page * limit, total)}</span> of{' '}
+            <span className="font-semibold text-foreground">{total}</span> records
           </p>
 
           <div className="flex gap-2">
             <UiButton variant="plain"
               onClick={handlePrevPage}
               disabled={page === 1}
-              className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <CaretLeft size={16} />
             </UiButton>
@@ -154,8 +154,8 @@ export default function TeachingLogTable({
                   onClick={() => onPageChange(p)}
                   className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors border ${
                     isCurrent
-                      ? 'bg-green-600 text-white border-green-600 shadow-sm'
-                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-card text-foreground/80 border-border hover:bg-muted/50'
                   }`}
                 >
                   {p}
@@ -165,7 +165,7 @@ export default function TeachingLogTable({
             <UiButton variant="plain"
               onClick={handleNextPage}
               disabled={page === totalPages}
-              className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <CaretRight size={16} />
             </UiButton>

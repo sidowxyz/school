@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FileText, ClockCounterClockwise, ArrowCounterClockwise, PaperPlaneRight, Sparkle, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { ClockCounterClockwise, ArrowCounterClockwise, PaperPlaneRight, Sparkle, MagnifyingGlass, X } from '@phosphor-icons/react';
 import { useAiChat } from '../hooks/useAiChat';
 import { usePageContext } from '../hooks/usePageContext';
 import { useAuth } from '../../../hooks/useAuth';
@@ -7,12 +7,11 @@ import type { QuickAction } from '../types/ai.types';
 import ChatMessage from './ChatMessage';
 import QuickActions from './QuickActions';
 import ConversationHistory from './ConversationHistory';
-import ExamUploadForm from './ExamUploadForm';
 import AssignmentUploadForm from './AssignmentUploadForm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-// Mirrors the server's role gates for the two UploadSimple routes (aiUploadService.js).
+// Mirrors the server's role gate for the assignment upload route (aiUploadService.js).
 // Purely a UI convenience — the server remains the actual authority, so a stale
 // or wrong list here only ever hides a button, never grants access.
 const UPLOAD_ROLES = ['admin', 'principal', 'academic_officer', 'teacher'];
@@ -29,19 +28,18 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
     quickActions,
     busy,
     llmAvailable,
-    PaperPlaneRight,
+    send,
     reset,
     confirm,
     cancel,
     openConversation,
-    uploadExam,
     uploadAssignment,
   } = useAiChat(pageContext);
   const { role } = useAuth();
   const canUpload = Boolean(role && UPLOAD_ROLES.includes(role));
   const [draft, setDraft] = useState('');
   const [showHistory, setShowHistory] = useState(false);
-  const [activeForm, setActiveForm] = useState<'exam' | 'assignment' | null>(null);
+  const [activeForm, setActiveForm] = useState<'assignment' | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -101,17 +99,17 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="School assistant"
-        className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-gray-200 bg-white shadow-xl sm:w-[420px]"
+        className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-border bg-card shadow-xl sm:w-[420px]"
       >
-        <header className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+        <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-600 text-white">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Sparkle size={14} />
             </span>
             <div>
-              <p className="text-sm font-semibold text-gray-800">School Assistant</p>
-              <p className="text-[11px] text-gray-400">
-                {llmAvailable === false ? 'Structured results' : 'Reads live Buildings data'}
+              <p className="text-sm font-semibold text-foreground">School Assistant</p>
+              <p className="text-[11px] text-muted-foreground">
+                {llmAvailable === false ? 'Structured results' : 'Reads live school data'}
               </p>
             </div>
           </div>
@@ -122,8 +120,8 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
               onClick={() => setShowHistory((v) => !v)}
               title={showHistory ? 'Back to chat' : 'Past conversations'}
               aria-pressed={showHistory}
-              className={`rounded-lg p-1.5 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
-                showHistory ? 'bg-green-50 text-green-700' : 'text-gray-400 hover:text-gray-600'
+              className={`rounded-lg p-1.5 transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                showHistory ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-muted-foreground'
               }`}
             >
               <ClockCounterClockwise size={15} />
@@ -138,7 +136,7 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
                   setShowHistory(false);
                 }}
                 title="Start a new conversation"
-                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <ArrowCounterClockwise size={15} />
                 <span className="sr-only">Start a new conversation</span>
@@ -147,7 +145,7 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
             <Button variant="plain"
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <X size={16} />
               <span className="sr-only">Close assistant</span>
@@ -178,16 +176,6 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
                   onCancel={cancel}
                 />
               ))}
-              {activeForm === 'exam' && (
-                <ExamUploadForm
-                  busy={busy}
-                  onCancel={() => setActiveForm(null)}
-                  onSubmit={(file, meta) => {
-                    setActiveForm(null);
-                    void uploadExam(file, meta);
-                  }}
-                />
-              )}
               {activeForm === 'assignment' && (
                 <AssignmentUploadForm
                   busy={busy}
@@ -202,27 +190,19 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
           )}
         </div>
 
-        {/* Composer and UploadSimple shortcuts are hidden while browsing ClockCounterClockwise or
-            filling in an UploadSimple form — there is nothing to PaperPlaneRight to either way. */}
+        {/* Composer and upload shortcuts are hidden while browsing history or
+            filling in an upload form — there is nothing to send to either way. */}
         {!showHistory && !activeForm && (
-          <div className="border-t border-gray-100">
+          <div className="border-t border-border">
             {canUpload && (
               <div className="flex gap-2 px-3 pt-2">
                 <Button variant="plain"
                   type="button"
-                  onClick={() => setActiveForm('exam')}
-                  className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-                >
-                  <FileText size={12} />
-                  UploadSimple exam
-                </Button>
-                <Button variant="plain"
-                  type="button"
                   onClick={() => setActiveForm('assignment')}
-                  className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground/80"
                 >
                   <MagnifyingGlass size={12} />
-                  UploadSimple assignment
+                  Upload assignment
                 </Button>
               </div>
             )}
@@ -234,12 +214,12 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="Ask about attendance, fees, students…"
                   aria-label="Ask the assistant"
-                  className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-400"
+                  className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/40"
                 />
                 <Button variant="plain"
                   type="submit"
                   disabled={busy || draft.trim().length === 0}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-600 text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <PaperPlaneRight size={15} />
                   <span className="sr-only">Send</span>

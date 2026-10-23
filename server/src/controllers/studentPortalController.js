@@ -8,20 +8,11 @@ import StudentAttendance from '../models/StudentAttendance.js';
 import StudentInvoice from '../models/StudentInvoice.js';
 import StudentScholarship from '../models/StudentScholarship.js';
 import Status from '../models/Status.js';
-import Result from '../models/Result.js';
 import TimetableSlot from '../models/TimetableSlot.js';
-import Notification from '../models/notification.model.js';
-import Message from '../models/message.model.js';
-import BookIssue from '../models/BookIssue.js';
-import ResultSheet from '../models/ResultSheet.js';
 // Imported so their schemas are registered for the .populate() calls below —
 // otherwise the queries throw MissingSchemaError for these refs.
 import '../models/Period.js';
-import '../models/Book.js';
-import '../models/Author.js';
 import '../models/Subject.js';
-import '../models/Exam.js';
-import '../models/ExamReg.js';
 import '../models/User.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
@@ -100,20 +91,6 @@ export const getMyAttendance = async (req, res, next) => {
   }
 };
 
-// GET /api/portal/student/results
-export const getMyResults = async (req, res, next) => {
-  try {
-    const student = await resolveStudent(req);
-    const results = await Result.find({ id: student._id })
-      .populate({ path: 'cc_no', select: 'cc_no sub_no', populate: { path: 'sub_no', select: 'sub_name sub_no' } })
-      .populate({ path: 'ex_r_no', select: 'ex_r_no total_marks ex_no', populate: { path: 'ex_no', select: 'ex_name ex_no' } })
-      .sort({ createDate: -1 });
-    res.status(200).json(new ApiResponse(200, results, 'Results retrieved successfully'));
-  } catch (error) {
-    next(error);
-  }
-};
-
 // GET /api/portal/student/invoices
 export const getMyInvoices = async (req, res, next) => {
   try {
@@ -130,57 +107,6 @@ export const getMyInvoices = async (req, res, next) => {
     }, { invoiced: 0, paid: 0, balance: 0 });
 
     res.status(200).json(new ApiResponse(200, { totals, invoices }, 'Invoices retrieved successfully'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// GET /api/portal/student(/:studentId)/notifications
-export const getMyNotifications = async (req, res, next) => {
-  try {
-    const student = await resolveStudent(req);
-    if (!student.userId) {
-      return res.status(200).json(new ApiResponse(200, { total: 0, unread: 0, notifications: [] }, 'Notifications retrieved'));
-    }
-    const notifications = await Notification.find({ user_id: student.userId }).sort({ createDate: -1 }).limit(100);
-    const unread = notifications.filter((n) => !n.is_read).length;
-    res.status(200).json(new ApiResponse(200, { total: notifications.length, unread, notifications }, 'Notifications retrieved'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// GET /api/portal/student(/:studentId)/messages
-export const getMyMessages = async (req, res, next) => {
-  try {
-    const student = await resolveStudent(req);
-    if (!student.userId) {
-      return res.status(200).json(new ApiResponse(200, { total: 0, unread: 0, messages: [] }, 'Messages retrieved'));
-    }
-    const messages = await Message.find({ receiver_id: student.userId, is_deleted_by_receiver: { $ne: true } })
-      .populate('sender_id', 'firstName lastName email role')
-      .sort({ createDate: -1 })
-      .limit(100);
-    const unread = messages.filter((m) => !m.is_read).length;
-    res.status(200).json(new ApiResponse(200, { total: messages.length, unread, messages }, 'Messages retrieved'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// GET /api/portal/student(/:studentId)/library
-export const getMyLibrary = async (req, res, next) => {
-  try {
-    const student = await resolveStudent(req);
-    const issues = await BookIssue.find({ student_id: student._id })
-      .populate({ path: 'book_id', select: 'book_name isbn author_id', populate: { path: 'author_id', select: 'author_name name' } })
-      .sort({ issue_date: -1 });
-
-    const summary = issues.reduce((acc, i) => {
-      acc[i.status] = (acc[i.status] || 0) + 1;
-      return acc;
-    }, {});
-    res.status(200).json(new ApiResponse(200, { total: issues.length, summary, issues }, 'Library history retrieved'));
   } catch (error) {
     next(error);
   }
@@ -235,20 +161,6 @@ export const getMyScholarship = async (req, res, next) => {
         };
 
     res.status(200).json(new ApiResponse(200, { active }, 'Scholarship retrieved'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// GET /api/portal/student(/:studentId)/report-cards
-export const getMyReportCards = async (req, res, next) => {
-  try {
-    const student = await resolveStudent(req);
-    const sheets = await ResultSheet.find({ student: student._id })
-      .populate({ path: 'examReg', select: 'ex_r_no total_marks ex_no', populate: { path: 'ex_no', select: 'ex_name ex_no' } })
-      .populate('marks.subject', 'sub_name sub_no')
-      .sort({ createdAt: -1 });
-    res.status(200).json(new ApiResponse(200, sheets, 'Report cards retrieved'));
   } catch (error) {
     next(error);
   }

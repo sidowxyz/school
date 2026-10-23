@@ -38,17 +38,17 @@ export default function ConfirmationCard({ confirmation, onConfirm, onCancel }: 
   return (
     <div
       className={`rounded-xl border ${
-        settled ? 'border-gray-200 bg-gray-50' : 'border-amber-200 bg-amber-50'
+        settled ? 'border-border bg-muted/50' : 'border-warning/20 bg-warning/10'
       } p-3`}
     >
       <div className="flex items-start gap-2">
         <span
           className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
             state === 'confirmed'
-              ? 'bg-green-100 text-green-700'
+              ? 'bg-primary/15 text-primary'
               : state === 'cancelled'
-                ? 'bg-gray-200 text-gray-500'
-                : 'bg-amber-100 text-amber-700'
+                ? 'bg-muted text-muted-foreground'
+                : 'bg-warning/15 text-warning'
           }`}
           aria-hidden="true"
         >
@@ -56,11 +56,11 @@ export default function ConfirmationCard({ confirmation, onConfirm, onCancel }: 
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-900">{preview.title}</p>
-          <p className="mt-0.5 text-xs text-gray-600">{preview.summary}</p>
+          <p className="text-sm font-semibold text-foreground">{preview.title}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{preview.summary}</p>
 
           {preview.impact && !settled && (
-            <p className="mt-2 inline-block rounded-lg bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">
+            <p className="mt-2 inline-block rounded-lg bg-warning/15 px-2 py-1 text-xs font-semibold text-warning">
               {preview.impact}
             </p>
           )}
@@ -69,8 +69,8 @@ export default function ConfirmationCard({ confirmation, onConfirm, onCancel }: 
             <dl className="mt-2.5 space-y-1">
               {Object.entries(preview.details).map(([key, value]) => (
                 <div key={key} className="flex gap-2 text-xs">
-                  <dt className="w-32 shrink-0 text-gray-400">{formatDetailKey(key)}</dt>
-                  <dd className="min-w-0 flex-1 break-words text-gray-700">
+                  <dt className="w-32 shrink-0 text-muted-foreground">{formatDetailKey(key)}</dt>
+                  <dd className="min-w-0 flex-1 break-words text-foreground/80">
                     {formatDetailValue(value)}
                   </dd>
                 </div>
@@ -84,7 +84,7 @@ export default function ConfirmationCard({ confirmation, onConfirm, onCancel }: 
                 type="button"
                 onClick={onConfirm}
                 disabled={busy}
-                className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 {busy ? 'Working…' : 'Confirm'}
               </Button>
@@ -92,13 +92,13 @@ export default function ConfirmationCard({ confirmation, onConfirm, onCancel }: 
                 type="button"
                 onClick={onCancel}
                 disabled={busy}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Cancel
               </Button>
             </div>
           ) : (
-            <p className="mt-2.5 text-xs font-medium text-gray-500">
+            <p className="mt-2.5 text-xs font-medium text-muted-foreground">
               {state === 'confirmed' ? 'Done.' : 'Cancelled — nothing was changed.'}
             </p>
           )}

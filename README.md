@@ -127,6 +127,7 @@ npm run install:all   # in case dependencies changed
 | `JWT_ACCESS_SECRET` | Signs short-lived access tokens | ask a teammate |
 | `JWT_REFRESH_SECRET` | Signs longer-lived refresh tokens | ask a teammate |
 | `NODE_ENV` | `development` \| `test` \| `production` | use `development` locally |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | First admin login, created only when the database has no admin | optional in development (defaults to admin@gmail.com / admin); required in production. No demo data is ever created — everything is entered in the app |
 
 The backend repo doesn't ship a `.env.example` yet (known gap), so `npm run setup`
 scaffolds `server/.env` with the keys above set to `REPLACE_ME` placeholders   fill

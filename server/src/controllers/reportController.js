@@ -5,7 +5,7 @@ import ReportAccessLog from '../models/ReportAccessLog.js';
 
 // Roles allowed to see the Management Dashboard summary. Admin and principal
 // only — this rolls up figures across every department, which academic /
-// finance / library staff cannot see on their own catalogues.
+// finance staff cannot see on their own catalogues.
 const MANAGEMENT_ROLES = ['admin', 'principal'];
 
 // Query-string keys that aren't real report filters — stripped before

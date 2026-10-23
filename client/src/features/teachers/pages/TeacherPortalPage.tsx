@@ -8,20 +8,20 @@ import { Button } from '@/components/ui/button';
 
 function ViewingBanner({ teacher, onChange }: { teacher: Teacher; onChange: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5 mb-4">
+    <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-xl px-4 py-2.5 mb-4">
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="w-8 h-8 rounded-full bg-white border border-green-200 flex items-center justify-center shrink-0">
-          <GraduationCap size={16} className="text-green-600" />
+        <div className="w-8 h-8 rounded-full bg-card border border-primary/20 flex items-center justify-center shrink-0">
+          <GraduationCap size={16} className="text-primary" />
         </div>
-        <p className="text-sm text-gray-700 truncate">
-          Viewing portal for <span className="font-semibold text-gray-900">{teacher.userId?.name || 'Teacher'}</span>{' '}
-          <span className="text-gray-400">({teacher.staffId})</span>
+        <p className="text-sm text-foreground/80 truncate">
+          Viewing portal for <span className="font-semibold text-foreground">{teacher.userId?.name || 'Teacher'}</span>{' '}
+          <span className="text-muted-foreground">({teacher.staffId})</span>
         </p>
       </div>
       <Button variant="plain"
         type="button"
         onClick={onChange}
-        className="shrink-0 flex items-center gap-1 text-sm font-medium text-green-700 hover:underline"
+        className="shrink-0 flex items-center gap-1 text-sm font-medium text-primary hover:underline"
       >
         <CaretLeft size={15} /> Change teacher
       </Button>

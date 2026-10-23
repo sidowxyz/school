@@ -65,9 +65,9 @@ export default function FeesTab() {
       {/* Hairline Divided KPI Strip */}
       <Card className="overflow-hidden border-border bg-border shadow-2xs">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-px">
-          <KPICell icon={Receipt} iconClass="text-sky-600 dark:text-sky-400" label="Total Invoiced" value={formatUSD(totals.invoiced)} sub="All issued invoices" />
-          <KPICell icon={CheckCircle} iconClass="text-emerald-600 dark:text-emerald-400" label="Total Paid" value={formatUSD(totals.paid)} sub="Payments received" />
-          <KPICell icon={WarningCircle} iconClass="text-rose-600 dark:text-rose-400" label="Outstanding Balance" value={formatUSD(totals.balance)} sub="Amount remaining" />
+          <KPICell icon={Receipt} iconClass="text-info" label="Total Invoiced" value={formatUSD(totals.invoiced)} sub="All issued invoices" />
+          <KPICell icon={CheckCircle} iconClass="text-success" label="Total Paid" value={formatUSD(totals.paid)} sub="Payments received" />
+          <KPICell icon={WarningCircle} iconClass="text-destructive" label="Outstanding Balance" value={formatUSD(totals.balance)} sub="Amount remaining" />
         </div>
       </Card>
 
@@ -120,7 +120,7 @@ export default function FeesTab() {
                     <TableRow key={i._id} className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
                       <TableCell className="px-5 py-3 text-sm font-medium text-foreground">{i.invoice_no}</TableCell>
                       <TableCell className="px-5 py-3 text-sm text-foreground">{formatUSD(i.invoice_amount)}</TableCell>
-                      <TableCell className="px-5 py-3 text-sm text-emerald-600 dark:text-emerald-400">{formatUSD(i.paid_amount)}</TableCell>
+                      <TableCell className="px-5 py-3 text-sm text-success">{formatUSD(i.paid_amount)}</TableCell>
                       <TableCell className="px-5 py-3 text-sm text-foreground">{formatUSD(i.balance)}</TableCell>
                       <TableCell className="px-5 py-3"><StatusBadge status={STATUS_LABEL[i.status] ?? i.status} /></TableCell>
                       <TableCell className="px-5 py-3 text-sm text-muted-foreground">{formatDate(i.dueDate)}</TableCell>

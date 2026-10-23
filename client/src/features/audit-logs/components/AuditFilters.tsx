@@ -14,7 +14,7 @@ interface AuditFiltersProps {
   setDate: React.Dispatch<React.SetStateAction<string>>;
 }
 export default function AuditFilters({
-  MagnifyingGlass,
+  search,
   setSearch,
   user,
   setUser,
@@ -24,42 +24,42 @@ export default function AuditFilters({
   setDate,
 }: AuditFiltersProps) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-10">
 
-        {/* MagnifyingGlass */}
+        {/* Search */}
         <div className="xl:col-span-3">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            MagnifyingGlass Logs
+          <label className="mb-2 block text-sm font-medium text-foreground/80">
+            Search Logs
           </label>
 
           <div className="relative">
             <MagnifyingGlass
               size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
 
             <Input
               type="text"
-              value={MagnifyingGlass}
+              value={search}
 onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by user, module or action..."
               
-              className="h-11 w-full rounded-lg border border-gray-300 pl-10 pr-3 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500"
+              className="h-11 w-full rounded-lg border border-border pl-10 pr-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
 
         {/* User */}
         <div className="xl:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
+          <label className="mb-2 block text-sm font-medium text-foreground/80">
             User
           </label>
 
           <NativeSelect
   value={user}
   onChange={(e) => setUser(e.target.value)}
-  className="h-11 w-full rounded-lg border border-gray-300 px-3 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500"
+  className="h-11 w-full rounded-lg border border-border px-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary"
 >
             <option>All Users</option>
             <option>Admin</option>
@@ -71,14 +71,14 @@ onChange={(e) => setSearch(e.target.value)}
         </div>
         {/* Action */}
         <div className="xl:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
+          <label className="mb-2 block text-sm font-medium text-foreground/80">
             Action
           </label>
 
           <NativeSelect 
           value={action}
           onChange={(e) => setAction(e.target.value)}
-          className="h-11 w-full rounded-lg border border-gray-300 px-3 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500">
+          className="h-11 w-full rounded-lg border border-border px-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary">
             <option>All Actions</option>
             <option>Created</option>
             <option>Updated</option>
@@ -89,14 +89,14 @@ onChange={(e) => setSearch(e.target.value)}
 
         {/* Date */}
         <div className="xl:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
+          <label className="mb-2 block text-sm font-medium text-foreground/80">
             Date
           </label>
 
           <div className="relative">
             <CalendarBlank
               size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
 
             <Input
@@ -104,14 +104,14 @@ onChange={(e) => setSearch(e.target.value)}
               
   value={date}
   onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full rounded-lg border border-gray-300 pl-10 pr-3 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500"
+              className="h-11 w-full rounded-lg border border-border pl-10 pr-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
 
         {/* Apply */}
         <div className="lg:col-span-1 flex items-end">
-          <Button variant="plain" className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 text-white transition hover:bg-green-700">
+          <Button variant="plain" className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-primary-foreground transition hover:bg-primary/90">
             <Funnel size={18} />
             Apply
           </Button>

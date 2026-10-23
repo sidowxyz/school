@@ -6,7 +6,6 @@ import type {
   StudentReferenceData,
   CreateStudentAccountResult,
   AttendancePortalResult,
-  ReportCard,
   InvoicesPortalResult,
   StudentDocument,
 } from '../types';
@@ -26,11 +25,9 @@ export const studentsApi = {
     (await api.post(`/students/${id}/account`, data)).data.data,
 
   // Portal data (server/src/routes/studentPortalRoutes.js), admin/staff
-  // viewing a specific student's real attendance/results/fees.
+  // viewing a specific student's real attendance and fees.
   getAttendance:  async (id: string): Promise<AttendancePortalResult> =>
     (await api.get(`/portal/student/${id}/attendance`)).data.data,
-  getReportCards: async (id: string): Promise<ReportCard[]> =>
-    (await api.get(`/portal/student/${id}/report-cards`)).data.data,
   getInvoices:    async (id: string): Promise<InvoicesPortalResult> =>
     (await api.get(`/portal/student/${id}/invoices`)).data.data,
 

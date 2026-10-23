@@ -1,269 +1,300 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CaretRight, ChartBar, SquaresFour, SpinnerGap } from '@phosphor-icons/react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { ArrowsClockwise, CurrencyDollar, GraduationCap, Printer, SpinnerGap, UserCheck, Users, WarningCircle } from '@phosphor-icons/react';
 
 import PageHeader from '../../../components/common/PageHeader';
-import { useAuth } from '../../../hooks/useAuth';
-import ReportFilters, { type FilterValues } from '../components/ReportFilters';
-import ReportViewer from '../components/ReportViewer';
-import ManagementDashboard from '../components/ManagementDashboard';
+import StatStrip, { type StatItem } from '../../../components/shared/StatStrip';
+import { academicApi } from '../../academic-structure/api/academicApi';
+import type { Class, Year } from '../../academic-structure/types';
+import { Donut } from '../components/ReportsOverview';
 import { reportsApi } from '../api/reportsApi';
-import type { ReportDepartment, ReportResult, ReportSummaryItem } from '../types';
+import type { ReportCell, ReportResult } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 
-// Synthetic client-side id for the Management Dashboard tab. Not a real
-// server department — flags a code path that renders the tiles component
-// instead of a report from the catalogue.
-const DASHBOARD_ID = 'management-dashboard';
+// The page is a one-screen summary built from a handful of the existing
+// reports. Each block only appears when the signed-in role can run its report;
+// the full detail for everything else lives in each module.
+const WANTED = [
+  'students-by-class',
+  'students-enrollment-trend',
+  'finance-collection-summary',
+  'finance-aging',
+  'finance-outstanding-students',
+  'finance-collection-by-class',
+  'teaching-my-classes',
+  'teaching-low-attendance',
+] as const;
+type ReportId = (typeof WANTED)[number];
+type Results = Partial<Record<ReportId, ReportResult>>;
+
+const COLORS = ['hsl(var(--success))', 'hsl(var(--info))', 'hsl(var(--warning))', 'hsl(var(--violet))', 'hsl(var(--destructive))'];
+const AXIS = { fontSize: 12, fill: 'hsl(var(--muted-foreground))' };
+
+const num = (v: unknown) => Number(v) || 0;
+const money = (n: number) => `$${num(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+const summaryValue = (report: ReportResult | undefined, label: string) =>
+  report?.summary.find((s) => s.label === label)?.value;
+
+function formatCell(value: ReportCell, type?: string): string {
+  if (value === null || value === undefined || value === '') return '—';
+  if (type === 'money') return money(num(value));
+  if (type === 'date') return new Date(String(value)).toLocaleDateString();
+  return String(value);
+}
+
+function ChartCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+  return (
+    <Card className="rounded-2xl p-5">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <p className="mb-2 text-xs text-muted-foreground">{subtitle}</p>
+      {children}
+    </Card>
+  );
+}
+
+function Bars({ data, x, series, stacked, money: asMoney }: { data: Record<string, unknown>[]; x: string; series: { key: string; name: string }[]; stacked?: boolean; money?: boolean }) {
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <BarChart data={data} margin={{ top: 10, right: 5, left: -10, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
+        <XAxis dataKey={x} tick={AXIS} tickLine={false} axisLine={false} />
+        <YAxis tick={AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
+        <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} formatter={(v) => (asMoney ? money(Number(v)) : String(v))} />
+        <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+        {series.map((s, i) => (
+          <Bar key={s.key} dataKey={s.key} name={s.name} fill={COLORS[i % COLORS.length]} stackId={stacked ? 'a' : undefined} radius={stacked ? 0 : [6, 6, 0, 0]} barSize={stacked ? 28 : 18} />
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** A short table of the first few rows of a report, limited to the columns that matter. */
+function MiniTable({ title, subtitle, report, keys, limit = 5 }: { title: string; subtitle: string; report: ReportResult; keys: string[]; limit?: number }) {
+  const columns = keys.map((k) => report.columns.find((c) => c.key === k)).filter((c): c is NonNullable<typeof c> => Boolean(c));
+  const rows = report.rows.slice(0, limit);
+  return (
+    <Card className="overflow-hidden rounded-2xl">
+      <div className="border-b border-border px-5 py-4">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-5 py-10 text-center text-sm text-muted-foreground">Nothing to show.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                {columns.map((c) => (
+                  <th key={c.key} className={`px-5 py-2.5 font-semibold ${c.type === 'number' || c.type === 'money' ? 'text-right' : ''}`}>{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((row, i) => (
+                <tr key={i} className="hover:bg-muted/40">
+                  {columns.map((c) => (
+                    <td key={c.key} className={`whitespace-nowrap px-5 py-3 ${c.type === 'number' || c.type === 'money' ? 'text-right font-medium tabular-nums' : 'text-foreground/80'}`}>
+                      {formatCell(row[c.key], c.type)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export default function ReportsPage() {
-  const { role } = useAuth();
-  const canSeeDashboard = role === 'admin' || role === 'principal';
-
-  const [departments, setDepartments] = useState<ReportDepartment[]>([]);
-  const [departmentId, setDepartmentId] = useState('');
-  const [selected, setSelected] = useState<ReportSummaryItem | null>(null);
-  const [filterValues, setFilterValues] = useState<FilterValues>({});
-
-  const [report, setReport] = useState<ReportResult | null>(null);
-  const [loadingCatalog, setLoadingCatalog] = useState(true);
-  const [running, setRunning] = useState(false);
+  const [available, setAvailable] = useState<Set<string> | null>(null);
+  const [years, setYears] = useState<Year[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [yearId, setYearId] = useState('');
+  const [classId, setClassId] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [results, setResults] = useState<Results>({});
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // The catalogue is already filtered to this role server-side, so whatever
-  // arrives is what this user may run.
+  // The catalogue is filtered to this role server-side: whatever arrives is what may be run.
   useEffect(() => {
     reportsApi
       .getCatalog()
-      .then((data) => {
-        setDepartments(data);
-        // Land on the Dashboard tab for admin / principal; otherwise open
-        // the first real department they can see.
-        setDepartmentId(canSeeDashboard ? DASHBOARD_ID : data[0]?.id ?? '');
-      })
-      .catch(() => setError('Failed to load the report catalogue.'))
-      .finally(() => setLoadingCatalog(false));
-  }, [canSeeDashboard]);
+      .then((departments) => setAvailable(new Set(departments.flatMap((d) => d.groups.flatMap((g) => g.reports.map((r) => r.id))))))
+      .catch(() => {
+        setAvailable(new Set());
+        setError('Failed to load reports.');
+      });
+    academicApi.getYears().then(setYears).catch(() => undefined);
+    academicApi.getClasses().then(setClasses).catch(() => undefined);
+  }, []);
 
-  const department = departments.find((d) => d.id === departmentId) ?? null;
+  const load = useCallback(async () => {
+    if (!available) return;
+    setLoading(true);
+    const filters: Record<string, string> = {};
+    if (yearId) filters.year_id = yearId;
+    if (classId) filters.class_id = classId;
+    if (from) filters.from = from;
+    if (to) filters.to = to;
 
-  const runReport = useCallback(
-    (definition: ReportSummaryItem, values: FilterValues) => {
-      setRunning(true);
-      setError(null);
-      reportsApi
-        .run(definition.id, values)
-        .then(setReport)
-        .catch((err) =>
-          setError(
-            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-              'Failed to run that report.',
-          ),
-        )
-        .finally(() => setRunning(false));
-    },
-    [],
-  );
+    const ids = WANTED.filter((id) => available.has(id));
+    const settled = await Promise.allSettled(ids.map((id) => reportsApi.run(id, filters)));
+    const next: Results = {};
+    settled.forEach((result, i) => {
+      if (result.status === 'fulfilled') next[ids[i]] = result.value;
+    });
+    setResults(next);
+    setError(ids.length > 0 && Object.keys(next).length === 0 ? 'Could not load the report data.' : null);
+    setLoading(false);
+  }, [available, yearId, classId, from, to]);
 
-  const openReport = useCallback((definition: ReportSummaryItem) => {
-    // Seed any Funnel that declares a default so the first run is meaningful.
-    const defaults: FilterValues = {};
-    for (const Funnel of definition.filters) {
-      if (Funnel.default !== undefined) defaults[Funnel.key] = Funnel.default;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const r = results;
+
+  const stats = useMemo(() => {
+    const items: StatItem[] = [];
+    const students = summaryValue(r['students-by-class'], 'Students');
+    if (students !== undefined) {
+      items.push({ label: 'Students', value: num(students).toLocaleString(), icon: Users, tone: 'sky', hint: `${summaryValue(r['students-by-class'], 'Classes') ?? 0} classes` });
     }
-    setSelected(definition);
-    setFilterValues(defaults);
-    setReport(null);
-    runReport(definition, defaults);
-  }, [runReport]);
-
-  const onFiltersChange = (values: FilterValues) => {
-    setFilterValues(values);
-    if (selected) runReport(selected, values);
-  };
-
-  // Drill-through from a Management Dashboard tile: find the report id
-  // anywhere in the catalogue, switch to its department, and open it.
-  const drillToReport = useCallback((reportId: string) => {
-    for (const dept of departments) {
-      for (const group of dept.groups) {
-        const found = group.reports.find((r) => r.id === reportId);
-        if (found) {
-          setDepartmentId(dept.id);
-          openReport(found);
-          return;
-        }
-      }
+    const collection = r['finance-collection-summary'];
+    if (collection) {
+      items.push({ label: 'Collected', value: money(num(summaryValue(collection, 'Collected Revenue'))), icon: CurrencyDollar, tone: 'emerald', hint: `${summaryValue(collection, 'Collection Rate')} collection rate` });
+      items.push({ label: 'Outstanding', value: money(num(summaryValue(collection, 'Outstanding Revenue'))), icon: WarningCircle, tone: 'amber', hint: `${summaryValue(r['finance-outstanding-students'], 'Students Owing') ?? 0} students owing` });
     }
-    // Not in the catalogue for this role — surface it clearly rather than
-    // silently doing nothing.
-    setError(
-      `Cannot open that report — it is not in your reporting catalogue. ` +
-        `The dashboard tile pointed at "${reportId}".`,
-    );
-  }, [departments, openReport]);
+    const mine = r['teaching-my-classes'];
+    if (mine) {
+      items.push({ label: 'My classes', value: num(summaryValue(mine, 'Classes')), icon: GraduationCap, tone: 'violet', hint: `${num(summaryValue(mine, 'Students'))} students` });
+      const low = r['teaching-low-attendance'];
+      if (low) items.push({ label: 'Low attendance', value: num(summaryValue(low, 'Below Threshold')), icon: UserCheck, tone: 'rose', hint: `Below ${summaryValue(low, 'Threshold')}` });
+    }
+    return items.slice(0, 4);
+  }, [r]);
 
-  const totalReports = useMemo(
-    () => departments.reduce((sum, d) => sum + d.report_count, 0),
-    [departments],
-  );
-
-  if (loadingCatalog) {
-    return (
-      <div className="py-24 flex items-center justify-center">
-        <SpinnerGap className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!canSeeDashboard && departments.length === 0) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Reports" subtitle="Departmental reporting" />
-        <Card className="p-16 text-center">
-          <h3 className="text-base font-semibold text-foreground">No reports available for your role</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Reports are grouped by department. Your role does not currently have a reporting
-            department assigned to it.
-          </p>
-        </Card>
-      </div>
-    );
-  }
-
-  const showingDashboard = departmentId === DASHBOARD_ID;
-  const tabCount = departments.length + (canSeeDashboard ? 1 : 0);
+  const hasAnything = Object.keys(r).length > 0;
+  const trend = r['students-enrollment-trend'];
+  const collection = r['finance-collection-summary'];
+  const showFilters = available ? [...available].some((id) => (WANTED as readonly string[]).includes(id)) : false;
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-5 pb-8">
       <PageHeader
         title="Reports & Analytics"
-        subtitle={
-          canSeeDashboard
-            ? `${totalReports} report${totalReports === 1 ? '' : 's'} across ${departments.length} department${departments.length === 1 ? '' : 's'} · plus the Management Dashboard`
-            : `${totalReports} report${totalReports === 1 ? '' : 's'} across ${departments.length} department${departments.length === 1 ? '' : 's'}`
+        subtitle="The key numbers at a glance. Detailed lists are in each module."
+        action={
+          <div className="flex items-center gap-2 print:hidden">
+            <Button variant="outline" onClick={() => void load()} disabled={loading} className="h-10 gap-2 rounded-xl">
+              <ArrowsClockwise size={15} className={loading ? 'animate-spin' : ''} /> Refresh
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} disabled={!hasAnything} className="h-10 gap-2 rounded-xl">
+              <Printer size={15} /> Print
+            </Button>
+          </div>
         }
       />
 
-      {error && (
-        <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-xl px-4 py-3 text-sm">
-          {error}
-        </div>
+      {error && <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
+
+      {showFilters && (
+        <Card className="rounded-2xl p-4 print:hidden">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-semibold text-foreground/80">Academic year</span>
+              <NativeSelect value={yearId} onChange={(e) => setYearId(e.target.value)} className="h-10 min-w-[170px] rounded-xl bg-muted/40 px-3 text-sm">
+                <option value="">All years</option>
+                {years.map((y) => <option key={y._id} value={y._id}>{y.y_name}</option>)}
+              </NativeSelect>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-semibold text-foreground/80">Class</span>
+              <NativeSelect value={classId} onChange={(e) => setClassId(e.target.value)} className="h-10 min-w-[170px] rounded-xl bg-muted/40 px-3 text-sm">
+                <option value="">All classes</option>
+                {classes.map((c) => <option key={c._id} value={c._id}>{c.cl_name}</option>)}
+              </NativeSelect>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-semibold text-foreground/80">From</span>
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-10 rounded-xl bg-muted/40" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-semibold text-foreground/80">To</span>
+              <Input type="date" min={from} value={to} onChange={(e) => setTo(e.target.value)} className="h-10 rounded-xl bg-muted/40" />
+            </label>
+            {(yearId || classId || from || to) && (
+              <Button variant="ghost" className="h-10 rounded-xl text-muted-foreground" onClick={() => { setYearId(''); setClassId(''); setFrom(''); setTo(''); }}>
+                Clear
+              </Button>
+            )}
+          </div>
+        </Card>
       )}
 
-      {/* Tab switcher — Dashboard first for management roles, then real departments. */}
-      {tabCount > 1 && (
-        <div className="bg-muted/60 border border-border rounded-xl p-1.5 flex gap-1 print:hidden overflow-x-auto">
-          {canSeeDashboard && (
-            <Button
-              variant={showingDashboard ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => {
-                setDepartmentId(DASHBOARD_ID);
-                setSelected(null);
-                setReport(null);
-                setError(null);
-              }}
-              className={`flex-1 min-w-[120px] py-2 text-xs font-semibold rounded-lg transition inline-flex items-center justify-center gap-2 ${
-                showingDashboard ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <SquaresFour className="h-4 w-4" />
-              Dashboard
-            </Button>
-          )}
-          {departments.map((d) => (
-            <Button
-              variant={departmentId === d.id ? 'secondary' : 'ghost'}
-              size="sm"
-              key={d.id}
-              onClick={() => {
-                setDepartmentId(d.id);
-                setSelected(null);
-                setReport(null);
-                setError(null);
-              }}
-              className={`flex-1 min-w-[120px] py-2 text-xs font-semibold rounded-lg transition inline-flex items-center justify-center gap-1.5 ${
-                departmentId === d.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <span>{d.name}</span>
-              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 h-4">
-                {d.report_count}
-              </Badge>
-            </Button>
-          ))}
-        </div>
-      )}
-
-      {showingDashboard ? (
-        <ManagementDashboard onDrillTo={drillToReport} />
+      {loading && !hasAnything ? (
+        <div className="flex items-center justify-center py-24"><SpinnerGap className="h-8 w-8 animate-spin text-primary" /></div>
+      ) : !hasAnything ? (
+        <Card className="rounded-2xl p-12 text-center text-sm text-muted-foreground">No report data is available for your role.</Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
-          {/* Report index */}
-          <Card className="overflow-hidden print:hidden lg:sticky lg:top-4">
-            <div className="px-5 py-4 border-b border-border bg-muted/30">
-              <h2 className="text-sm font-semibold text-foreground">{department?.name}</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">{department?.description}</p>
-            </div>
+        <div className={loading ? 'space-y-5 opacity-60 transition-opacity' : 'space-y-5 transition-opacity'}>
+          {stats.length > 0 && <StatStrip items={stats} />}
 
-            <div className="max-h-[70vh] overflow-y-auto p-2">
-              {department?.groups.map((group) => (
-                <div key={group.name} className="mb-2">
-                  <p className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {group.name}
-                  </p>
-                  {group.reports.map((definition) => (
-                    <Button
-                      variant={selected?.id === definition.id ? 'secondary' : 'ghost'}
-                      size="sm"
-                      key={definition.id}
-                      onClick={() => openReport(definition)}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 rounded-md transition ${
-                        selected?.id === definition.id
-                          ? 'bg-primary/10 text-primary font-medium hover:bg-primary/15'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <span className="truncate">{definition.title}</span>
-                      <CaretRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                    </Button>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </Card>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {collection && (
+              <Donut
+                title="Fee collection"
+                subtitle="Collected vs outstanding"
+                format={money}
+                data={[
+                  { name: 'Collected', value: num(summaryValue(collection, 'Collected Revenue')) },
+                  { name: 'Outstanding', value: num(summaryValue(collection, 'Outstanding Revenue')) },
+                ]}
+              />
+            )}
+            {r['students-by-class'] && (
+              <ChartCard title="Students by class" subtitle="Headcount with gender split">
+                <Bars data={r['students-by-class'].rows} x="className" stacked series={[{ key: 'male', name: 'Male' }, { key: 'female', name: 'Female' }]} />
+              </ChartCard>
+            )}
+            {collection && collection.rows.length > 0 && (
+              <ChartCard title="Fees by type" subtitle="Expected vs collected">
+                <Bars data={collection.rows} x="feeType" money series={[{ key: 'expected', name: 'Expected' }, { key: 'collected', name: 'Collected' }]} />
+              </ChartCard>
+            )}
+            {r['finance-aging'] && r['finance-aging'].rows.length > 0 && (
+              <ChartCard title="Unpaid balances by age" subtitle="How overdue the outstanding money is">
+                <Bars data={r['finance-aging'].rows} x="bucket" money series={[{ key: 'balance', name: 'Outstanding' }]} />
+              </ChartCard>
+            )}
+            {trend && trend.rows.length > 1 && (
+              <ChartCard title="Enrolment trend" subtitle="Admissions per month">
+                <Bars data={trend.rows} x="month" series={[{ key: 'admissions', name: 'Admissions' }, { key: 'transfers', name: 'Transfers' }]} />
+              </ChartCard>
+            )}
+          </div>
 
-          {/* Report surface */}
-          <div className="space-y-5 min-w-0">
-            {!selected ? (
-              <Card className="p-16 flex flex-col items-center text-center">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-4">
-                  <ChartBar className="h-7 w-7" />
-                </div>
-                <h3 className="text-base font-semibold text-foreground">Choose a report</h3>
-                <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                  Pick a report from {department?.name} on the left. Each one reads live records and
-                  can be filtered, searched and exported.
-                </p>
-              </Card>
-            ) : (
-              <>
-                <ReportFilters
-                  filters={selected.filters}
-                  values={filterValues}
-                  onChange={onFiltersChange}
-                />
-
-                {running ? (
-                  <Card className="py-20 flex items-center justify-center">
-                    <SpinnerGap className="h-7 w-7 animate-spin text-primary" />
-                  </Card>
-                ) : report ? (
-                  <ReportViewer report={report} filters={filterValues} />
-                ) : null}
-              </>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {r['finance-outstanding-students'] && (
+              <MiniTable title="Largest outstanding balances" subtitle="Top 5 students who owe the most" report={r['finance-outstanding-students']} keys={['name', 'className', 'balance']} />
+            )}
+            {r['finance-collection-by-class'] && (
+              <MiniTable title="Collection by class" subtitle="Classes with the most unpaid" report={r['finance-collection-by-class']} keys={['className', 'collected', 'outstanding', 'collectionRate']} limit={6} />
+            )}
+            {r['teaching-my-classes'] && (
+              <MiniTable title="My classes" subtitle="Classes you teach" report={r['teaching-my-classes']} keys={['className', 'students', 'subjects', 'periods']} limit={6} />
+            )}
+            {r['teaching-low-attendance'] && (
+              <MiniTable title="Low attendance" subtitle="Students below the attendance threshold" report={r['teaching-low-attendance']} keys={['name', 'className', 'present', 'absent', 'rate']} />
             )}
           </div>
         </div>

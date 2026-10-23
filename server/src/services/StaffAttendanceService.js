@@ -13,36 +13,26 @@ export const recordAttendance = async (data, userId) => {
   const formattedDate = new Date(att_date);
   formattedDate.setUTCHours(0, 0, 0, 0);
 
-  const savedRecords = [];
+  // One round trip for the whole staff list. Fields left out of a record
+  // (time in/out, remarks) keep whatever was saved before.
+  await StaffAttendance.bulkWrite(
+    attendance.map(({ teacherId, status, time_in, time_out, remarks }) => {
+      const set = { status, updateBy: userId };
+      if (time_in !== undefined) set.time_in = time_in;
+      if (time_out !== undefined) set.time_out = time_out;
+      if (remarks !== undefined) set.remarks = remarks;
+      return {
+        updateOne: {
+          filter: { teacherId, att_date: formattedDate },
+          update: { $set: set, $setOnInsert: { createBy: userId } },
+          upsert: true,
+        },
+      };
+    }),
+    { ordered: false }
+  );
 
-  for (const record of attendance) {
-    const { teacherId, status, time_in, time_out, remarks } = record;
-
-    let attendanceRecord = await StaffAttendance.findOne({ teacherId, att_date: formattedDate });
-
-    if (attendanceRecord) {
-      attendanceRecord.status = status;
-      if (time_in !== undefined) attendanceRecord.time_in = time_in;
-      if (time_out !== undefined) attendanceRecord.time_out = time_out;
-      if (remarks !== undefined) attendanceRecord.remarks = remarks;
-      attendanceRecord.updateBy = userId;
-      await attendanceRecord.save();
-    } else {
-      attendanceRecord = await StaffAttendance.create({
-        teacherId,
-        status,
-        att_date: formattedDate,
-        time_in,
-        time_out,
-        remarks,
-        createBy: userId,
-      });
-    }
-
-    savedRecords.push(attendanceRecord);
-  }
-
-  return StaffAttendance.find({ _id: { $in: savedRecords.map((r) => r._id) } })
+  return StaffAttendance.find({ att_date: formattedDate, teacherId: { $in: attendance.map((r) => r.teacherId) } })
     .populate(populateTeacher)
     .populate('createBy', 'firstName lastName email role');
 };
@@ -123,13 +113,13 @@ export const generateMonthlyReport = async (year, month, department) => {
   const teacherFilter = {};
   if (department) teacherFilter.department = department;
 
-  const teacherList = await Teacher.find(teacherFilter).populate('userId', 'firstName lastName');
+  const teacherList = await Teacher.find(teacherFilter).select('staffId department userId').populate('userId', 'firstName lastName').lean();
   const teacherIds = teacherList.map((t) => t._id);
 
   const attendanceRecords = await StaffAttendance.find({
     teacherId: { $in: teacherIds },
     att_date: { $gte: startDate, $lte: endDate },
-  });
+  }).select('teacherId status').lean();
 
   const reportMap = {};
   teacherList.forEach((teacher) => {
@@ -161,7 +151,8 @@ export const generateMonthlyReport = async (year, month, department) => {
   const staffReports = Object.values(reportMap).map((reportItem) => {
     const stats = reportItem.stats;
     if (stats.totalDays > 0) {
-      stats.presentRate = parseFloat(((stats.present / stats.totalDays) * 100).toFixed(2));
+      // Late still means at work — the same rule as student attendance.
+      stats.presentRate = parseFloat((((stats.present + stats.late) / stats.totalDays) * 100).toFixed(2));
     }
     return reportItem;
   });
@@ -178,11 +169,92 @@ export const generateMonthlyReport = async (year, month, department) => {
   const summary = {
     totalStaff: teacherList.length,
     totalWorkingDaysRecorded: totalDaysAll,
-    overallPresentRate: totalDaysAll > 0 ? parseFloat(((totalPresent / totalDaysAll) * 100).toFixed(2)) : 0,
+    overallPresentRate: totalDaysAll > 0 ? parseFloat((((totalPresent + totalLate) / totalDaysAll) * 100).toFixed(2)) : 0,
     overallAbsentRate: totalDaysAll > 0 ? parseFloat(((totalAbsent / totalDaysAll) * 100).toFixed(2)) : 0,
     overallLateRate: totalDaysAll > 0 ? parseFloat(((totalLate / totalDaysAll) * 100).toFixed(2)) : 0,
     overallExcusedRate: totalDaysAll > 0 ? parseFloat(((totalExcused / totalDaysAll) * 100).toFixed(2)) : 0,
   };
 
   return { reportDate: { year, month }, summary, staffReports };
+};
+
+// Overview — today's figures, a daily trend and who has missed most, counted in
+// the database so the page never downloads raw records.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const rate = (attended, total) => (total > 0 ? Math.round((attended / total) * 1000) / 10 : 0);
+const teacherName = (t) => (t?.userId ? `${t.userId.firstName ?? ''} ${t.userId.lastName ?? ''}`.trim() : t?.staffId ?? 'Unknown');
+
+export const getSummary = async ({ days = 30 } = {}) => {
+  const span = Math.min(Math.max(parseInt(days, 10) || 30, 7), 120);
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const from = new Date(today.getTime() - (span - 1) * DAY_MS);
+
+  const teachers = await Teacher.find({ status: { $ne: 'Inactive' } })
+    .select('staffId department userId')
+    .populate('userId', 'firstName lastName')
+    .lean();
+  const byId = new Map(teachers.map((t) => [String(t._id), t]));
+  const ids = teachers.map((t) => t._id);
+
+  const [byDayStatus, byTeacherStatus, todayRows] = await Promise.all([
+    StaffAttendance.aggregate([
+      { $match: { teacherId: { $in: ids }, att_date: { $gte: from, $lte: today } } },
+      { $group: { _id: { day: '$att_date', status: '$status' }, n: { $sum: 1 } } },
+    ]),
+    StaffAttendance.aggregate([
+      { $match: { teacherId: { $in: ids }, att_date: { $gte: from, $lte: today } } },
+      { $group: { _id: { teacher: '$teacherId', status: '$status' }, n: { $sum: 1 } } },
+    ]),
+    StaffAttendance.find({ teacherId: { $in: ids }, att_date: today }).select('teacherId status time_in remarks').lean(),
+  ]);
+
+  const blank = () => ({ present: 0, absent: 0, late: 0, excused: 0, total: 0 });
+  const add = (bucket, status, n) => {
+    const key = String(status).toLowerCase();
+    if (key in bucket) bucket[key] += n;
+    bucket.total += n;
+  };
+
+  const totals = blank();
+  const dayMap = new Map();
+  for (const row of byDayStatus) {
+    const key = row._id.day.toISOString().slice(0, 10);
+    if (!dayMap.has(key)) dayMap.set(key, blank());
+    add(dayMap.get(key), row._id.status, row.n);
+    add(totals, row._id.status, row.n);
+  }
+  const daily = [...dayMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, b]) => ({ date, ...b, rate: rate(b.present + b.late, b.total) }));
+
+  const todayStats = blank();
+  for (const r of todayRows) add(todayStats, r.status, 1);
+
+  // Staff with the most absences in the period (late counts as attended).
+  const perTeacher = new Map();
+  for (const row of byTeacherStatus) {
+    const key = String(row._id.teacher);
+    if (!perTeacher.has(key)) perTeacher.set(key, blank());
+    add(perTeacher.get(key), row._id.status, row.n);
+  }
+  const mostAbsent = [...perTeacher.entries()]
+    .filter(([, b]) => b.absent > 0)
+    .map(([id, b]) => ({ teacherId: id, name: teacherName(byId.get(id)), department: byId.get(id)?.department ?? '', ...b, rate: rate(b.present + b.late, b.total) }))
+    .sort((a, b) => b.absent - a.absent || a.rate - b.rate)
+    .slice(0, 8);
+
+  return {
+    days: span,
+    from: from.toISOString().slice(0, 10),
+    to: today.toISOString().slice(0, 10),
+    staff: teachers.length,
+    today: { ...todayStats, rate: rate(todayStats.present + todayStats.late, todayStats.total), notMarked: Math.max(0, teachers.length - todayRows.length) },
+    period: { ...totals, rate: rate(totals.present + totals.late, totals.total) },
+    daily,
+    mostAbsent,
+    awayToday: todayRows
+      .filter((r) => r.status !== 'Present')
+      .map((r) => ({ teacherId: String(r.teacherId), name: teacherName(byId.get(String(r.teacherId))), status: r.status, time_in: r.time_in ?? '', remarks: r.remarks ?? '' })),
+  };
 };

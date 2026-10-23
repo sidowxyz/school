@@ -5,29 +5,50 @@
 @layer base {
   :root {
     /* ────────────────────────────────────────────────────────────────
-       LIGHT MODE — soothing soft slate duo (anti-glare, comfortable for eyes)
-       Background: warm stone  Card: warm ivory (no pure white, low blue-light glare)
+       LIGHT MODE — airy and calm: a soft cool-grey page with clean white
+       panels, so the pastel stat tiles and emerald brand colour stand out.
     ──────────────────────────────────────────────────────────────── */
-    --background: 40 14% 90%;             /* #e8e5df  warm stone page */
-    --foreground: 215 22% 15%;            /* #1e2630  deep ink, strong contrast */
-    --card: 42 26% 96%;                   /* #f8f6f1  warm ivory card, not pure white */
-    --card-foreground: 215 22% 15%;
-    --popover: 42 26% 97%;
-    --popover-foreground: 215 22% 15%;
-    --primary: 160 84% 30%;              /* #0c8059  deeper emerald, better contrast with white text */
+    --background: 228 33% 96%;            /* #f2f4fa  soft cool page */
+    --foreground: 224 28% 14%;            /* #1a2030  deep ink */
+    --card: 0 0% 100%;                    /* white panels */
+    --card-foreground: 224 28% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 28% 14%;
+    --primary: 160 84% 30%;              /* #0c8059  emerald brand */
     --primary-foreground: 0 0% 100%;
-    --secondary: 40 14% 86%;              /* #e0dcd3 */
-    --secondary-foreground: 215 20% 20%;
-    --muted: 40 14% 86%;                  /* #e0dcd3 */
-    --muted-foreground: 215 12% 36%;      /* #515b68  readable secondary text */
-    --accent: 40 14% 83%;                /* #d9d4ca */
-    --accent-foreground: 215 22% 15%;
+    --secondary: 228 30% 95%;             /* #eff1f8 */
+    --secondary-foreground: 224 24% 20%;
+    --muted: 228 30% 95%;                 /* #eff1f8 */
+    --muted-foreground: 224 10% 42%;      /* #616778  readable secondary text */
+    --accent: 228 28% 93%;
+    --accent-foreground: 224 28% 14%;
     --destructive: 0 70% 46%;
     --destructive-foreground: 0 0% 100%;
-    --border: 38 12% 77%;                /* #c9c4ba  clearly visible card edges */
-    --input: 38 12% 72%;
+    --border: 228 22% 89%;               /* #dfe2ec  soft hairlines */
+    --input: 228 18% 84%;
     --ring: 160 84% 30%;
     --radius: 0.625rem;
+
+    /* Status colours: bg-success/10 + text-success for tints, bg-success +
+       text-success-foreground for solid fills. Use these (and destructive)
+       instead of raw red/amber/blue utilities so dark mode follows. */
+    --success: 142 64% 30%;              /* #1b7f3f */
+    --success-foreground: 0 0% 100%;
+    --warning: 32 90% 38%;               /* #b86a0a */
+    --warning-foreground: 0 0% 100%;
+    --info: 211 72% 42%;                 /* #1e6bb8 */
+    --info-foreground: 0 0% 100%;
+    /* A fourth accent for categories and stat chips (was raw purple/violet). */
+    --violet: 262 52% 50%;               /* #6c3fc2 */
+    --violet-foreground: 0 0% 100%;
+
+    /* Pastel stat tiles (dashboard cards): a soft fill with dark ink on top. */
+    --tile-pink: 322 86% 88%;            /* #fbc3e8 */
+    --tile-yellow: 44 96% 72%;           /* #fdd66f */
+    --tile-blue: 217 88% 89%;            /* #cbdffc */
+    --tile-violet: 262 82% 91%;          /* #e4d8fc */
+    --tile-green: 152 56% 85%;           /* #c3eedb */
+    --tile-foreground: 224 28% 14%;
 
     --school-navy: #1e2630;
     --school-navy-deep: #141822;
@@ -35,9 +56,9 @@
     --school-muted: #515b68;
     --school-emerald: #0c8059;
     --school-gold: #b45309;
-    --school-paper: #e8e5df;
-    --school-surface: #f8f6f1;
-    --school-line: #c9c4ba;
+    --school-paper: #f2f4fa;
+    --school-surface: #ffffff;
+    --school-line: #dfe2ec;
     --school-overlay: rgba(20, 24, 34, 0.45);
   }
 
@@ -66,6 +87,22 @@
     --border: 224 14% 25%;               /* #374054  subtle, natural border */
     --input: 224 14% 25%;
     --ring: 160 72% 44%;
+
+    --success: 142 55% 48%;              /* #37be6a */
+    --success-foreground: 224 18% 13%;
+    --warning: 38 92% 56%;               /* #f5a524 */
+    --warning-foreground: 224 18% 13%;
+    --info: 211 85% 64%;                 /* #5aa2f0 */
+    --info-foreground: 224 18% 13%;
+    --violet: 262 70% 72%;               /* #a98bed */
+    --violet-foreground: 224 18% 13%;
+
+    --tile-pink: 322 34% 27%;
+    --tile-yellow: 40 44% 26%;
+    --tile-blue: 217 38% 28%;
+    --tile-violet: 262 32% 30%;
+    --tile-green: 152 30% 23%;
+    --tile-foreground: 220 20% 92%;
 
     --school-navy: #dbe0ec;
     --school-navy-deep: #1b202c;
@@ -177,166 +214,15 @@
   }
 
   .school-overlay {
-    background-color: hsl(var(--foreground) / 0.4);
+    /* --foreground is light in dark mode, so it can't double as a scrim. */
+    background-color: var(--school-overlay);
   }
 
 }
 
-/* Legacy palette -> design tokens. This must live in the utilities layer: in the components
-   layer it lost to Tailwind's own bg-white / gray utilities, so those stayed pure white. */
+/* App-wide normalisations. Components use theme tokens (bg-card, text-muted-foreground,
+   bg-success/10 ...) directly; raw gray/green/red utilities are no longer remapped here. */
 @layer utilities {
-  .rounded-2xl {
-    border-radius: var(--radius);
-  }
-
-  /* Map hardcoded background and border utility classes to unified design tokens */
-  .bg-white {
-    background-color: hsl(var(--card));
-  }
-
-  .bg-slate-50,
-  .bg-gray-50 {
-    background-color: hsl(var(--muted) / 0.5);
-  }
-
-  .bg-slate-100,
-  .bg-gray-100 {
-    background-color: hsl(var(--muted));
-  }
-
-  .border-gray-50,
-  .border-gray-100,
-  .border-gray-150,
-  .border-gray-200,
-  .border-gray-300,
-  .border-slate-100,
-  .border-slate-200,
-  .border-slate-300 {
-    border-color: hsl(var(--border));
-  }
-
-  .text-gray-900,
-  .text-gray-800,
-  .text-slate-900,
-  .text-slate-800 {
-    color: hsl(var(--foreground));
-  }
-
-  .text-gray-700,
-  .text-gray-600,
-  .text-slate-700,
-  .text-slate-600 {
-    color: hsl(var(--foreground) / 0.85);
-  }
-
-  .text-gray-500,
-  .text-gray-400,
-  .text-slate-500,
-  .text-slate-400 {
-    color: hsl(var(--muted-foreground));
-  }
-
-  .text-gray-300 {
-    color: hsl(var(--muted-foreground) / 0.6);
-  }
-
-  /* ── Hover background states ── */
-  .hover\:bg-gray-50:hover,
-  .hover\:bg-slate-50:hover {
-    background-color: hsl(var(--muted) / 0.5);
-  }
-
-  .hover\:bg-gray-100:hover,
-  .hover\:bg-slate-100:hover {
-    background-color: hsl(var(--muted));
-  }
-
-  /* ── Green accent → primary token mapping ── */
-  .bg-green-600,
-  .bg-green-700 {
-    background-color: hsl(var(--primary));
-  }
-
-  .bg-green-500 {
-    background-color: hsl(var(--primary) / 0.9);
-  }
-
-  .bg-green-50 {
-    background-color: hsl(var(--primary) / 0.08);
-  }
-
-  .bg-green-100 {
-    background-color: hsl(var(--primary) / 0.12);
-  }
-
-  .text-green-600,
-  .text-green-700,
-  .text-green-800 {
-    color: hsl(var(--primary));
-  }
-
-  .text-green-500 {
-    color: hsl(var(--primary) / 0.9);
-  }
-
-  .border-green-200,
-  .border-green-300 {
-    border-color: hsl(var(--primary) / 0.25);
-  }
-
-  .border-green-400,
-  .border-green-500,
-  .border-green-600 {
-    border-color: hsl(var(--primary));
-  }
-
-  .hover\:bg-green-50:hover {
-    background-color: hsl(var(--primary) / 0.08);
-  }
-
-  .hover\:bg-green-600:hover,
-  .hover\:bg-green-700:hover {
-    background-color: hsl(var(--primary) / 0.9);
-  }
-
-  .hover\:text-green-500:hover,
-  .hover\:text-green-600:hover,
-  .hover\:text-green-700:hover {
-    color: hsl(var(--primary));
-  }
-
-  .hover\:border-green-400:hover,
-  .hover\:border-green-500:hover {
-    border-color: hsl(var(--primary));
-  }
-
-  /* ── Focus ring unification ── */
-  .focus\:ring-green-500:focus,
-  .focus\:ring-green-600:focus {
-    --tw-ring-color: hsl(var(--ring));
-  }
-
-  .focus\:border-green-500:focus,
-  .focus\:border-green-600:focus {
-    border-color: hsl(var(--ring));
-  }
-
-  /* ── Hover text colors for gray ── */
-  .hover\:text-gray-700:hover,
-  .hover\:text-gray-800:hover {
-    color: hsl(var(--foreground));
-  }
-
-  .hover\:text-gray-600:hover {
-    color: hsl(var(--foreground) / 0.85);
-  }
-
-  /* ── Hover border colors for gray ── */
-  .hover\:border-gray-300:hover,
-  .hover\:border-gray-400:hover {
-    border-color: hsl(var(--border));
-  }
-
   /* ── Modal/overlay shadow normalization ── */
   .shadow-xl {
     box-shadow: 0 4px 24px hsl(var(--foreground) / 0.08);
@@ -365,128 +251,6 @@
 @keyframes school-page-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-/* Dark mode overrides seamlessly binding utilities to semantic tokens */
-.dark .bg-white,
-.dark .hover\:bg-white:hover {
-  background-color: hsl(var(--card));
-}
-
-.dark .bg-gray-50,
-.dark .bg-slate-50 {
-  background-color: hsl(var(--background));
-}
-
-.dark .bg-gray-100,
-.dark .bg-gray-200,
-.dark .bg-slate-100,
-.dark .hover\:bg-gray-50:hover,
-.dark .hover\:bg-gray-100:hover,
-.dark .hover\:bg-slate-50:hover {
-  background-color: hsl(var(--muted));
-}
-
-.dark .border,
-.dark .border-t,
-.dark .border-b,
-.dark .border-gray-50,
-.dark .border-gray-100,
-.dark .border-gray-150,
-.dark .border-gray-200,
-.dark .border-gray-300,
-.dark .border-slate-100,
-.dark .border-slate-200,
-.dark .border-slate-300,
-.dark .hover\:border-gray-300:hover,
-.dark .hover\:border-gray-400:hover {
-  border-color: hsl(var(--border));
-}
-
-.dark .text-gray-900,
-.dark .text-gray-800,
-.dark .text-slate-900,
-.dark .text-slate-800,
-.dark .hover\:text-gray-700:hover,
-.dark .hover\:text-gray-800:hover,
-.dark .hover\:text-slate-700:hover,
-.dark .hover\:text-slate-800:hover {
-  color: hsl(var(--foreground));
-}
-
-.dark .text-gray-700,
-.dark .text-gray-600,
-.dark .text-slate-700,
-.dark .text-slate-600,
-.dark .hover\:text-gray-600:hover {
-  color: hsl(var(--foreground) / 0.85);
-}
-
-.dark .text-gray-500,
-.dark .text-gray-400,
-.dark .text-slate-500,
-.dark .text-slate-400,
-.dark .text-gray-300,
-.dark .hover\:text-gray-300:hover {
-  color: hsl(var(--muted-foreground));
-}
-
-/* ── Dark green accent → primary ── */
-.dark .bg-green-600,
-.dark .bg-green-700,
-.dark .hover\:bg-green-700:hover {
-  background-color: hsl(var(--primary));
-}
-
-.dark .bg-green-500,
-.dark .hover\:bg-green-600:hover {
-  background-color: hsl(var(--primary) / 0.9);
-}
-
-.dark .bg-green-50,
-.dark .hover\:bg-green-50:hover {
-  background-color: hsl(var(--primary) / 0.1);
-}
-
-.dark .bg-green-100 {
-  background-color: hsl(var(--primary) / 0.15);
-}
-
-.dark .text-green-600,
-.dark .text-green-700,
-.dark .text-green-800,
-.dark .hover\:text-green-600:hover,
-.dark .hover\:text-green-700:hover {
-  color: hsl(var(--primary));
-}
-
-.dark .text-green-500,
-.dark .hover\:text-green-500:hover {
-  color: hsl(var(--primary) / 0.9);
-}
-
-.dark .border-green-200,
-.dark .border-green-300 {
-  border-color: hsl(var(--primary) / 0.2);
-}
-
-.dark .border-green-400,
-.dark .border-green-500,
-.dark .border-green-600,
-.dark .hover\:border-green-400:hover,
-.dark .hover\:border-green-500:hover {
-  border-color: hsl(var(--primary));
-}
-
-/* ── Dark focus ring ── */
-.dark .focus\:ring-green-500:focus,
-.dark .focus\:ring-green-600:focus {
-  --tw-ring-color: hsl(var(--ring));
-}
-
-.dark .focus\:border-green-500:focus,
-.dark .focus\:border-green-600:focus {
-  border-color: hsl(var(--ring));
 }
 
 /* ── Dark modal overlay / shadows ── */

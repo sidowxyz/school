@@ -15,7 +15,3 @@ export const getFinanceDashboardData = async () => {
   return response.data.data;
 };
 
-export const getAcademicPerformanceData = async () => {
-  const response = await api.get("/v1/analytics/academic-performance");
-  return response.data.data;
-};

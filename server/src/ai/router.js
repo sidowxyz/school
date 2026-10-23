@@ -17,27 +17,12 @@ import { matchByVocabulary } from './matcher.js';
 
 /* Ordered most-specific first — the first pattern to match wins. */
 const INTENTS = [
-  // Consequential intents sit at the top so a phrase like "publish the
-  // announcement" can never fall through to a broader read-only pattern.
-  { tool: 'publishAnnouncement', patterns: [/\bpublish\b.*\b(announcement|notice)\b/, /\b(send|release)\b.*\b(announcement|notice)\b/] },
-  { tool: 'draftAnnouncement',   patterns: [/\b(draft|compose|write|prepare)\b.*\b(announcement|notice|message to parents)\b/] },
-
-  // Generation is a distinct verb ahead of review/similarity, and specific
-  // enough to match deterministically — vocabulary scoring alone dropped
-  // well-formed requests when the topic words were generic.
-  { tool: 'generateExam',        patterns: [/\b(generate|create|write|make|set|draft|prepare)\b.*\b(exam|paper|test|quiz)\b/] },
-  { tool: 'reviewExamQuality',   patterns: [/\breview\b.*\b(exam|paper|test)\b/, /\b(exam|paper)\b.*\b(quality|review|check)\b/] },
-  { tool: 'checkExamSimilarity', patterns: [/\b(similar|similarity|duplicate|repeat|repeated|originality|asked before|used before)\b/, /\bhas this\b.*\bbeen asked\b/] },
-
   { tool: 'getMissingTeachingLogs', patterns: [/\b(missing|pending|not submitted|haven'?t submitted|who hasn'?t)\b.*\b(teaching )?logs?\b/, /\bteaching logs?\b.*\b(missing|pending|outstanding|submitted)\b/] },
-  { tool: 'getPendingMarks',        patterns: [/\b(pending|missing|outstanding|not entered)\b.*\bmarks?\b/, /\bmarks?\b.*\b(pending|missing|outstanding|entered)\b/, /\bwhich classes\b.*\bmarks?\b/] },
   { tool: 'getTeacherWorkload',     patterns: [/\b(workload|teaching load|periods per week)\b/, /\bhow many (periods|classes)\b.*\bteachers?\b/] },
 
   { tool: 'getMonthlyAttendanceReport', patterns: [/\b(month|monthly)\b.*\battendance\b/, /\battendance\b.*\b(report|month)\b/] },
   { tool: 'getAttendanceForDate',       patterns: [/\b(absent|present|attendance)\b/] },
-  { tool: 'getOverdueBooks',            patterns: [/\boverdue\b/, /\blibrary\b.*\b(late|overdue|due)\b/, /\bbooks?\b.*\bdue\b/] },
   { tool: 'getFinanceSummary',          patterns: [/\b(outstanding|unpaid|owing|arrears)\b/, /\b(fee|fees|payment|invoice|collection)s?\b/] },
-  { tool: 'getAcademicPerformance',     patterns: [/\b(performance|pass rate|average score|results?)\b/, /\b(class|subject)\b.*\b(average|performance)\b/] },
   { tool: 'getMyTimetable',             patterns: [/\b(my|todays?|weekly)\b.*\b(timetable|schedule)\b/, /\btimetable\b/] },
   { tool: 'getMyTeachingSummary',       patterns: [/\b(my)\b.*\b(teaching|workload|classes|logs?)\b/, /\bteaching log\b/] },
   { tool: 'getDailySchoolSummary',      patterns: [/\b(daily|today'?s?|school)\b.*\b(summary|overview|briefing)\b/, /\bsummar(y|ise|ize)\b.*\bschool\b/] },

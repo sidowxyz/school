@@ -4,9 +4,6 @@ import app from '../../src/server.js';
 import User from '../../src/models/User.js';
 import AiConversation from '../../src/models/AiConversation.js';
 import AiPendingAction from '../../src/models/AiPendingAction.js';
-import Notice from '../../src/models/notice.model.js';
-import Notification from '../../src/models/notification.model.js';
-import ExamQuestion from '../../src/models/ExamQuestion.js';
 import AuditLog from '../../src/models/auditLog.model.js';
 import AuditModule from '../../src/models/auditModule.model.js';
 import AuditAction from '../../src/models/auditAction.model.js';
@@ -31,16 +28,14 @@ import { AI_AUDIT_MODULE } from '../../src/ai/orchestrator.js';
  *
  * Two measures keep that from recurring:
  *
- *   1. Side effects are avoided at source where possible. Published
- *      announcements target this suite's own users, so publishing fans out a
- *      handful of notifications instead of one per account in the database.
+ *   1. Side effects are avoided at source where possible: every account this
+ *      suite creates is scoped to its own @ai-test.local users.
  *   2. The final test performs cleanup and then *asserts* that every shared
  *      collection is back to its starting count. A future test that writes
  *      somewhere new fails here loudly, rather than silently breaking an
  *      unrelated suite weeks later.
  */
-// Real Atlas round trips, and publishNoticeService loops per recipient, so
-// Jest's 5s default is unrealistic here.
+// Real database round trips, so Jest's 5s default is unrealistic here.
 jest.setTimeout(120000);
 
 describe('AI Assistant routes', () => {
@@ -67,12 +62,9 @@ describe('AI Assistant routes', () => {
    */
   const SHARED_COLLECTIONS = {
     User,
-    Notice,
-    Notification,
     AuditLog,
     AuditModule,
     AuditAction,
-    ExamQuestion,
     AiConversation,
     AiPendingAction,
   };
@@ -108,18 +100,6 @@ describe('AI Assistant routes', () => {
     await User.deleteMany({ email: /@ai-test\.local$/ });
     await AiConversation.deleteMany({});
     await AiPendingAction.deleteMany({});
-    await ExamQuestion.deleteMany({ academicYear: 'AI-TEST-YEAR' });
-
-    // Notifications reference the notice, so they go first while the ids still
-    // resolve. Publishing creates one per recipient.
-    const testNotices = await Notice.find({ title: /^AI test announcement/ }).select('_id');
-    if (testNotices.length > 0) {
-      await Notification.deleteMany({
-        reference_id: { $in: testNotices.map((n) => n._id) },
-        reference_model: 'Notice',
-      });
-    }
-    await Notice.deleteMany({ title: /^AI test announcement/ });
 
     // Every tool execution writes an audit row by design, plus the AIAssistant
     // module and AI_* action lookups. Scoped to those — other suites' audit
@@ -212,10 +192,7 @@ describe('AI Assistant routes', () => {
         'getDailySchoolSummary',
         'searchStudents',
         'getFinanceSummary',
-        'getAcademicPerformance',
-        'getOverdueBooks',
         'getTeacherWorkload',
-        'getPendingMarks',
         'getMissingTeachingLogs',
       ]) {
         const res = await request(app)
@@ -232,7 +209,7 @@ describe('AI Assistant routes', () => {
       const res = await request(app)
         .post('/api/ai/chat')
         .set('Authorization', `Bearer ${tokens.parent}`)
-        .send({ tool: 'getChildResults', args: { studentId: '000000000000000000000000' } });
+        .send({ tool: 'getChildFees', args: { studentId: '000000000000000000000000' } });
 
       expect(res.status).toBeGreaterThanOrEqual(400);
       expect(res.status).not.toBe(200);
@@ -342,10 +319,10 @@ describe('AI Assistant routes', () => {
       const second = await request(app)
         .post('/api/ai/chat')
         .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'getOverdueBooks', conversationId });
+        .send({ tool: 'getFinanceSummary', conversationId });
 
       expect(second.status).toBe(200);
-      expect(second.body.data.tool).toBe('getOverdueBooks');
+      expect(second.body.data.tool).toBe('getFinanceSummary');
 
       // Reading it back proves the row actually exists, not just that no error
       // was thrown.
@@ -356,31 +333,14 @@ describe('AI Assistant routes', () => {
       expect(fetched.body.data.messages.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('stays usable across a needs-input turn too', async () => {
-      const first = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'generateExam', args: { grade: 'Grade 8' } });
-
-      expect(first.body.data.type).toBe('needs_input');
-      const conversationId = first.body.data.conversationId;
-
-      const second = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'getOverdueBooks', conversationId });
-
-      expect(second.status).toBe(200);
-    });
-
     it('routes a natural-language question to a tool without an LLM', async () => {
       const res = await request(app)
         .post('/api/ai/chat')
         .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ message: 'show me overdue library books' });
+        .send({ message: 'who is absent today' });
 
       expect(res.status).toBe(200);
-      expect(res.body.data.tool).toBe('getOverdueBooks');
+      expect(res.body.data.tool).toBe('getAttendanceForDate');
       expect(res.body.data.via).toBe('keyword');
     });
 
@@ -388,7 +348,7 @@ describe('AI Assistant routes', () => {
       const created = await request(app)
         .post('/api/ai/chat')
         .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ message: 'show me overdue library books' });
+        .send({ message: 'who is absent today' });
 
       const { conversationId } = created.body.data;
       expect(conversationId).toBeTruthy();
@@ -402,189 +362,6 @@ describe('AI Assistant routes', () => {
         .get(`/api/ai/conversations/${conversationId}`)
         .set('Authorization', `Bearer ${tokens.teacher}`);
       expect(asOther.status).toBe(404);
-    });
-  });
-
-  describe('confirmation framework', () => {
-    /**
-     * Drafts through the tool, then narrows the audience to this suite's own
-     * users.
-     *
-     * publishNoticeService notifies *every* account when a notice has no
-     * explicit targets, so without this each publish test wrote a Notification
-     * row per user in the shared database. Targeting keeps the fan-out to four
-     * rows tied to users this suite deletes — the behaviour under test (does
-     * publishing require confirmation?) is unaffected either way.
-     */
-    const draftAnnouncement = async (token, suffix = '') => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          tool: 'draftAnnouncement',
-          args: {
-            title: `AI test announcement${suffix}`,
-            content: 'Body text for an automated test announcement.',
-          },
-        });
-
-      const noticeId = res.body?.data?.data?.noticeId;
-      if (noticeId) {
-        await Notice.findByIdAndUpdate(noticeId, {
-          target_users: Object.values(users).map((u) => u._id),
-        });
-      }
-      return res;
-    };
-
-    it('saves a draft without notifying anyone', async () => {
-      const res = await draftAnnouncement(tokens.admin, ' draft');
-      expect(res.status).toBe(200);
-      expect(res.body.data.data.isPublished).toBe(false);
-
-      const notice = await Notice.findById(res.body.data.data.noticeId);
-      expect(notice.is_published).toBe(false);
-      expect(notice.published_at).toBeNull();
-    });
-
-    it('does NOT publish when asked — it prepares and waits', async () => {
-      const draft = await draftAnnouncement(tokens.admin, ' pending');
-      const noticeId = draft.body.data.data.noticeId;
-
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'publishAnnouncement', args: { noticeId } });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.type).toBe('confirmation_required');
-      expect(res.body.data.actionId).toBeTruthy();
-
-      // The critical assertion: nothing happened yet.
-      const notice = await Notice.findById(noticeId);
-      expect(notice.is_published).toBe(false);
-    });
-
-    it('states the real blast radius in the preview', async () => {
-      const draft = await draftAnnouncement(tokens.admin, ' radius');
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'publishAnnouncement', args: { noticeId: draft.body.data.data.noticeId } });
-
-      const { preview } = res.body.data;
-      expect(preview.impact).toMatch(/Notify \d+/);
-      // Reflects the explicit targets set above, proving the count is read from
-      // the notice rather than hardcoded to "everyone".
-      expect(preview.details.recipients).toBe(Object.keys(users).length);
-      expect(preview.details.targeting).toMatch(/specifically targeted/i);
-    });
-
-    it('publishes only after an explicit confirm request', async () => {
-      const draft = await draftAnnouncement(tokens.admin, ' confirm');
-      const noticeId = draft.body.data.data.noticeId;
-
-      const prepared = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'publishAnnouncement', args: { noticeId } });
-
-      const confirmed = await request(app)
-        .post(`/api/ai/actions/${prepared.body.data.actionId}/confirm`)
-        .set('Authorization', `Bearer ${tokens.admin}`);
-
-      expect(confirmed.status).toBe(200);
-      expect(confirmed.body.data.type).toBe('action_executed');
-
-      const notice = await Notice.findById(noticeId);
-      expect(notice.is_published).toBe(true);
-    });
-
-    it("refuses to execute another user's prepared action", async () => {
-      const draft = await draftAnnouncement(tokens.admin, ' hijack');
-      const prepared = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'publishAnnouncement', args: { noticeId: draft.body.data.data.noticeId } });
-
-      const hijack = await request(app)
-        .post(`/api/ai/actions/${prepared.body.data.actionId}/confirm`)
-        .set('Authorization', `Bearer ${tokens.teacher}`);
-
-      expect(hijack.status).toBe(404);
-
-      const notice = await Notice.findById(draft.body.data.data.noticeId);
-      expect(notice.is_published).toBe(false);
-    });
-
-    it('refuses to execute the same action twice', async () => {
-      const draft = await draftAnnouncement(tokens.admin, ' twice');
-      const prepared = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'publishAnnouncement', args: { noticeId: draft.body.data.data.noticeId } });
-
-      const actionId = prepared.body.data.actionId;
-      await request(app)
-        .post(`/api/ai/actions/${actionId}/confirm`)
-        .set('Authorization', `Bearer ${tokens.admin}`);
-
-      const replay = await request(app)
-        .post(`/api/ai/actions/${actionId}/confirm`)
-        .set('Authorization', `Bearer ${tokens.admin}`);
-
-      expect(replay.status).toBe(409);
-    });
-
-    it('refuses an expired action', async () => {
-      const draft = await draftAnnouncement(tokens.admin, ' expired');
-      const prepared = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'publishAnnouncement', args: { noticeId: draft.body.data.data.noticeId } });
-
-      await AiPendingAction.findByIdAndUpdate(prepared.body.data.actionId, {
-        expiresAt: new Date(Date.now() - 1000),
-      });
-
-      const res = await request(app)
-        .post(`/api/ai/actions/${prepared.body.data.actionId}/confirm`)
-        .set('Authorization', `Bearer ${tokens.admin}`);
-
-      expect(res.status).toBe(410);
-
-      const notice = await Notice.findById(draft.body.data.data.noticeId);
-      expect(notice.is_published).toBe(false);
-    });
-
-    it('cancelling leaves the record untouched', async () => {
-      const draft = await draftAnnouncement(tokens.admin, ' cancel');
-      const prepared = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'publishAnnouncement', args: { noticeId: draft.body.data.data.noticeId } });
-
-      const cancelled = await request(app)
-        .delete(`/api/ai/actions/${prepared.body.data.actionId}`)
-        .set('Authorization', `Bearer ${tokens.admin}`);
-      expect(cancelled.status).toBe(200);
-
-      const replay = await request(app)
-        .post(`/api/ai/actions/${prepared.body.data.actionId}/confirm`)
-        .set('Authorization', `Bearer ${tokens.admin}`);
-      expect(replay.status).toBe(409);
-
-      const notice = await Notice.findById(draft.body.data.data.noticeId);
-      expect(notice.is_published).toBe(false);
-    });
-
-    it('blocks a teacher from preparing a consequential action', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({ tool: 'publishAnnouncement', args: { noticeId: '000000000000000000000000' } });
-
-      expect(res.status).toBe(403);
     });
   });
 
@@ -610,177 +387,12 @@ describe('AI Assistant routes', () => {
       expect(res.body.data.data).toHaveProperty('totalPeriodsPerWeek');
     });
 
-    it('reports pending marks', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.admin}`)
-        .send({ tool: 'getPendingMarks' });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.data).toHaveProperty('pendingCount');
-    });
-
     it('blocks a teacher from the school-wide aggregations', async () => {
-      for (const tool of ['getMissingTeachingLogs', 'getTeacherWorkload', 'getPendingMarks']) {
+      for (const tool of ['getMissingTeachingLogs', 'getTeacherWorkload']) {
         const res = await request(app)
           .post('/api/ai/chat')
           .set('Authorization', `Bearer ${tokens.teacher}`)
           .send({ tool });
-        expect(res.status).toBe(403);
-      }
-    });
-  });
-
-  describe('exam intelligence', () => {
-    const banked = 'Explain three causes of soil erosion in highland areas.';
-
-    beforeAll(async () => {
-      await ExamQuestion.deleteMany({ academicYear: 'AI-TEST-YEAR' });
-      await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({
-          tool: 'addExamQuestions',
-          args: {
-            questions: [{ text: banked, marks: 6, topic: 'Soil', difficulty: 'moderate' }],
-            meta: { academicYear: 'AI-TEST-YEAR', term: 'Term 1', subjectName: 'Geography' },
-          },
-        });
-    });
-
-    it('banks a question and skips it if added again', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({
-          tool: 'addExamQuestions',
-          args: {
-            questions: [{ text: banked, marks: 6 }],
-            meta: { academicYear: 'AI-TEST-YEAR' },
-          },
-        });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.data.addedCount).toBe(0);
-      expect(res.body.data.data.skippedCount).toBe(1);
-    });
-
-    it('detects a verbatim repeat', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({ tool: 'checkExamSimilarity', args: { text: banked } });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.data.verdict).toBe('exact-duplicate');
-      expect(res.body.data.data.reviewRecommended).toBe(true);
-    });
-
-    it('detects a re-worded repeat, which is the whole point', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({
-          tool: 'checkExamSimilarity',
-          args: { text: 'Describe three factors responsible for soil erosion in highland areas.' },
-        });
-
-      expect(res.body.data.data.reviewRecommended).toBe(true);
-      expect(res.body.data.data.highestSimilarity).toBeGreaterThanOrEqual(0.65);
-      expect(res.body.data.data.matches[0].text).toBe(banked);
-    });
-
-    it('does not flag an unrelated question', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({
-          tool: 'checkExamSimilarity',
-          args: { text: 'State Newton’s second law of motion and give its equation.' },
-        });
-
-      expect(res.body.data.data.reviewRecommended).toBe(false);
-    });
-
-    it('catches a marks total that does not add up', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({
-          tool: 'reviewExamQuality',
-          args: {
-            questions: [
-              { text: 'Define erosion.', marks: 4, topic: 'Soil' },
-              { text: 'Describe two farming methods.', marks: 5, topic: 'Farming' },
-            ],
-            expectedTotalMarks: 20,
-          },
-        });
-
-      const data = res.body.data.data;
-      expect(data.totalMarks).toBe(9);
-      expect(data.structureValid).toBe(false);
-      expect(data.issues.some((i) => i.type === 'marks-mismatch')).toBe(true);
-    });
-
-    it('catches two questions on the same paper asking the same thing', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({
-          tool: 'reviewExamQuality',
-          args: {
-            questions: [
-              { text: 'Explain three causes of flooding.', marks: 6, topic: 'Water' },
-              { text: 'Describe three factors responsible for flooding.', marks: 6, topic: 'Water' },
-            ],
-          },
-        });
-
-      const data = res.body.data.data;
-      expect(data.internalDuplicates.length).toBeGreaterThan(0);
-      expect(data.issues.some((i) => i.type === 'internal-repetition')).toBe(true);
-    });
-
-    it('passes a well-formed paper', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({
-          tool: 'reviewExamQuality',
-          args: {
-            questions: [
-              { text: 'State Newton’s first law of motion.', marks: 5, topic: 'Motion', difficulty: 'easy' },
-              { text: 'Calculate the momentum of a 4kg body moving at 3m/s.', marks: 5, topic: 'Momentum', difficulty: 'moderate' },
-            ],
-            expectedTotalMarks: 10,
-          },
-        });
-
-      const data = res.body.data.data;
-      expect(data.structureValid).toBe(true);
-      expect(data.totalMarks).toBe(10);
-      expect(data.topicCoverage).toHaveLength(2);
-    });
-
-    it('rejects an oversized batch rather than accepting unbounded work', async () => {
-      const res = await request(app)
-        .post('/api/ai/chat')
-        .set('Authorization', `Bearer ${tokens.teacher}`)
-        .send({
-          tool: 'reviewExamQuality',
-          args: { questions: Array.from({ length: 200 }, () => ({ text: 'A question.', marks: 1 })) },
-        });
-
-      expect(res.status).toBe(400);
-    });
-
-    it('blocks a student from the exam tools', async () => {
-      for (const tool of ['checkExamSimilarity', 'reviewExamQuality', 'addExamQuestions']) {
-        const res = await request(app)
-          .post('/api/ai/chat')
-          .set('Authorization', `Bearer ${tokens.student}`)
-          .send({ tool, args: { text: 'x'.repeat(10), questions: [{ text: 'A question.' }] } });
         expect(res.status).toBe(403);
       }
     });

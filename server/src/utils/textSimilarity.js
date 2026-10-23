@@ -1,22 +1,8 @@
-import crypto from 'crypto';
-
 /**
- * Deterministic text similarity for exam questions.
+ * Word tokenizer for matching free-text questions to the AI assistant's tools.
  *
- * This runs with no model and no API key. That is a deliberate choice rather
- * than a stopgap: repetition between exam papers is overwhelmingly lexical —
- * the same concept re-asked with a different command verb — and that pattern is
- * detectable without inference. A model is neither necessary nor more reliable
- * here, and would make a cheap, instant check slow and billable.
- *
- * The pipeline is: normalize -> drop stopwords -> canonicalize exam vocabulary
- * -> compare. Comparison blends token overlap (word choice) with character
- * trigram overlap (word forms), so neither reordering nor small inflection
- * changes alone defeat it.
- *
- * `embedding` fields are reserved on ExamQuestion for a future vector backend.
- * When one is configured it should *add* a signal to `scoreQuestions`, not
- * replace this one — a deterministic floor is worth keeping.
+ * normalize -> drop stopwords -> canonicalize common synonyms -> light stemming,
+ * so "teachers" and "teacher", or "list" and "state", count as the same word.
  */
 
 const STOPWORDS = new Set([
@@ -28,9 +14,8 @@ const STOPWORDS = new Set([
 ]);
 
 /**
- * Exam command verbs and stems that mean the same thing for repetition
- * purposes. "Explain three causes" and "describe three factors" are the same
- * question; a plain lexical comparison would score them far apart.
+ * Command verbs and nouns that mean the same thing, so "explain three causes"
+ * and "describe three factors" tokenize alike.
  */
 const SYNONYMS = new Map(
   Object.entries({
@@ -76,7 +61,7 @@ const NUMBER_WORDS = new Map(
 /**
  * Light suffix stripping. Not a real stemmer — Porter would be overkill and
  * introduces its own false merges. This handles the plural/participle endings
- * that actually show up in exam wording.
+ * that actually show up in everyday school wording.
  */
 const stem = (word) => {
   if (word.length <= 3) return word;
@@ -103,10 +88,6 @@ export const normalizeText = (text) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-/** Stable hash of normalized text — the exact-duplicate key. */
-export const textFingerprint = (text) =>
-  crypto.createHash('sha256').update(normalizeText(text)).digest('hex');
-
 /** Normalized, stopword-free, synonym-canonicalized, stemmed tokens. */
 export const tokenize = (text) => {
   const tokens = [];
@@ -119,116 +100,4 @@ export const tokenize = (text) => {
     if (stemmed) tokens.push(stemmed);
   }
   return tokens;
-};
-
-const dice = (a, b) => {
-  if (a.size === 0 && b.size === 0) return 1;
-  if (a.size === 0 || b.size === 0) return 0;
-  let shared = 0;
-  for (const item of a) if (b.has(item)) shared += 1;
-  return (2 * shared) / (a.size + b.size);
-};
-
-/**
- * Opposed concept pairs.
- *
- * These are the case where lexical overlap actively misleads: "advantages of
- * nuclear energy" and "disadvantages of nuclear energy" share almost every word
- * and every character trigram — "disadvantage" even contains "advantage" — yet
- * they are opposite questions that both belong on a paper. Without this check
- * the comparison scored them 0.81, a confident false positive.
- */
-const POLARITY_PAIRS = [
-  ['advantage', 'disadvantage'],
-  ['similarity', 'difference'],
-  ['importance', 'limitation'],
-  ['strength', 'weakness'],
-  ['benefit', 'harm'],
-];
-
-/**
- * Read polarity from the raw normalized text, deliberately NOT from the
- * canonical tokens: the synonym map collapses "differences" into "compare",
- * which would erase the very signal being looked for. Checking the original
- * wording keeps this independent of how the tokenizer is tuned.
- */
-const polarityOf = (text) => {
-  const words = normalizeText(text).split(' ');
-
-  // Prefix match on the word, not a substring match on the sentence: plurals
-  // and adjective forms have to count ("similarities" for "similarity",
-  // "harmful" for "harm"), and a raw substring test misses all of them.
-  const has = (term) => {
-    const prefix = term.slice(0, 7);
-    return words.some((word) => word.startsWith(prefix));
-  };
-
-  const found = new Set();
-  for (const [positive, negative] of POLARITY_PAIRS) {
-    // Check the negative first: "disadvantage" also starts with... nothing
-    // shared, but "harm"/"harmful" style overlaps make order matter generally.
-    if (has(negative)) found.add(`-${positive}`);
-    else if (has(positive)) found.add(`+${positive}`);
-  }
-  return found;
-};
-
-/** True when the two texts take opposite sides of the same concept. */
-const polarityConflict = (textA, textB) => {
-  const a = polarityOf(textA);
-  const b = polarityOf(textB);
-  for (const sign of a) {
-    const flipped = sign.startsWith('+') ? `-${sign.slice(1)}` : `+${sign.slice(1)}`;
-    if (b.has(flipped)) return true;
-  }
-  return false;
-};
-
-const trigrams = (text) => {
-  const padded = ` ${normalizeText(text)} `;
-  const grams = new Set();
-  for (let i = 0; i < padded.length - 2; i += 1) grams.add(padded.slice(i, i + 3));
-  return grams;
-};
-
-/**
- * Similarity in [0, 1].
- *
- * Token overlap dominates because it captures meaning; trigram overlap is a
- * smaller term that rescues near-identical phrasings the tokenizer split
- * differently. The 0.7/0.3 split was chosen so that a re-worded question with
- * the same concepts lands well above the review threshold while two genuinely
- * different questions on the same topic stay below it.
- */
-export const similarity = (a, b) => {
-  const tokensA = new Set(tokenize(a));
-  const tokensB = new Set(tokenize(b));
-  if (tokensA.size === 0 || tokensB.size === 0) return 0;
-
-  const tokenScore = dice(tokensA, tokensB);
-  const gramScore = dice(trigrams(a), trigrams(b));
-  let score = tokenScore * 0.7 + gramScore * 0.3;
-
-  // Two questions taking opposite sides of one concept are not duplicates,
-  // however much wording they share. Damped rather than zeroed: they are still
-  // related enough that a reviewer may want to see them together.
-  if (polarityConflict(a, b)) score *= 0.45;
-
-  return Math.round(score * 1000) / 1000;
-};
-
-/** Bands used in reports, so the wording of a verdict is consistent. */
-export const SIMILARITY_BANDS = Object.freeze({
-  IDENTICAL: 1,
-  VERY_HIGH: 0.8,
-  HIGH: 0.65,
-  MODERATE: 0.5,
-});
-
-export const bandFor = (score) => {
-  if (score >= SIMILARITY_BANDS.IDENTICAL) return 'identical';
-  if (score >= SIMILARITY_BANDS.VERY_HIGH) return 'very high';
-  if (score >= SIMILARITY_BANDS.HIGH) return 'high';
-  if (score >= SIMILARITY_BANDS.MODERATE) return 'moderate';
-  return 'low';
 };

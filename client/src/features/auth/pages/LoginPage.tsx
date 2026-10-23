@@ -65,28 +65,42 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex w-full">
       {/* Image panel (large screens) */}
-      <div className="relative hidden lg:flex lg:w-[40%] items-center justify-center overflow-hidden border-r border-border bg-card">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,hsl(var(--primary)/0.14),transparent_55%),radial-gradient(circle_at_80%_90%,hsl(var(--primary)/0.10),transparent_50%)]" />
-        <div className="absolute h-[24rem] w-[24rem] rounded-full border border-primary/15" />
-        <div className="absolute h-[34rem] w-[34rem] rounded-full border border-primary/10" />
-        <img
-          src="/logo.png"
-          alt="Sobet School"
-          className="relative h-60 w-60 xl:h-72 xl:w-72 rounded-full object-cover shadow-2xl ring-8 ring-background/70"
-        />
+      <div className="hidden lg:block lg:w-1/2 shrink-0 p-4 bg-background">
+        <div className="relative h-full min-h-[calc(100vh-2rem)] overflow-hidden rounded-3xl bg-card shadow-sm">
+          <img
+            src="/Images/Left%20side%20image.jpg"
+            alt="Students reading in class"
+            className="absolute inset-0 h-full w-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/20" />
+
+          <div className="absolute left-6 top-6 flex items-center gap-3 rounded-2xl bg-white/90 px-3 py-2 shadow-sm backdrop-blur-sm">
+            <img src="/logo.png" alt="Sobet School" className="h-9 w-9 rounded-full object-cover" />
+            <span className="text-sm font-semibold text-foreground">Horn of Africa Academy</span>
+          </div>
+
+          <div className="absolute inset-x-0 bottom-0 p-8 xl:p-10 text-white">
+            <h2 className="text-2xl xl:text-3xl font-bold leading-tight tracking-tight">
+              Every student, every lesson, in one place.
+            </h2>
+            <p className="mt-2 max-w-md text-sm text-white/80">
+              Manage classes, attendance, results and fees with the school management system.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Authentication Panel */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-background">
-        <div className="w-full max-w-sm space-y-8">
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-muted/40">
+        <div className="w-full max-w-md space-y-7 rounded-2xl border border-border bg-card p-8 shadow-sm sm:p-10">
           <img
             src="/logo.png"
             alt="Sobet School"
-            className="mx-auto h-20 w-20 rounded-full object-cover shadow-md ring-4 ring-card lg:hidden"
+            className="mx-auto h-16 w-16 rounded-full object-cover shadow-md ring-4 ring-card"
           />
 
           <div className="space-y-1.5">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Sign in</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h1>
             <p className="text-sm text-muted-foreground">
               Enter your authorized credentials to access your dashboard
             </p>
@@ -112,7 +126,7 @@ export default function LoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter your email address"
-                      className="pl-9 text-sm"
+                      className="h-11 rounded-xl bg-muted/40 pl-9 text-sm"
                       autoComplete="email"
                     />
                   </div>
@@ -143,7 +157,7 @@ export default function LoginPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
-                      className="pl-9 pr-10 text-sm"
+                      className="h-11 rounded-xl bg-muted/40 pl-9 pr-10 text-sm"
                       autoComplete="current-password"
                     />
                     <Button
@@ -183,7 +197,7 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-2 font-semibold shadow-xs"
+                  className="h-11 w-full mt-2 rounded-xl font-semibold shadow-sm"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">

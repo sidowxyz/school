@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "principal" | "academic_officer" | "teacher" | "accountant" | "student" | "parent" | "librarian";
+export type UserRole = "admin" | "principal" | "academic_officer" | "teacher" | "accountant" | "student" | "parent";
 
 export interface AppUser {
   _id: string;

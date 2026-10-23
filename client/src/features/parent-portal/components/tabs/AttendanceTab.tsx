@@ -24,20 +24,20 @@ export default function AttendanceTab() {
   );
 
   if (loading) {
-    return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-green-600" /></div>;
+    return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-primary" /></div>;
   }
   if (error) {
-    return <div className="text-center py-24 text-red-500 text-sm">{error}</div>;
+    return <div className="text-center py-24 text-destructive text-sm">{error}</div>;
   }
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
-        <TabStatCard title="Present" value={String(present)} icon={CheckCircle} iconColor="text-green-600" iconBg="bg-green-50" />
-        <TabStatCard title="Absent" value={String(summary.Absent ?? 0)} icon={XCircle} iconColor="text-red-500" iconBg="bg-red-50" />
-        <TabStatCard title="Late" value={String(summary.Late ?? 0)} icon={Clock} iconColor="text-amber-500" iconBg="bg-amber-50" />
-        <TabStatCard title="Excused" value={String(summary.Excused ?? 0)} icon={Info} iconColor="text-blue-500" iconBg="bg-blue-50" />
-        <TabStatCard title="Overall %" value={`${overallRate}%`} icon={TrendUp} iconColor="text-green-600" iconBg="bg-green-50" />
+        <TabStatCard title="Present" value={String(present)} icon={CheckCircle} iconColor="text-primary" iconBg="bg-primary/10" />
+        <TabStatCard title="Absent" value={String(summary.Absent ?? 0)} icon={XCircle} iconColor="text-destructive" iconBg="bg-destructive/10" />
+        <TabStatCard title="Late" value={String(summary.Late ?? 0)} icon={Clock} iconColor="text-warning" iconBg="bg-warning/10" />
+        <TabStatCard title="Excused" value={String(summary.Excused ?? 0)} icon={Info} iconColor="text-info" iconBg="bg-info/10" />
+        <TabStatCard title="Overall %" value={`${overallRate}%`} icon={TrendUp} iconColor="text-primary" iconBg="bg-primary/10" />
       </div>
 
       {records.length === 0 ? (

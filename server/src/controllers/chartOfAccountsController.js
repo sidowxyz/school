@@ -61,7 +61,7 @@ export const seedAccounts = async (req, res) => {
   }
 };
 
-// ─── INTERNAL SEED HELPER (called from autoSeed) ──────────────────────────────
+// ─── INTERNAL SEED HELPER ────────────────────────────────────────────────────────────────────────────────
 export const seedDefaultAccounts = async () => {
   const count = await ChartOfAccount.countDocuments();
   if (count > 0) return; // already seeded
@@ -89,8 +89,7 @@ export const seedDefaultAccounts = async () => {
     // Revenue (4xxx)
     { accountCode: '4000', accountName: 'Tuition Revenue',         type: 'Revenue',   normalBalance: 'Credit', isSystemAccount: true },
     { accountCode: '4100', accountName: 'Registration Fees',       type: 'Revenue',   normalBalance: 'Credit' },
-    { accountCode: '4200', accountName: 'Library Fees',            type: 'Revenue',   normalBalance: 'Credit' },
-    { accountCode: '4300', accountName: 'Other Revenue',           type: 'Revenue',   normalBalance: 'Credit' },
+      { accountCode: '4300', accountName: 'Other Revenue',           type: 'Revenue',   normalBalance: 'Credit' },
 
     // Expenses (5xxx)
     { accountCode: '5000', accountName: 'Salaries Expense',        type: 'Expense',   normalBalance: 'Debit'  },

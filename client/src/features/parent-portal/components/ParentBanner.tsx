@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { CaretDown, Users, Check, GraduationCap } from '@phosphor-icons/react';
+import { CaretDown, Check } from '@phosphor-icons/react';
 import { useParentPortal } from '../context/ParentContext';
 import { fullName, initialsOf, classSectionLabel } from '../../student-portal/utils/portalStudent';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import PageHeader from '../../../components/common/PageHeader';
 
@@ -84,7 +83,7 @@ export default function ParentBanner({ onChildChange }: Props) {
                     {children.map((c) => {
                       const isSelected = c._id === childId;
                       return (
-                        <button
+                        <Button variant="plain"
                           key={c._id}
                           type="button"
                           onClick={() => {
@@ -109,7 +108,7 @@ export default function ParentBanner({ onChildChange }: Props) {
                             </div>
                           </div>
                           {isSelected && <Check size={14} className="text-primary shrink-0" />}
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>

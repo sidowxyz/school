@@ -43,10 +43,10 @@ export default function TimetableTab() {
     t ? `${t.firstName ?? ''} ${t.lastName ?? ''}`.trim() || '—' : '—';
 
   const subjectCount = useMemo(
-    () => new Set(slots.map((s) => s.subject?._id).Funnel(Boolean)).size,
+    () => new Set(slots.map((s) => s.subject?._id).filter(Boolean)).size,
     [slots],
   );
-  const activeDays = DAY_ORDER.Funnel((d) => byDay[d]?.length);
+  const activeDays = DAY_ORDER.filter((d) => byDay[d]?.length);
 
   if (loading) {
     return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-primary" /></div>;
@@ -60,9 +60,9 @@ export default function TimetableTab() {
       {/* Hairline Divided KPI Strip */}
       <Card className="overflow-hidden border-border bg-border shadow-2xs">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-px">
-          <KPICell icon={CalendarBlank} iconClass="text-emerald-600 dark:text-emerald-400" label="Weekly Classes" value={String(slots.length)} sub="Total scheduled periods" />
-          <KPICell icon={BookOpen} iconClass="text-sky-600 dark:text-sky-400" label="Subjects" value={String(subjectCount)} sub="Unique courses" />
-          <KPICell icon={Clock} iconClass="text-amber-600 dark:text-amber-400" label="School Days" value={String(activeDays.length)} sub="Active weekdays" />
+          <KPICell icon={CalendarBlank} iconClass="text-success" label="Weekly Classes" value={String(slots.length)} sub="Total scheduled periods" />
+          <KPICell icon={BookOpen} iconClass="text-info" label="Subjects" value={String(subjectCount)} sub="Unique courses" />
+          <KPICell icon={Clock} iconClass="text-warning" label="School Days" value={String(activeDays.length)} sub="Active weekdays" />
         </div>
       </Card>
 

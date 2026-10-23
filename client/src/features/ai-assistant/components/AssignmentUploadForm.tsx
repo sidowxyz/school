@@ -42,16 +42,16 @@ export default function AssignmentUploadForm({ busy, onSubmit, onCancel }: Props
   };
 
   return (
-    <form onSubmit={submit} className="space-y-2.5 rounded-xl border border-gray-200 bg-gray-50 p-3">
+    <form onSubmit={submit} className="space-y-2.5 rounded-xl border border-border bg-muted/50 p-3">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
-          <MagnifyingGlass size={14} className="text-green-600" />
-          UploadSimple a student assignment for review
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground/80">
+          <MagnifyingGlass size={14} className="text-primary" />
+          Upload a student assignment for review
         </p>
         <Button variant="plain"
           type="button"
           onClick={onCancel}
-          className="rounded p-0.5 text-gray-400 hover:text-gray-600"
+          className="rounded p-0.5 text-muted-foreground hover:text-muted-foreground"
         >
           <X size={14} />
           <span className="sr-only">Cancel</span>
@@ -63,26 +63,26 @@ export default function AssignmentUploadForm({ busy, onSubmit, onCancel }: Props
         onChange={(e) => setStudentQuery(e.target.value)}
         placeholder="Student name or admission number"
         required
-        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+        className="w-full rounded-lg border border-border px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
       />
       <Input
         value={assignmentTitle}
         onChange={(e) => setAssignmentTitle(e.target.value)}
         placeholder="Assignment title (optional)"
-        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+        className="w-full rounded-lg border border-border px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
       />
       <Textarea
         value={rubric}
         onChange={(e) => setRubric(e.target.value)}
         placeholder="Marking criteria / rubric (optional, improves the feedback)"
         rows={2}
-        className="w-full resize-none rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+        className="w-full resize-none rounded-lg border border-border px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
       />
 
       <Button variant="plain"
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white py-3 text-xs font-medium text-gray-500 hover:border-green-400 hover:text-green-700"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card py-3 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-primary"
       >
         <UploadSimple size={14} />
         {file ? file.name : 'Choose a .pdf, .docx, or .txt file'}
@@ -98,7 +98,7 @@ export default function AssignmentUploadForm({ busy, onSubmit, onCancel }: Props
       <Button variant="plain"
         type="submit"
         disabled={!canSubmit}
-        className="w-full rounded-lg bg-green-600 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-lg bg-primary py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? 'Reviewing…' : 'Review assignment'}
       </Button>

@@ -113,19 +113,6 @@ export interface AttendancePortalResult {
   records: AttendanceRecord[];
 }
 
-export interface ReportCardMark {
-  subject: { _id: string; sub_name: string; sub_no: string } | string;
-  score: number;
-}
-
-export interface ReportCard {
-  _id: string;
-  examReg: { ex_r_no: string; total_marks: number; ex_no?: { ex_name: string; ex_no: string } } | string;
-  marks: ReportCardMark[];
-  overallScore: number;
-  createdAt: string;
-}
-
 export interface Invoice {
   _id: string;
   invoice_no: string;

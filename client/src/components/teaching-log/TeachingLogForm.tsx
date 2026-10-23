@@ -74,12 +74,12 @@ export default function TeachingLogForm({
 
   const subjects = useMemo(() => [
     ...new Map(assignments
-      .Funnel((assignment) => assignment.subjectId?._id)
+      .filter((assignment) => assignment.subjectId?._id)
       .map((assignment) => [assignment.subjectId._id, assignment.subjectId])).values(),
   ], [assignments]);
 
   const assignmentsForSubject = useMemo(
-    () => assignments.Funnel((assignment) => assignment.subjectId?._id === subjectId),
+    () => assignments.filter((assignment) => assignment.subjectId?._id === subjectId),
     [assignments, subjectId],
   );
   const selectedAssignment = assignments.find((assignment) => assignment._id === assignmentId);
@@ -88,7 +88,7 @@ export default function TeachingLogForm({
     if (!selectedAssignment) return [];
     return [
       ...new Map(selectedAssignment.timetableSlots
-        .Funnel((slot) => slot.day === lessonDay && slot.periodId?._id)
+        .filter((slot) => slot.day === lessonDay && slot.periodId?._id)
         .map((slot) => [slot.periodId._id, slot])).values(),
     ].sort((a, b) => a.periodId.time_in.localeCompare(b.periodId.time_in));
   }, [lessonDay, selectedAssignment]);
@@ -189,32 +189,32 @@ export default function TeachingLogForm({
     }
   };
 
-  const inputCls = (field: string) => `w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all ${
-    validationErrors[field] ? 'border-red-500 bg-red-50/10' : 'border-gray-200'
+  const inputCls = (field: string) => `w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
+    validationErrors[field] ? 'border-destructive bg-destructive/10' : 'border-border'
   }`;
 
-  const selectCls = (field: string) => `${inputCls(field)} bg-white appearance-none cursor-pointer`;
-  const labelCls = 'block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1';
+  const selectCls = (field: string) => `${inputCls(field)} bg-card appearance-none cursor-pointer`;
+  const labelCls = 'block text-sm font-semibold text-foreground/80 mb-1.5 flex items-center gap-1';
 
   return (
     <div className="space-y-6">
       {/* Top message banner for errors */}
       {formError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-          <WarningCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-start gap-3">
+          <WarningCircle className="text-destructive shrink-0 mt-0.5" size={18} />
           <div>
-            <h4 className="text-sm font-bold text-red-800">Form Submission Failed</h4>
-            <p className="text-xs text-red-700 mt-1">{formError}</p>
+            <h4 className="text-sm font-bold text-destructive">Form Submission Failed</h4>
+            <p className="text-xs text-destructive mt-1">{formError}</p>
           </div>
         </div>
       )}
 
       {assignmentsError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-          <WarningCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-start gap-3">
+          <WarningCircle className="text-destructive shrink-0 mt-0.5" size={18} />
           <div>
-            <h4 className="text-sm font-bold text-red-800">Assigned timetable unavailable</h4>
-            <p className="text-xs text-red-700 mt-1">{assignmentsError}</p>
+            <h4 className="text-sm font-bold text-destructive">Assigned timetable unavailable</h4>
+            <p className="text-xs text-destructive mt-1">{assignmentsError}</p>
           </div>
         </div>
       )}
@@ -222,8 +222,8 @@ export default function TeachingLogForm({
       {/* Main Form */}
       <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
         {/* SECTION 1: ACADEMIC INFORMATION */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 mb-5">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+          <h2 className="text-base font-bold text-foreground border-b border-border pb-3 mb-5">
             Academic Information
           </h2>
 
@@ -231,7 +231,7 @@ export default function TeachingLogForm({
             {/* Date */}
             <div>
               <label className={labelCls}>
-                Date <span className="text-red-500">*</span>
+                Date <span className="text-destructive">*</span>
               </label>
               <Input
                 type="date"
@@ -239,13 +239,13 @@ export default function TeachingLogForm({
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
-              {validationErrors.date && <p className="text-[11px] text-red-550 mt-1">{validationErrors.date}</p>}
+              {validationErrors.date && <p className="text-[11px] text-destructive mt-1">{validationErrors.date}</p>}
             </div>
 
             {/* Subject */}
             <div>
               <label className={labelCls}>
-                Subject <span className="text-red-500">*</span>
+                Subject <span className="text-destructive">*</span>
               </label>
               <NativeSelect
                 className={selectCls('subject')}
@@ -265,15 +265,15 @@ export default function TeachingLogForm({
                 ))}
               </NativeSelect>
               {!assignmentsLoading && subjects.length === 0 && !assignmentsError && (
-                <p className="text-[11px] text-amber-600 mt-1">No subjects are currently assigned to you.</p>
+                <p className="text-[11px] text-warning mt-1">No subjects are currently assigned to you.</p>
               )}
-              {validationErrors.subject && <p className="text-[11px] text-red-550 mt-1">{validationErrors.subject}</p>}
+              {validationErrors.subject && <p className="text-[11px] text-destructive mt-1">{validationErrors.subject}</p>}
             </div>
 
             {/* Class */}
             <div>
               <label className={labelCls}>
-                Class <span className="text-red-500">*</span>
+                Class <span className="text-destructive">*</span>
               </label>
               <NativeSelect
                 className={selectCls('classId')}
@@ -291,13 +291,13 @@ export default function TeachingLogForm({
                   </option>
                 ))}
               </NativeSelect>
-              {validationErrors.classId && <p className="text-[11px] text-red-550 mt-1">{validationErrors.classId}</p>}
+              {validationErrors.classId && <p className="text-[11px] text-destructive mt-1">{validationErrors.classId}</p>}
             </div>
 
             {/* Section */}
             <div>
               <label className={labelCls}>
-                Section <span className="text-red-500">*</span>
+                Section <span className="text-destructive">*</span>
               </label>
               <NativeSelect
                 className={selectCls('section')}
@@ -309,13 +309,13 @@ export default function TeachingLogForm({
                   <option value={selectedAssignment.sectionId._id}>{selectedAssignment.sectionId.name}</option>
                 )}
               </NativeSelect>
-              {validationErrors.section && <p className="text-[11px] text-red-550 mt-1">{validationErrors.section}</p>}
+              {validationErrors.section && <p className="text-[11px] text-destructive mt-1">{validationErrors.section}</p>}
             </div>
 
             {/* Period */}
             <div>
               <label className={labelCls}>
-                Period <span className="text-red-500">*</span>
+                Period <span className="text-destructive">*</span>
               </label>
               <NativeSelect
                 className={selectCls('period')}
@@ -329,16 +329,16 @@ export default function TeachingLogForm({
                 ))}
               </NativeSelect>
               {selectedAssignment && availableSlots.length === 0 && (
-                <p className="text-[11px] text-amber-600 mt-1">No period is scheduled for {lessonDay || 'this date'}.</p>
+                <p className="text-[11px] text-warning mt-1">No period is scheduled for {lessonDay || 'this date'}.</p>
               )}
-              {validationErrors.period && <p className="text-[11px] text-red-550 mt-1">{validationErrors.period}</p>}
+              {validationErrors.period && <p className="text-[11px] text-destructive mt-1">{validationErrors.period}</p>}
             </div>
           </div>
         </div>
 
         {/* SECTION 2: LESSON INFORMATION */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 mb-5">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+          <h2 className="text-base font-bold text-foreground border-b border-border pb-3 mb-5">
             Lesson Information
           </h2>
 
@@ -347,7 +347,7 @@ export default function TeachingLogForm({
               {/* Topic Taught */}
               <div>
                 <label className={labelCls}>
-                  Topic Taught <span className="text-red-500">*</span>
+                  Topic Taught <span className="text-destructive">*</span>
                 </label>
                 <Input
                   type="text"
@@ -356,13 +356,13 @@ export default function TeachingLogForm({
                   value={topicTaught}
                   onChange={(e) => setTopicTaught(e.target.value)}
                 />
-                {validationErrors.topicTaught && <p className="text-[11px] text-red-550 mt-1">{validationErrors.topicTaught}</p>}
+                {validationErrors.topicTaught && <p className="text-[11px] text-destructive mt-1">{validationErrors.topicTaught}</p>}
               </div>
 
               {/* Lesson Objective */}
               <div>
                 <label className={labelCls}>
-                  Lesson Objective <span className="text-red-500">*</span>
+                  Lesson Objective <span className="text-destructive">*</span>
                 </label>
                 <Input
                   type="text"
@@ -371,7 +371,7 @@ export default function TeachingLogForm({
                   value={lessonObjective}
                   onChange={(e) => setLessonObjective(e.target.value)}
                 />
-                {validationErrors.lessonObjective && <p className="text-[11px] text-red-550 mt-1">{validationErrors.lessonObjective}</p>}
+                {validationErrors.lessonObjective && <p className="text-[11px] text-destructive mt-1">{validationErrors.lessonObjective}</p>}
               </div>
             </div>
 
@@ -379,7 +379,7 @@ export default function TeachingLogForm({
               {/* Teaching Summary */}
               <div>
                 <label className={labelCls}>
-                  Teaching Summary <span className="text-red-500">*</span>
+                  Teaching Summary <span className="text-destructive">*</span>
                 </label>
                 <Textarea
                   placeholder="Describe key points explained, board exercises conducted, and instructional resources utilized..."
@@ -387,13 +387,13 @@ export default function TeachingLogForm({
                   value={teachingSummary}
                   onChange={(e) => setTeachingSummary(e.target.value)}
                 />
-                {validationErrors.teachingSummary && <p className="text-[11px] text-red-550 mt-1">{validationErrors.teachingSummary}</p>}
+                {validationErrors.teachingSummary && <p className="text-[11px] text-destructive mt-1">{validationErrors.teachingSummary}</p>}
               </div>
 
               {/* Learning Outcomes */}
               <div>
                 <label className={labelCls}>
-                  Learning Outcomes <span className="text-red-500">*</span>
+                  Learning Outcomes <span className="text-destructive">*</span>
                 </label>
                 <Textarea
                   placeholder="What knowledge or skills did the students successfully acquire or apply by the end of this lesson?"
@@ -401,15 +401,15 @@ export default function TeachingLogForm({
                   value={learningOutcomes}
                   onChange={(e) => setLearningOutcomes(e.target.value)}
                 />
-                {validationErrors.learningOutcomes && <p className="text-[11px] text-red-550 mt-1">{validationErrors.learningOutcomes}</p>}
+                {validationErrors.learningOutcomes && <p className="text-[11px] text-destructive mt-1">{validationErrors.learningOutcomes}</p>}
               </div>
             </div>
           </div>
         </div>
 
         {/* SECTION 3: STUDENT PROGRESS & NOTE DETAILS */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 mb-5">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+          <h2 className="text-base font-bold text-foreground border-b border-border pb-3 mb-5">
             Student Progress & Notes
           </h2>
 
@@ -450,8 +450,8 @@ export default function TeachingLogForm({
         </div>
 
         {/* SECTION 4: HOMEWORK ASSIGNED */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 mb-5">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+          <h2 className="text-base font-bold text-foreground border-b border-border pb-3 mb-5">
             Homework (Optional)
           </h2>
 
@@ -478,7 +478,7 @@ export default function TeachingLogForm({
                 onChange={(e) => setSubmissionDeadline(e.target.value)}
               />
               {!homeworkGiven.trim() && (
-                <p className="text-[10px] text-gray-400 mt-1">
+                <p className="text-[10px] text-muted-foreground mt-1">
                   Type a homework description to enable setting a deadline date.
                 </p>
               )}
@@ -491,21 +491,21 @@ export default function TeachingLogForm({
           <Button variant="plain"
             type="button"
             onClick={() => navigate('/teaching-log')}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground/80 hover:bg-muted/50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <ArrowLeft size={16} /> Back to Logs
           </Button>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            {/* FloppyDisk as Draft */}
+            {/* Save as Draft */}
             <Button variant="plain"
               type="button"
               disabled={isLoading}
               onClick={() => handleFormSubmit('draft')}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer bg-white"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground/80 hover:bg-muted/50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer bg-card"
             >
-              <FloppyDisk size={16} className="text-gray-500" />
-              FloppyDisk as Draft
+              <FloppyDisk size={16} className="text-muted-foreground" />
+              Save as Draft
             </Button>
 
             {/* Submit Log */}
@@ -513,7 +513,7 @@ export default function TeachingLogForm({
               type="button"
               disabled={isLoading}
               onClick={() => handleFormSubmit('completed')}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <CheckCircle size={16} />
               Submit Completed Log

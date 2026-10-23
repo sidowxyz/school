@@ -40,23 +40,23 @@ export default function TeachingLogFilters({
   };
 
   const selectCls =
-    'border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent min-w-[140px] cursor-pointer';
+    'border border-border rounded-lg px-3 py-2.5 text-sm text-foreground/80 bg-card hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-w-[140px] cursor-pointer';
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 mb-5 flex items-center gap-3 flex-wrap">
-      {/* MagnifyingGlass */}
+    <div className="bg-card rounded-xl border border-border p-4 mb-5 flex items-center gap-3 flex-wrap">
+      {/* Search */}
       <div className="relative flex-1 min-w-[200px]">
-        <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="text"
           placeholder="Search logs (topic, objective, teacher...)"
           value={filters.search || ''}
           onChange={handleSearchChange}
-          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          className="w-full pl-9 pr-4 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
 
-      {/* Class Funnel */}
+      {/* Class Filter */}
       <NativeSelect value={filters.classId || ''} onChange={handleClassChange} className={selectCls}>
         <option value="">All Classes</option>
         {classOptions.map((c) => (
@@ -66,7 +66,7 @@ export default function TeachingLogFilters({
         ))}
       </NativeSelect>
 
-      {/* Subject Funnel */}
+      {/* Subject Filter */}
       <NativeSelect value={filters.subject || ''} onChange={handleSubjectChange} className={selectCls}>
         <option value="">All Subjects</option>
         {subjectOptions.map((s) => (
@@ -76,26 +76,26 @@ export default function TeachingLogFilters({
         ))}
       </NativeSelect>
 
-      {/* Status Funnel */}
+      {/* Status Filter */}
       <NativeSelect value={filters.status || ''} onChange={handleStatusChange} className={selectCls}>
         <option value="">All Statuses</option>
         <option value="completed">Completed</option>
         <option value="draft">Draft</option>
       </NativeSelect>
 
-      {/* Date Funnel */}
+      {/* Date Filter */}
       <Input
         type="date"
         value={filters.date || ''}
         onChange={handleDateChange}
-        className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
+        className="border border-border rounded-lg px-3 py-2 text-sm text-foreground/80 bg-card hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
       />
 
       {/* Reset Button */}
       <Button variant="plain"
         onClick={onReset}
         title="Reset Filters"
-        className="flex items-center justify-center border border-gray-200 hover:border-orange-400 rounded-lg p-2.5 text-gray-550 hover:bg-orange-50 hover:text-orange-500 transition-colors font-medium cursor-pointer"
+        className="flex items-center justify-center border border-border hover:border-warning/40 rounded-lg p-2.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors font-medium cursor-pointer"
       >
         <ArrowsClockwise size={16} />
       </Button>

@@ -1,5 +1,5 @@
 import { Envelope, CaretRight, GraduationCap, Buildings } from '@phosphor-icons/react';
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 type TeacherCardProps = {
@@ -26,14 +26,14 @@ export default function TeacherCard({
       case "Active":
         return (
           <Badge variant="success" className="text-[11px] font-medium gap-1.5 py-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
             Active
           </Badge>
         );
       case "On Leave":
         return (
           <Badge variant="warning" className="text-[11px] font-medium gap-1.5 py-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-warning" />
             On Leave
           </Badge>
         );
@@ -50,7 +50,7 @@ export default function TeacherCard({
   const initials = name
     .split(" ")
     .map((n) => n[0])
-    .Funnel(Boolean)
+    .filter(Boolean)
     .slice(0, 2)
     .join("")
     .toUpperCase() || "T";
@@ -66,7 +66,7 @@ export default function TeacherCard({
         {/* Top Header: Avatar + Staff ID + Status */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary border border-primary/20 font-semibold text-sm shadow-sm group-hover:Scales-105 transition-transform">
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary border border-primary/20 font-semibold text-sm shadow-sm group-hover:scale-105 transition-transform">
               {initials}
             </div>
             <div className="min-w-0">

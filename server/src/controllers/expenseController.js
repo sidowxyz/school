@@ -3,6 +3,7 @@ import Expense from '../models/Expense.js';
 import Supplier from '../models/Supplier.js';
 import ChartOfAccount from '../models/ChartOfAccount.js';
 import { postJournalEntry } from '../services/journalService.js';
+import { abortTransaction, commitTransaction, startTransaction } from '../utils/transaction.js';
 
 // ─── SUPPLIER CONTROLLERS ──────────────────────────────────────────────────
 export const getSuppliers = async (req, res) => {
@@ -77,7 +78,7 @@ export const getExpenses = async (req, res) => {
 
 export const createExpense = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
+  await startTransaction(session);
 
   try {
     const {
@@ -94,7 +95,7 @@ export const createExpense = async (req, res) => {
     } = req.body;
 
     if (!amount || amount <= 0) {
-      await session.abortTransaction();
+      await abortTransaction(session);
       session.endSession();
       return res.status(400).json({ success: false, message: 'Amount must be greater than 0' });
     }
@@ -108,7 +109,7 @@ export const createExpense = async (req, res) => {
     ]);
 
     if (!categoryAccount || !paymentAccount) {
-      await session.abortTransaction();
+      await abortTransaction(session);
       session.endSession();
       return res.status(400).json({ success: false, message: 'Valid expense and payment accounts are required' });
     }
@@ -159,7 +160,7 @@ export const createExpense = async (req, res) => {
     createdExpense.journalEntryId = journalEntry?._id;
     await createdExpense.save({ session });
 
-    await session.commitTransaction();
+    await commitTransaction(session);
     session.endSession();
 
     const populated = await Expense.findById(createdExpense._id)
@@ -169,7 +170,7 @@ export const createExpense = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Expense recorded and journal entry posted', data: populated });
   } catch (error) {
-    await session.abortTransaction();
+    await abortTransaction(session);
     session.endSession();
     res.status(500).json({ success: false, message: error.message });
   }

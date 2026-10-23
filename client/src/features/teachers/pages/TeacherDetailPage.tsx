@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
+import { SpinnerGap,
   ArrowLeft, Envelope, Plus, PencilSimple, Trash, Clock, BookOpen, GraduationCap,
-  Stack, CalendarRange, UserCheck, CalendarBlank, Trophy, Briefcase,
+  Stack, CalendarDots, Trophy,
 } from '@phosphor-icons/react';
 import { teachersApi } from "../api/teachersApi";
 import type { TeacherDetail, TeacherAssignment } from "../types";
@@ -71,7 +71,7 @@ export default function TeacherDetailPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-28 text-muted-foreground">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mb-3" />
+        <SpinnerGap size={32} className="animate-spin text-primary mb-3" />
         <span className="text-sm font-medium">Loading faculty profile...</span>
       </div>
     );
@@ -95,24 +95,24 @@ export default function TeacherDetailPage() {
     0
   );
   const uniqueSubjectsCount = new Set(
-    assignments.map((a) => (typeof a.subjectId === "object" ? a.subjectId?._id : a.subjectId)).Funnel(Boolean)
+    assignments.map((a) => (typeof a.subjectId === "object" ? a.subjectId?._id : a.subjectId)).filter(Boolean)
   ).size;
   const uniqueClassesCount = new Set(
-    assignments.map((a) => (typeof a.classId === "object" ? a.classId?._id : a.classId)).Funnel(Boolean)
+    assignments.map((a) => (typeof a.classId === "object" ? a.classId?._id : a.classId)).filter(Boolean)
   ).size;
 
   const getStatusBadge = (status: string) => {
     const s = status.toLowerCase();
     if (s === "active") {
       return (
-        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400 font-medium">
+        <Badge variant="outline" className="border-success/20 bg-success/10 text-success font-medium">
           Active
         </Badge>
       );
     }
     if (s === "on leave") {
       return (
-        <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-400 font-medium">
+        <Badge variant="outline" className="border-warning/20 bg-warning/10 text-warning font-medium">
           On Leave
         </Badge>
       );
@@ -161,7 +161,7 @@ export default function TeacherDetailPage() {
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-5">
-              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted/50 border border-border shadow-xs">
+              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/50 border border-border shadow-xs">
                 <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary font-bold text-2xl">
                   {teacher.userId?.name ? teacher.userId.name.slice(0, 2).toUpperCase() : "TC"}
                 </div>
@@ -224,7 +224,7 @@ export default function TeacherDetailPage() {
 
           <div className="bg-card p-5">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Stack size={15} className="text-sky-600 dark:text-sky-400" />
+              <Stack size={15} className="text-info" />
               <span className="text-xs font-medium uppercase tracking-wider">Classes Taught</span>
             </div>
             <div className="text-2xl font-bold text-foreground">{uniqueClassesCount}</div>
@@ -233,7 +233,7 @@ export default function TeacherDetailPage() {
 
           <div className="bg-card p-5">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <GraduationCap size={15} className="text-indigo-600 dark:text-indigo-400" />
+              <GraduationCap size={15} className="text-info" />
               <span className="text-xs font-medium uppercase tracking-wider">Subjects</span>
             </div>
             <div className="text-2xl font-bold text-foreground">{uniqueSubjectsCount}</div>
@@ -242,7 +242,7 @@ export default function TeacherDetailPage() {
 
           <div className="bg-card p-5">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Clock size={15} className="text-emerald-600 dark:text-emerald-400" />
+              <Clock size={15} className="text-success" />
               <span className="text-xs font-medium uppercase tracking-wider">Teaching Slots</span>
             </div>
             <div className="text-2xl font-bold text-foreground">{totalWeeklySlots}</div>
@@ -315,7 +315,7 @@ export default function TeacherDetailPage() {
                             <>
                               <span>â€¢</span>
                               <span className="flex items-center gap-1.5">
-                                <CalendarRange size={13} className="text-muted-foreground" />
+                                <CalendarDots size={13} className="text-muted-foreground" />
                                 {termLabel(a.termId)}
                               </span>
                             </>

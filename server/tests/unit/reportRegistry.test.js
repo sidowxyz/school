@@ -2,9 +2,7 @@ import { getCatalogFor, getReport, canRun, DEPARTMENTS } from '../../src/reports
 import { academicReports } from '../../src/reports/academicReports.js';
 import { teacherReports } from '../../src/reports/teacherReports.js';
 import { financeReports } from '../../src/reports/financeReports.js';
-import { libraryReports } from '../../src/reports/libraryReports.js';
 import {
-  parseExamScope,
   percent,
   round1,
   resolveHistoricalRoster,
@@ -14,7 +12,7 @@ import {
 
 // The registry and its helpers are pure — no database, so these run without Mongo.
 
-const ALL = [...academicReports, ...teacherReports, ...financeReports, ...libraryReports];
+const ALL = [...academicReports, ...teacherReports, ...financeReports];
 
 describe('report definitions', () => {
   it('gives every report a unique id', () => {
@@ -32,6 +30,10 @@ describe('report definitions', () => {
     }
   });
 
+  it('registers no examination, results or library department', () => {
+    expect(DEPARTMENTS.map((d) => d.id)).toEqual(['academic', 'teaching', 'finance']);
+  });
+
   it('places every report in a declared department', () => {
     const departmentIds = DEPARTMENTS.map((d) => d.id);
     for (const report of ALL) {
@@ -39,16 +41,16 @@ describe('report definitions', () => {
     }
   });
 
-  it('covers all five academic report groups from the brief', () => {
+  it('covers the three academic report groups in the MVP', () => {
     const groups = new Set(academicReports.map((r) => r.group));
     expect(groups).toEqual(
-      new Set(['Students', 'Academic Performance', 'Examinations', 'Promotion', 'Teaching Assignments']),
+      new Set(['Students', 'Teaching Assignments']),
     );
   });
 
-  it('covers all three teacher report groups from the brief', () => {
+  it('covers the teacher report group in the MVP', () => {
     const groups = new Set(teacherReports.map((r) => r.group));
-    expect(groups).toEqual(new Set(['My Teaching', 'Assessment', 'Examinations']));
+    expect(groups).toEqual(new Set(['My Teaching']));
   });
 
   it('covers all four finance report groups from the brief', () => {
@@ -58,14 +60,6 @@ describe('report definitions', () => {
     );
   });
 
-  it('covers all four library report groups from the brief', () => {
-    // §14.2 Library Reports: inventory & availability, borrowing/return
-    // activity, overdue items, library usage summaries.
-    const groups = new Set(libraryReports.map((r) => r.group));
-    expect(groups).toEqual(
-      new Set(['Inventory & Availability', 'Borrowing Activity', 'Overdue & Fines', 'Library Usage']),
-    );
-  });
 });
 
 describe('role-based access', () => {
@@ -98,36 +92,11 @@ describe('role-based access', () => {
   });
 
   it('gives roles without a reporting department nothing at all', () => {
-    // Librarian now HAS a department (library); students and parents still
-    // read their own results/attendance/fees through their portals only.
-    for (const role of ['student', 'parent']) {
+    // Students and parents read their own attendance/fees through their
+    // portals only; the library was removed from the MVP, so librarians
+    // have no reporting department either.
+    for (const role of ['student', 'parent', 'librarian']) {
       expect(getCatalogFor(role)).toEqual([]);
-    }
-  });
-
-  it('gives librarians only the library department', () => {
-    const departments = getCatalogFor('librarian').map((d) => d.id);
-    expect(departments).toEqual(['library']);
-  });
-
-  it('keeps every library report away from teachers, academic officers and accountants', () => {
-    // Library reports are inventory/circulation data — no reason for teaching
-    // or finance roles to see them, and the librarian sees no other department.
-    for (const role of ['teacher', 'academic_officer', 'accountant']) {
-      const visible = getCatalogFor(role)
-        .flatMap((d) => d.groups)
-        .flatMap((g) => g.reports)
-        .map((r) => r.id);
-      for (const report of libraryReports) {
-        expect(visible).not.toContain(report.id);
-        expect(canRun(report, role)).toBe(false);
-      }
-    }
-  });
-
-  it('keeps academic, teaching and finance reports away from librarians', () => {
-    for (const report of [...academicReports, ...teacherReports, ...financeReports]) {
-      expect(canRun(report, 'librarian')).toBe(false);
     }
   });
 
@@ -192,23 +161,6 @@ describe('getReport', () => {
 });
 
 describe('helpers', () => {
-  it('unpacks an examination period scope', () => {
-    expect(parseExamScope({ scope: 'period:abc' })).toEqual({ exam_period_id: 'abc' });
-  });
-
-  it('unpacks a single-exam scope', () => {
-    expect(parseExamScope({ scope: 'exam:xyz' })).toEqual({ exam_id: 'xyz' });
-  });
-
-  it('falls back to explicit params', () => {
-    expect(parseExamScope({ exam_period_id: 'p1' })).toEqual({ exam_period_id: 'p1' });
-  });
-
-  it('returns nothing when no scope was chosen', () => {
-    expect(parseExamScope({})).toEqual({});
-    expect(parseExamScope({ scope: '' })).toEqual({});
-  });
-
   it('computes percentages without dividing by zero', () => {
     expect(percent(3, 4)).toBe(75);
     expect(percent(0, 0)).toBe(0);
@@ -222,10 +174,10 @@ describe('helpers', () => {
 // ------------------------------------------------------------
 // Historical (academic-year) roster resolvers
 //
-// A student's Student.classId is their *current* class — it moves when they
-// are promoted. Reports scoped to a past academic year ("Class 5, 2025") must
+// A student's Student.classId is their *current* class — it changes when they
+// move class. Reports scoped to a past academic year ("Class 5, 2025") must
 // resolve enrolment through the StudentClass ledger instead, or figures
-// silently land in the wrong class after a promotion. These tests lock in
+// silently land in the wrong class after a move. These tests lock in
 // the "no year filter → null (fall back to live classId)" behaviour that
 // every caller relies on to decide whether to switch resolvers, without
 // needing a live database.
@@ -262,7 +214,7 @@ describe('academic-year filter coverage', () => {
     'students-by-section',
     'students-demographics',
     // Finance rows and class rollups: bucketing invoices by a student's
-    // current class silently drifts as the school promotes them.
+    // current class silently drifts as students change class.
     // finance-collection-by-year is intentionally omitted — the year is
     // its primary axis, so a year filter would collapse it to a single row.
     'finance-collection-summary',

@@ -8,7 +8,7 @@ const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
 >(({ className, ...props }, ref) => (
-  <TabsPrimitive.List ref={ref} className={cn('inline-flex items-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground', className)} {...props} />
+  <TabsPrimitive.List ref={ref} className={cn('inline-flex items-center gap-1 rounded-xl border border-border bg-card p-1 text-muted-foreground shadow-xs', className)} {...props} />
 ));
 TabsList.displayName = TabsPrimitive.List.displayName;
 
@@ -19,7 +19,8 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      'inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-semibold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+      // Active tab uses the same pastel blue as the sidebar's current page, so it reads at a glance.
+      'inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-tile-blue data-[state=active]:font-semibold data-[state=active]:text-tile-foreground data-[state=active]:hover:bg-tile-blue',
       className,
     )}
     {...props}

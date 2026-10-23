@@ -76,6 +76,59 @@ export interface StaffAttendanceRecord {
   remarks?: string;
 }
 
+export interface AttendanceCounts { present: number; absent: number; late: number; excused: number; total: number }
+
+export interface AttendanceSummary {
+  days: number;
+  from: string;
+  to: string;
+  students: number;
+  today: AttendanceCounts & { rate: number };
+  classesMarkedToday: number;
+  classesInScope: number;
+  period: AttendanceCounts & { rate: number };
+  daily: (AttendanceCounts & { date: string; rate: number })[];
+  byClass: (AttendanceCounts & { name: string; rate: number })[];
+  absentToday: { studentId: string; name: string; admissionNumber: string; className: string; status: AttendanceStatusName; period: string }[];
+}
+
+export interface MonthlyReportRow {
+  student: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    admissionNumber: string;
+    class?: { cl_name: string } | null;
+    section?: { name: string } | null;
+  };
+  stats: { totalDays: number; present: number; absent: number; late: number; excused: number; presentRate: number };
+}
+
+export interface MonthlyReport {
+  summary: { totalStudents: number; totalWorkingDaysRecorded: number; overallPresentRate: number; overallAbsentRate: number; overallLateRate: number };
+  studentReports: MonthlyReportRow[];
+}
+
+export interface StaffSummary {
+  days: number;
+  from: string;
+  to: string;
+  staff: number;
+  today: AttendanceCounts & { rate: number; notMarked: number };
+  period: AttendanceCounts & { rate: number };
+  daily: (AttendanceCounts & { date: string; rate: number })[];
+  mostAbsent: (AttendanceCounts & { teacherId: string; name: string; department: string; rate: number })[];
+  awayToday: { teacherId: string; name: string; status: AttendanceStatusName; time_in: string; remarks: string }[];
+}
+
+export interface StaffMonthlyReport {
+  summary: { totalStaff: number; totalWorkingDaysRecorded: number; overallPresentRate: number };
+  staffReports: {
+    staff: { _id: string; stf_no: string; name: string; department: string };
+    stats: { totalDays: number; present: number; absent: number; late: number; excused: number; presentRate: number };
+  }[];
+}
+
 export const attendanceService = {
   // Student Attendance
   async getTerms(): Promise<Term[]> {
@@ -139,7 +192,13 @@ export const attendanceService = {
     return res.data;
   },
 
-  async getStudentMonthlyReport(params: { year: string; month: string; classId?: string; sectionId?: string }): Promise<any> {
+  /** Overview figures counted on the server: today, a daily trend and per-class rates. */
+  async getStudentSummary(days = 30): Promise<AttendanceSummary> {
+    const res = await api.get<{ success: boolean; data: AttendanceSummary }>('/attendance/summary', { params: { days } });
+    return res.data.data;
+  },
+
+  async getStudentMonthlyReport(params: { year: string; month: string; classId?: string; sectionId?: string }): Promise<MonthlyReport> {
     const query = new URLSearchParams({ year: params.year, month: params.month });
     if (params.classId) query.append('classId', params.classId);
     if (params.sectionId) query.append('sectionId', params.sectionId);
@@ -185,7 +244,13 @@ export const attendanceService = {
     return res.data;
   },
 
-  async getStaffMonthlyReport(params: { year: string; month: string; department?: string }): Promise<any> {
+  /** Overview figures counted on the server: today, a daily trend and who missed most. */
+  async getStaffSummary(days = 30): Promise<StaffSummary> {
+    const res = await api.get<{ success: boolean; data: StaffSummary }>('/staff-attendance/summary', { params: { days } });
+    return res.data.data;
+  },
+
+  async getStaffMonthlyReport(params: { year: string; month: string; department?: string }): Promise<StaffMonthlyReport> {
     const query = new URLSearchParams({ year: params.year, month: params.month });
     if (params.department) query.append('department', params.department);
     const res = await api.get(`/staff-attendance/report?${query.toString()}`);

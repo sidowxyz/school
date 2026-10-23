@@ -108,3 +108,12 @@ export const getMonthlyReport = async (req, res, next) => {
     next(err);
   }
 };
+
+export const getSummary = async (req, res, next) => {
+  try {
+    const data = await StaffAttendanceService.getSummary({ days: req.query.days });
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};

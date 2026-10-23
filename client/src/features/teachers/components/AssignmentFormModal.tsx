@@ -85,7 +85,7 @@ export default function AssignmentFormModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const sectionsForClass = sections.Funnel((s) => (typeof s.class === "string" ? s.class : s.class._id) === classId);
+  const sectionsForClass = sections.filter((s) => (typeof s.class === "string" ? s.class : s.class._id) === classId);
   const selectedTerm = terms.find((t) => t._id === termId);
   const workingDays: Weekday[] = selectedTerm?.workingDays?.length ? selectedTerm.workingDays : DAYS;
 
@@ -111,7 +111,7 @@ export default function AssignmentFormModal({
     setSlots((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   };
   const addSlot = () => setSlots((prev) => [...prev, { day: workingDays[0] ?? "Monday", periodId: "" }]);
-  const removeSlot = (i: number) => setSlots((prev) => prev.Funnel((_, idx) => idx !== i));
+  const removeSlot = (i: number) => setSlots((prev) => prev.filter((_, idx) => idx !== i));
 
   const periodTimes = (periodId: string) => periods.find((p) => p._id === periodId);
 
@@ -169,7 +169,7 @@ export default function AssignmentFormModal({
       onSaved();
       onClose();
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to FloppyDisk assignment.");
+      setError(err?.response?.data?.message || "Failed to save assignment.");
       setSubmitting(false);
     }
   };
@@ -317,7 +317,7 @@ export default function AssignmentFormModal({
             ) : periodsLoading ? (
               <p className="text-xs text-muted-foreground">Loading periods...</p>
             ) : periods.length === 0 ? (
-              <p className="text-xs text-amber-500">
+              <p className="text-xs text-warning">
                 This term has no periods yet â€” add them under Academic Structure &rarr; Periods first.
               </p>
             ) : (

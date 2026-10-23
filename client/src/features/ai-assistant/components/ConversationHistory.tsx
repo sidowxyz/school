@@ -36,16 +36,16 @@ export default function ConversationHistory({ open, onOpenConversation }: Props)
   if (!open) return null;
 
   if (loading) {
-    return <p className="px-1 py-4 text-center text-xs text-gray-400">Loading…</p>;
+    return <p className="px-1 py-4 text-center text-xs text-muted-foreground">Loading…</p>;
   }
 
   if (error) {
-    return <p className="px-1 py-4 text-center text-xs text-red-500">{error}</p>;
+    return <p className="px-1 py-4 text-center text-xs text-destructive">{error}</p>;
   }
 
   if (items.length === 0) {
     return (
-      <p className="px-1 py-6 text-center text-xs text-gray-400">
+      <p className="px-1 py-6 text-center text-xs text-muted-foreground">
         No past conversations yet. They appear here once you ask something.
       </p>
     );
@@ -58,14 +58,14 @@ export default function ConversationHistory({ open, onOpenConversation }: Props)
           <Button variant="plain"
             type="button"
             onClick={() => onOpenConversation(conversation._id)}
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <Chat size={13} className="shrink-0 text-gray-300" aria-hidden="true" />
+            <Chat size={13} className="shrink-0 text-muted-foreground/70" aria-hidden="true" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-medium text-gray-700">
+              <span className="block truncate text-xs font-medium text-foreground/80">
                 {conversation.title}
               </span>
-              <span className="block text-[11px] text-gray-400">
+              <span className="block text-[11px] text-muted-foreground">
                 {relativeTime(conversation.lastActivityAt)}
               </span>
             </span>
@@ -75,7 +75,7 @@ export default function ConversationHistory({ open, onOpenConversation }: Props)
             type="button"
             onClick={() => remove(conversation._id)}
             aria-label={`Delete conversation: ${conversation.title}`}
-            className="shrink-0 rounded-lg p-1.5 text-gray-300 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 focus:opacity-100 group-hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+            className="shrink-0 rounded-lg p-1.5 text-muted-foreground/70 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus:opacity-100 group-hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
           >
             <Trash size={13} />
           </Button>

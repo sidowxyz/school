@@ -19,7 +19,7 @@ const [action, setAction] = useState("All Actions");
 const [date, setDate] = useState("");
 
 const filteredLogs = useMemo(() => {
-  return auditLogs.Funnel((log) => {
+  return auditLogs.filter((log) => {
     const matchesSearch =
       log.user.toLowerCase().includes(search.toLowerCase()) ||
       log.action.toLowerCase().includes(search.toLowerCase());
@@ -41,7 +41,7 @@ const filteredLogs = useMemo(() => {
       matchesDate
     );
   });
-}, [auditLogs, MagnifyingGlass, user, action, date]);
+}, [auditLogs, search, user, action, date]);
 const handleExportCSV = () => {
   const headers = [
     "Performed By",
@@ -94,13 +94,13 @@ const handleExportCSV = () => {
             <Button variant="plain"
               onClick={reload}
               disabled={loading}
-              className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+              className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-muted-foreground hover:bg-muted/50 disabled:opacity-50">
               <ArrowsClockwise size={18} className={loading ? "animate-spin" : undefined} />
               Refresh
             </Button>
             <Button variant="plain"
              onClick={handleExportCSV}
-             className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-white hover:bg-green-700">
+             className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90">
               <DownloadSimple size={18} />
               Export CSV
             </Button>
@@ -109,7 +109,7 @@ const handleExportCSV = () => {
       />
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -117,7 +117,7 @@ const handleExportCSV = () => {
       <AuditStats logs={auditLogs} />
 
       <AuditFilters
-  search={MagnifyingGlass}
+  search={search}
   setSearch={setSearch}
   user={user}
   setUser={setUser}

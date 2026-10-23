@@ -13,18 +13,18 @@ export default function EmptyState({
   hasFilters = false,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white rounded-2xl border border-gray-100 shadow-sm">
-      <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center text-green-600 mb-4 border border-green-100">
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-card rounded-xl border border-border shadow-sm">
+      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4 border border-primary/20">
         <NotePencil size={28} className="stroke-[1.5]" />
       </div>
-      <h3 className="text-base font-bold text-gray-900 mb-1">No lesson logs</h3>
-      <p className="text-sm text-gray-400 max-w-sm mb-5">
+      <h3 className="text-base font-bold text-foreground mb-1">No lesson logs</h3>
+      <p className="text-sm text-muted-foreground max-w-sm mb-5">
         {message}
       </p>
       {hasFilters && onClearFilters && (
         <Button variant="plain"
           onClick={onClearFilters}
-          className="text-xs font-semibold text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-3.5 py-1.5 rounded-lg transition-colors"
+          className="text-xs font-semibold text-primary hover:text-primary bg-primary/10 hover:bg-primary/15 border border-primary/20 px-3.5 py-1.5 rounded-lg transition-colors"
         >
           Clear Active Filters
         </Button>

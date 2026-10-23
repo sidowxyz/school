@@ -27,7 +27,8 @@ interface Props {
   filters?: Record<string, string | number>;
 }
 
-const BAR_COLORS = ['#16a34a', '#2563eb', '#f59e0b', '#a855f7', '#ef4444'];
+const SUMMARY_TILES = ['bg-tile-green', 'bg-tile-blue', 'bg-tile-yellow', 'bg-tile-violet', 'bg-tile-pink'];
+const BAR_COLORS = ['hsl(var(--success))', 'hsl(var(--info))', 'hsl(var(--warning))', 'hsl(var(--violet))', 'hsl(var(--destructive))'];
 
 const formatCell = (value: ReportCell, type?: string): string => {
   if (value === null || value === undefined || value === '') return '—';
@@ -63,10 +64,10 @@ export default function ReportViewer({ report, filters }: Props) {
   const rows = useMemo(() => {
     if (!search.trim()) return report.rows;
     const needle = search.toLowerCase();
-    return report.rows.Funnel((row) =>
+    return report.rows.filter((row) =>
       Object.values(row).some((value) => String(value ?? '').toLowerCase().includes(needle)),
     );
-  }, [report.rows, MagnifyingGlass]);
+  }, [report.rows, search]);
 
   const exportCsv = () => {
     downloadCSV(
@@ -86,7 +87,7 @@ export default function ReportViewer({ report, filters }: Props) {
     try {
       // Ask the server to re-run the report with the same filters and stream
       // it back as the chosen format. Turning the blob into an <a download>
-      // click is the standard way to trigger a browser DownloadSimple from an XHR.
+      // click is the standard way to trigger a browser download from an XHR.
       const blob = await reportsApi.export(report.id, format, filters);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -123,19 +124,18 @@ export default function ReportViewer({ report, filters }: Props) {
     <div className="space-y-5">
       {/* Header — a coloured accent bar on top so the report card reads as
           a distinct document, not just another panel on the page. */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="h-1 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500" />
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         <div className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">{report.title}</h2>
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-0.5">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">{report.title}</h2>
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5">
                 <CheckCircle size={12} /> Live data
               </span>
             </div>
-            <p className="text-sm text-gray-500 mt-1">{report.description}</p>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-sm text-muted-foreground mt-1">{report.description}</p>
+            <p className="text-xs text-muted-foreground mt-2">
               {report.group} · generated {new Date(report.generatedAt).toLocaleString()}
             </p>
           </div>
@@ -144,7 +144,7 @@ export default function ReportViewer({ report, filters }: Props) {
             <Button variant="plain"
               onClick={() => window.print()}
               disabled={rows.length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition print:hidden"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card text-sm font-semibold text-foreground hover:bg-muted/50 disabled:opacity-50 transition print:hidden"
             >
               <Printer size={15} /> Print
             </Button>
@@ -152,7 +152,7 @@ export default function ReportViewer({ report, filters }: Props) {
               <Button variant="plain"
                 onClick={() => setExportOpen((v) => !v)}
                 disabled={rows.length === 0 || exporting !== null}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50 transition"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold disabled:opacity-50 transition"
               >
                 {exporting ? (
                   <SpinnerGap size={15} className="animate-spin" />
@@ -163,29 +163,29 @@ export default function ReportViewer({ report, filters }: Props) {
                 <CaretDown size={14} className="opacity-80" />
               </Button>
               {exportOpen && (
-                <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10">
+                <div className="absolute right-0 mt-1 w-56 bg-card border border-border rounded-xl shadow-lg p-1.5 z-10">
                   <Button variant="plain"
                     onClick={exportCsv}
-                    className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50"
+                    className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 rounded-lg hover:bg-muted/50"
                   >
-                    <FileText size={14} className="text-gray-500" /> CSV
-                    <span className="ml-auto text-[11px] text-gray-400">visible rows</span>
+                    <FileText size={14} className="text-muted-foreground" /> CSV
+                    <span className="ml-auto text-[11px] text-muted-foreground">visible rows</span>
                   </Button>
                   <Button variant="plain"
                     onClick={() => exportFile('xlsx')}
                     disabled={exporting !== null}
-                    className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50"
+                    className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 rounded-lg hover:bg-muted/50 disabled:opacity-50"
                   >
-                    <TableIcon size={14} className="text-green-600" /> Excel (.xlsx)
-                    <span className="ml-auto text-[11px] text-gray-400">full report</span>
+                    <TableIcon size={14} className="text-primary" /> Excel (.xlsx)
+                    <span className="ml-auto text-[11px] text-muted-foreground">full report</span>
                   </Button>
                   <Button variant="plain"
                     onClick={() => exportFile('pdf')}
                     disabled={exporting !== null}
-                    className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50"
+                    className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 rounded-lg hover:bg-muted/50 disabled:opacity-50"
                   >
-                    <FileText size={14} className="text-red-500" /> PDF
-                    <span className="ml-auto text-[11px] text-gray-400">full report</span>
+                    <FileText size={14} className="text-destructive" /> PDF
+                    <span className="ml-auto text-[11px] text-muted-foreground">full report</span>
                   </Button>
                 </div>
               )}
@@ -194,18 +194,18 @@ export default function ReportViewer({ report, filters }: Props) {
         </div>
 
         {exportError && (
-          <p className="mt-3 text-xs text-red-600">{exportError}</p>
+          <p className="mt-3 text-xs text-destructive">{exportError}</p>
         )}
 
         {report.summary.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3 mt-5 pt-5 border-t border-gray-100">
-            {report.summary.map((item) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3 mt-5 pt-5 border-t border-border">
+            {report.summary.map((item, i) => (
               <div
                 key={item.label}
-                className="rounded-xl bg-gradient-to-br from-white to-gray-50 border border-gray-100 p-3 hover:border-green-200 hover:shadow-sm transition"
+                className={`rounded-2xl p-4 text-tile-foreground ${SUMMARY_TILES[i % SUMMARY_TILES.length]}`}
               >
-                <p className="text-xs text-gray-500">{item.label}</p>
-                <p className="text-lg font-bold text-gray-900 mt-0.5 tabular-nums">{item.value}</p>
+                <p className="text-xs font-medium opacity-75">{item.label}</p>
+                <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{item.value}</p>
               </div>
             ))}
           </div>
@@ -214,20 +214,20 @@ export default function ReportViewer({ report, filters }: Props) {
       </div>
 
       {needsFilters ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-14 text-center">
-          <h3 className="text-base font-semibold text-gray-800">More detail needed</h3>
-          <p className="text-sm text-gray-500 mt-1">{report.columns[0].label}</p>
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-14 text-center">
+          <h3 className="text-base font-semibold text-foreground">More detail needed</h3>
+          <p className="text-sm text-muted-foreground mt-1">{report.columns[0].label}</p>
         </div>
       ) : (
         <>
           {report.chart && chartData.length > 1 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <YAxis tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <Tooltip cursor={{ fill: '#f8fafc' }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
                   <Legend />
                   {report.chart.series.map((key, i) => (
                     <Bar
@@ -243,34 +243,34 @@ export default function ReportViewer({ report, filters }: Props) {
             </div>
           )}
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-gray-100">
-              <p className="text-sm text-gray-500">
+          <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-border">
+              <p className="text-sm text-muted-foreground">
                 {rows.length} row{rows.length === 1 ? '' : 's'}
-                {MagnifyingGlass && report.rows.length !== rows.length && ` of ${report.rows.length}`}
+                {search && report.rows.length !== rows.length && ` of ${report.rows.length}`}
               </p>
               <div className="relative print:hidden">
-                <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
-                  value={MagnifyingGlass}
+                  value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search this report…"
-                  className="pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500"
+                  className="h-10 pl-9 pr-3 rounded-xl bg-muted/40 border border-border text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
             </div>
 
             {rows.length === 0 ? (
               <div className="flex flex-col items-center text-center py-16">
-                <div className="w-14 h-14 rounded-xl bg-green-50 flex items-center justify-center text-green-500 mb-4">
+                <div className="w-14 h-14 rounded-2xl bg-tile-green text-tile-foreground flex items-center justify-center mb-4">
                   <Tray size={26} />
                 </div>
-                <h4 className="text-base font-semibold text-gray-800">
-                  {MagnifyingGlass ? 'Nothing matches that search' : 'No data for this report'}
+                <h4 className="text-base font-semibold text-foreground">
+                  {search ? 'Nothing matches that search' : 'No data for this report'}
                 </h4>
-                <p className="text-sm text-gray-500 mt-1">
-                  {MagnifyingGlass
+                <p className="text-sm text-muted-foreground mt-1">
+                  {search
                     ? 'Try a different term, or clear the search.'
                     : 'Adjust the filters above, or check the underlying records exist.'}
                 </p>
@@ -279,7 +279,7 @@ export default function ReportViewer({ report, filters }: Props) {
               <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                 <Table className="w-full text-sm">
                   <TableHeader className="sticky top-0 z-10">
-                    <TableRow className="text-left text-gray-600 border-b border-gray-200 bg-gray-50 shadow-[0_1px_0_0_rgba(0,0,0,0.04)]">
+                    <TableRow className="text-left text-muted-foreground border-b border-border bg-muted/60">
                       {report.columns.map((column) => (
                         <TableHead
                           key={column.key}
@@ -296,17 +296,15 @@ export default function ReportViewer({ report, filters }: Props) {
                     {rows.map((row, index) => (
                       <TableRow
                         key={index}
-                        className={`border-b border-gray-50 last:border-0 transition-colors hover:bg-green-50/40 ${
-                          index % 2 === 1 ? 'bg-gray-50/40' : ''
-                        }`}
+                        className={`border-b border-border last:border-0 transition-colors hover:bg-muted/50`}
                       >
                         {report.columns.map((column) => (
                           <TableCell
                             key={column.key}
                             className={`px-5 py-3 whitespace-nowrap ${
                               column.type === 'number' || column.type === 'money'
-                                ? 'text-right tabular-nums text-gray-900 font-medium'
-                                : 'text-gray-700'
+                                ? 'text-right tabular-nums text-foreground font-medium'
+                                : 'text-foreground/80'
                             }`}
                           >
                             {formatCell(row[column.key], column.type)}

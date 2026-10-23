@@ -68,7 +68,7 @@ export default function ProfileTab({ student }: { student?: Student | null }) {
         <Card className="border-border/80 shadow-2xs">
           <CardHeader className="border-b border-border/60 pb-4">
             <div className="flex items-center gap-2">
-              <GraduationCap size={16} className="text-sky-600 dark:text-sky-400" />
+              <GraduationCap size={16} className="text-info" />
               <div>
                 <CardTitle className="text-base font-semibold text-foreground">Academic Information</CardTitle>
                 <CardDescription className="text-xs mt-0.5">Enrollment and class details</CardDescription>
@@ -86,7 +86,7 @@ export default function ProfileTab({ student }: { student?: Student | null }) {
         <Card className="border-border/80 shadow-2xs">
           <CardHeader className="border-b border-border/60 pb-4">
             <div className="flex items-center gap-2">
-              <UserCircle size={16} className="text-amber-600 dark:text-amber-400" />
+              <UserCircle size={16} className="text-warning" />
               <div>
                 <CardTitle className="text-base font-semibold text-foreground">Guardian Information</CardTitle>
                 <CardDescription className="text-xs mt-0.5">Parent/guardian contact details</CardDescription>
@@ -103,7 +103,7 @@ export default function ProfileTab({ student }: { student?: Student | null }) {
         <Card className="border-border/80 shadow-2xs">
           <CardHeader className="border-b border-border/60 pb-4">
             <div className="flex items-center gap-2">
-              <MapPin size={16} className="text-emerald-600 dark:text-emerald-400" />
+              <MapPin size={16} className="text-success" />
               <div>
                 <CardTitle className="text-base font-semibold text-foreground">Address & Scholarship</CardTitle>
                 <CardDescription className="text-xs mt-0.5">Residential address and financial aid</CardDescription>
@@ -120,7 +120,7 @@ export default function ProfileTab({ student }: { student?: Student | null }) {
               ) : scholarship ? (
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2.5">
-                    <Star size={16} className="text-amber-500 mt-0.5 shrink-0" />
+                    <Star size={16} className="text-warning mt-0.5 shrink-0" />
                     <div>
                       <p className="text-sm font-semibold text-foreground">{scholarship.kind}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">

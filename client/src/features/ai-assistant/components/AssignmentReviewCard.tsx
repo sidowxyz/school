@@ -10,18 +10,18 @@ export default function AssignmentReviewCard({ result }: { result: AssignmentRev
   const { writingIntegrity } = result;
 
   return (
-    <div className="space-y-3 rounded-xl border border-gray-100 bg-white p-3">
+    <div className="space-y-3 rounded-xl border border-border bg-card p-3">
       <div className="flex items-baseline justify-between">
-        <p className="text-sm font-semibold text-gray-900">{result.student.name}</p>
-        <p className="text-[11px] text-gray-400">{result.wordCount} words</p>
+        <p className="text-sm font-semibold text-foreground">{result.student.name}</p>
+        <p className="text-[11px] text-muted-foreground">{result.wordCount} words</p>
       </div>
-      {result.assignmentTitle && <p className="text-xs text-gray-500">{result.assignmentTitle}</p>}
+      {result.assignmentTitle && <p className="text-xs text-muted-foreground">{result.assignmentTitle}</p>}
 
       <div
         className={`flex items-start gap-2 rounded-lg border p-2.5 text-xs ${
           writingIntegrity.reviewRecommended
-            ? 'border-amber-200 bg-amber-50 text-amber-800'
-            : 'border-gray-100 bg-gray-50 text-gray-600'
+            ? 'border-warning/20 bg-warning/10 text-warning'
+            : 'border-border bg-muted/50 text-muted-foreground'
         }`}
       >
         <Eye size={14} className="mt-0.5 shrink-0" />
@@ -47,10 +47,10 @@ export default function AssignmentReviewCard({ result }: { result: AssignmentRev
         <div className="space-y-2">
           {result.feedback.strengths.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-green-700">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
                 Doing well
               </p>
-              <ul className="mt-0.5 list-inside list-disc text-xs text-gray-600">
+              <ul className="mt-0.5 list-inside list-disc text-xs text-muted-foreground">
                 {result.feedback.strengths.map((s, i) => (
                   <li key={i}>{s}</li>
                 ))}
@@ -59,10 +59,10 @@ export default function AssignmentReviewCard({ result }: { result: AssignmentRev
           )}
           {result.feedback.weaknesses.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-warning">
                 Needs work
               </p>
-              <ul className="mt-0.5 list-inside list-disc text-xs text-gray-600">
+              <ul className="mt-0.5 list-inside list-disc text-xs text-muted-foreground">
                 {result.feedback.weaknesses.map((s, i) => (
                   <li key={i}>{s}</li>
                 ))}
@@ -71,29 +71,29 @@ export default function AssignmentReviewCard({ result }: { result: AssignmentRev
           )}
           {result.feedback.focusAreas.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Suggested focus
               </p>
-              <p className="mt-0.5 text-xs text-gray-600">{result.feedback.focusAreas.join(', ')}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{result.feedback.focusAreas.join(', ')}</p>
             </div>
           )}
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Draft feedback for the student
             </p>
-            <p className="mt-0.5 rounded-lg bg-gray-50 p-2 text-xs text-gray-700">
+            <p className="mt-0.5 rounded-lg bg-muted/50 p-2 text-xs text-foreground/80">
               {result.feedback.suggestedFeedback}
             </p>
           </div>
         </div>
       ) : (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-muted-foreground">
           Concept-level feedback isn't available right now — no AI provider key is configured, or
           it's temporarily unavailable. The writing-integrity check above still ran without one.
         </p>
       )}
 
-      <p className="flex items-start gap-1.5 text-[11px] text-gray-400">
+      <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
         <Info size={12} className="mt-0.5 shrink-0" />
         {result.disclaimer}
       </p>

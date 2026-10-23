@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SquaresFour, User, CalendarCheck, ChartBar, CurrencyDollar, Bell, Chat, UserCircle, CaretLeft, SpinnerGap, Users } from '@phosphor-icons/react';
+import { SquaresFour, User, CalendarCheck, CurrencyDollar, UserCircle, CaretLeft, SpinnerGap, Users } from '@phosphor-icons/react';
 import { useAuth } from '../../../hooks/useAuth';
 import type { Student } from '../../students/types';
 import type { Parent } from '../../parents/types';
@@ -11,10 +11,7 @@ import ParentBanner from '../components/ParentBanner';
 import DashboardTab from '../components/tabs/DashboardTab';
 import ProfileTab from '../components/tabs/ProfileTab';
 import AttendanceTab from '../components/tabs/AttendanceTab';
-import ResultsTab from '../components/tabs/ResultsTab';
 import FeesTab from '../components/tabs/FeesTab';
-import NoticesTab from '../components/tabs/NoticesTab';
-import MessagesTab from '../components/tabs/MessagesTab';
 import { TAB_IDS, type TabId } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -25,10 +22,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: SquaresFour },
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
-  { id: 'results', label: 'Results', icon: ChartBar },
   { id: 'fees', label: 'Fee Status', icon: CurrencyDollar },
-  { id: 'notices', label: 'Notices', icon: Bell },
-  { id: 'messages', label: 'Messages', icon: Chat },
 ];
 
 function ParentPortalContent({ guardianId }: { guardianId?: string }) {
@@ -135,10 +129,7 @@ function ParentPortalContent({ guardianId }: { guardianId?: string }) {
             {tab === 'dashboard' && <DashboardTab onNavigate={setTab} />}
             {tab === 'profile' && <ProfileTab />}
             {tab === 'attendance' && <AttendanceTab />}
-            {tab === 'results' && <ResultsTab />}
             {tab === 'fees' && <FeesTab />}
-            {tab === 'notices' && <NoticesTab />}
-            {tab === 'messages' && <MessagesTab />}
           </>
         )}
       </div>

@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
     // String-based role for RBAC
     role: {
       type: String,
-      enum: ["admin", "principal", "academic_officer", "teacher", "accountant", "student", "parent", "librarian"],
+      enum: ["admin", "principal", "academic_officer", "teacher", "accountant", "student", "parent"],
       default: "student",
     },
 

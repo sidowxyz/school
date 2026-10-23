@@ -15,20 +15,19 @@
 import { academicReports } from './academicReports.js';
 import { teacherReports } from './teacherReports.js';
 import { financeReports } from './financeReports.js';
-import { libraryReports } from './libraryReports.js';
 
 /** Departments, in the order the UI lists them. */
 export const DEPARTMENTS = [
   {
     id: 'academic',
     name: 'Academic Office',
-    description: 'Students, performance, examinations, promotion and teaching assignments',
+    description: 'Students and teaching assignments',
     roles: ['admin', 'principal', 'academic_officer']
   },
   {
     id: 'teaching',
     name: 'My Teaching',
-    description: 'Your assigned classes, subjects, attendance and marks',
+    description: 'Your assigned classes, subjects, timetable and attendance',
     roles: ['teacher', 'admin', 'principal', 'academic_officer']
   },
   {
@@ -36,16 +35,10 @@ export const DEPARTMENTS = [
     name: 'Finance Office',
     description: 'Fee collection, payments, outstanding balances and revenue',
     roles: ['admin', 'accountant', 'principal']
-  },
-  {
-    id: 'library',
-    name: 'Library',
-    description: 'Book inventory, borrowing activity, overdue items and usage',
-    roles: ['admin', 'librarian', 'principal']
   }
 ];
 
-const ALL_REPORTS = [...academicReports, ...teacherReports, ...financeReports, ...libraryReports];
+const ALL_REPORTS = [...academicReports, ...teacherReports, ...financeReports];
 
 const byId = new Map(ALL_REPORTS.map((report) => [report.id, report]));
 

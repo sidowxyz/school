@@ -9,8 +9,8 @@ import { tokenize } from '../utils/textSimilarity.js';
  * like it only accepted button presses.
  *
  * This scores the question against each tool's declared vocabulary instead.
- * It reuses the same tokenizer as exam similarity, so stopwords, plurals and
- * exam/school synonyms are already handled: "teachers" and "teacher" collapse,
+ * It reuses the tokenizer from utils/textSimilarity, so stopwords, plurals and
+ * school synonyms are already handled: "teachers" and "teacher" collapse,
  * as do "list" and "state".
  *
  * Two guards keep it honest, because silently answering the *wrong* question is
@@ -30,8 +30,8 @@ const indexCache = new Map();
 const indexFor = (tool) => {
   if (indexCache.has(tool.name)) return indexCache.get(tool.name);
 
-  // Split the camelCase tool name into words so "getOverdueBooks" contributes
-  // "overdue" and "books" rather than one meaningless token.
+  // Split the camelCase tool name into words so "getMissingTeachingLogs" contributes
+  // "missing", "teaching" and "logs" rather than one meaningless token.
   const nameWords = tool.name.replace(/([A-Z])/g, ' $1');
   const tokens = new Set(tokenize(`${nameWords} ${tool.keywords ?? ''}`));
 

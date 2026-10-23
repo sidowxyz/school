@@ -49,61 +49,6 @@ export const extractArgs = (tool, message) => {
     args.year = yearMatch ? Number(yearMatch[1]) : now.getFullYear();
   }
 
-  // Tools that take a free-text subject (an exam question to check) get the
-  // message itself, minus any lead-in the quick-action prompt seeded. Without
-  // this, seeding the composer with "Has this been asked before: ..." still
-  // failed validation on a required `text` field.
-  if ('text' in shape) {
-    const body = text
-      .replace(/^\s*(has\s+this\s+been\s+asked\s+before|is\s+this\s+(a\s+)?(duplicate|original)|check\s+(this\s+)?question)\s*[:,-]?\s*/i, '')
-      .replace(/^["']|["']$/g, '')
-      .trim();
-    if (body.length >= 5) args.text = body;
-  }
-
-  // Exam generation: "Generate a Biology exam for Grade 8 covering cells".
-  // Each part is optional — whatever is missing is asked for conversationally
-  // rather than rejected, so a half-formed request still makes progress.
-  if ('subject' in shape && 'grade' in shape) {
-    const subjectMatch = text.match(
-      /\b(?:generate|create|write|make|set|draft)\b\s+(?:an?\s+)?([A-Za-z][\w\s&-]{1,40}?)\s+(?:exam|paper|test)\b/i
-    );
-    if (subjectMatch) {
-      const candidate = subjectMatch[1].trim();
-      // "Generate an exam" leaves nothing meaningful in the capture.
-      if (!/^(a|an|the|new|exam|paper|test)$/i.test(candidate)) args.subject = candidate;
-    }
-
-    // Keep the school's own wording — "Form 4" and "Grade 4" are different
-    // things in many systems, so normalising everything to "Grade" would put
-    // the wrong level on the paper. "Grate" is a common typo for Grade.
-    const gradeMatch = text.match(/\b(grade|grate|class|form|year)\s*([\w-]{1,12})/i);
-    if (gradeMatch) {
-      const word = /grate/i.test(gradeMatch[1]) ? 'Grade' : gradeMatch[1];
-      const label = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-      args.grade = `${label} ${gradeMatch[2]}`;
-    }
-
-    const topicMatch = text.match(/\b(?:covering|about|on the topics?|for the topics?|topics?)\s*[:-]?\s*(.+)$/i);
-    if (topicMatch) {
-      const topics = topicMatch[1]
-        // Trailing instructions are not topics — "…and bases with 15 questions
-        // out of 60" would otherwise become a topic called exactly that.
-        .replace(/\b(?:with|having|using|,)?\s*\d{1,3}\s*(?:questions?|marks?)\b.*$/i, '')
-        .replace(/\b(?:out of|total(?:ling)?|worth)\s*\d{1,3}.*$/i, '')
-        .split(/,| and |;/i)
-        .map((t) => t.trim().replace(/[.!?]+$/, ''))
-        .filter((t) => t.length > 2 && t.length < 120);
-      if (topics.length > 0) args.topics = topics;
-    }
-
-    const countMatch = text.match(/\b(\d{1,2})\s*questions?\b/i);
-    if (countMatch) args.questionCount = Number(countMatch[1]);
-
-    const marksMatch = text.match(/\b(?:out of|total(?:ling)?|worth)\s*(\d{1,3})\s*(?:marks?)?\b/i);
-    if (marksMatch) args.totalMarks = Number(marksMatch[1]);
-  }
-
   if ('search' in shape) {
     const quoted = text.match(/["']([^"']{2,60})["']/);
     if (quoted) {
@@ -124,7 +69,7 @@ export const extractArgs = (tool, message) => {
  *
  * Covers the three shapes tools actually return: a bare empty array, an object
  * whose only meaningful field is an empty collection, and an explicit zero
- * total. Numeric zero on its own is NOT empty — "0 overdue books" is a real,
+ * total. Numeric zero on its own is NOT empty — "0 students absent" is a real,
  * useful answer and must still render.
  */
 export const isEmptyResult = (data) => {
@@ -150,11 +95,7 @@ export const isEmptyResult = (data) => {
  * for — those tools are reached by following a previous result instead.
  */
 const ARG_LABELS = {
-  subject: { label: 'the subject', example: 'Biology' },
-  grade: { label: 'the class or grade', example: 'Grade 8' },
-  text: { label: 'the question text', example: 'Explain three causes of soil erosion.' },
-  title: { label: 'a title', example: 'Term 2 fee deadline' },
-  content: { label: 'the message body', example: 'Fees are due on the 30th.' },
+  date: { label: 'the date', example: '2026-10-23' },
 };
 
 /** "a, b and c" — reads as a sentence rather than a field list. */
@@ -341,7 +282,7 @@ export const handleTurn = async ({
   if (!routed.tool) {
     const text =
       "I couldn't match that to something I can look up yet. Try asking about attendance, " +
-      'fees, students, library overdues, class performance, or your own timetable.';
+      'fees, students, teaching logs, or your own timetable.';
     await persistTurn(conversation, message, text, null);
     return {
       type: 'text',
@@ -358,8 +299,7 @@ export const handleTurn = async ({
   const rawArgs = explicitArgs ?? extractArgs(getTool(routed.tool), message);
 
   // If the request is simply incomplete, ask for what's missing rather than
-  // surfacing a validation error. "Generate an exam for Grade 8" is a
-  // reasonable thing to say; answering it with "subject: Required" is not.
+  // surfacing a validation error.
   const missing = missingRequiredArgs(getTool(routed.tool), rawArgs);
   if (missing.length > 0) {
     const text = `I can do that — I just need ${listPhrase(missing.map((f) => f.label))}.`;

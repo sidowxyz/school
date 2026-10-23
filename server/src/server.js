@@ -43,18 +43,6 @@ import courseClassRoutes       from './routes/courseClassRoutes.js';
 import syllabusRoutes          from './routes/syllabusRoutes.js';
 import timetableRoutes         from './routes/timetableRoutes.js';
 
-//  Examination
-import examRoutes              from './routes/examRoutes.js';
-import examPeriodRoutes        from './routes/examPeriodRoutes.js';
-import examMarkRoutes          from './routes/examMarkRoutes.js';
-import examResultRoutes        from './routes/examResultRoutes.js';
-import promotionRoutes         from './routes/promotionRoutes.js';
-import examTypeRoutes          from './routes/examTypeRoutes.js';
-import examRegRoutes           from './routes/examRegRoutes.js';
-import resultRoutes            from './routes/resultRoutes.js';
-import resultSheetRoutes       from './routes/resultSheetRoutes.js';
-import markRoutes              from './routes/markRoutes.js';
-
 // Attendance
 import attendanceRoutes        from './routes/attendanceRoutes.js';
 import staffAttendanceRoutes   from './routes/staffAttendanceRoutes.js';
@@ -66,6 +54,7 @@ import lessonCoverageReportRoutes from './routes/lessonCoverageReportRoutes.js';
 
 //  Finance 
 import feeRoutes               from './routes/feeRoutes.js';
+import monthlyFeeRoutes        from './routes/monthlyFeeRoutes.js';
 import refundRoutes            from './routes/refundRoutes.js';
 import scholarshipRoutes       from './routes/scholarshipRoutes.js';
 import ledgerRoutes            from './routes/ledgerRoutes.js';
@@ -75,14 +64,6 @@ import journalEntryRoutes      from './routes/journalEntryRoutes.js';
 import expenseRoutes           from './routes/expenseRoutes.js';
 import fixedAssetRoutes        from './routes/fixedAssetRoutes.js';
 import financialReportRoutes   from './routes/financialReportRoutes.js';
-
-//  Library 
-import libraryRoutes           from './routes/libraryRoutes.js';
-import authorCategoryShelfRoutes from './routes/authorCategoryShelfRoutes.js';
-import readingSessionRoutes    from './routes/readingSessionRoutes.js';
-
-// Communication
-import communicationRoutes     from './routes/communicationRoutes.js';
 
 //  Portals 
 import studentPortalRoutes     from './routes/studentPortalRoutes.js';
@@ -104,11 +85,14 @@ if (process.env.NODE_ENV !== 'test') {
     .then(async (connected) => {
       if (connected) {
         try {
-          const { autoSeed } = await import('./seed/seedData.js');
-          await autoSeed();
+          // System records only (never demo data) — see seed/bootstrap.js.
+          const { bootstrap } = await import('./seed/bootstrap.js');
+          await bootstrap();
         } catch (err) {
-          console.warn('Auto-seed warning:', err.message);
+          console.warn('Bootstrap warning:', err.message);
         }
+        const { startMonthlyChargeScheduler } = await import('./utils/monthlyChargeScheduler.js');
+        await startMonthlyChargeScheduler();
       }
     })
     .catch(() => {
@@ -197,18 +181,6 @@ app.use('/api/course-classes', courseClassRoutes);
 app.use('/api/syllabus',       syllabusRoutes);
 app.use('/api/timetable',      timetableRoutes);
 
-// Examination
-app.use('/api/exams',          examRoutes);
-app.use('/api/exam-periods',   examPeriodRoutes);
-app.use('/api/exam-marks',     examMarkRoutes);
-app.use('/api/exam-results',   examResultRoutes);
-app.use('/api/promotions',     promotionRoutes);
-app.use('/api/exam-types',     examTypeRoutes);
-app.use('/api/exam-reg',       examRegRoutes);
-app.use('/api/results',        resultRoutes);
-app.use('/api/result-sheets',  resultSheetRoutes);
-app.use('/api/marks',          markRoutes);
-
 // Attendance
 app.use('/api/attendance',         attendanceRoutes);
 app.use('/api/staff-attendance',   staffAttendanceRoutes);
@@ -219,6 +191,7 @@ app.use('/api/lesson-coverage',           lessonCoverageRoutes);
 app.use('/api/lesson-coverage-reports',   lessonCoverageReportRoutes);
 
 // Finance
+app.use('/api/fees',          monthlyFeeRoutes);
 app.use('/api',               feeRoutes);
 app.use('/api',               scholarshipRoutes);
 app.use('/api/refunds',       refundRoutes);
@@ -230,14 +203,6 @@ app.use('/api/journal-entries', journalEntryRoutes);
 app.use('/api/expenses',      expenseRoutes);
 app.use('/api/fixed-assets',  fixedAssetRoutes);
 app.use('/api/financial-reports', financialReportRoutes);
-
-// Library
-app.use('/api/library',       libraryRoutes);
-app.use('/api/library',       authorCategoryShelfRoutes);
-app.use('/api/library',       readingSessionRoutes);
-
-// Communication
-app.use('/api/communication', communicationRoutes);
 
 // Portals
 app.use('/api/portal/student', studentPortalRoutes);

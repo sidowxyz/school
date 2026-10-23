@@ -13,7 +13,6 @@ import Guardian from '../src/models/Guardian.js';
 import Address from '../src/models/Address.js';
 import Residence from '../src/models/Residence.js';
 import Period from '../src/models/Period.js';
-import Status from '../src/models/Status.js';
 import StudentAttendance from '../src/models/StudentAttendance.js';
 import User from '../src/models/User.js';
 
@@ -23,7 +22,7 @@ let adminToken;
 let studentToken;
 
 describe('Student Attendance API Tests', () => {
-  let levelId, yearId, classId, sectionId, studentClassId, studentId, periodId, statusPresentId, statusAbsentId;
+  let levelId, yearId, classId, sectionId, studentClassId, studentId, periodId;
 
   beforeAll(async () => {
     const tokenSecret = process.env.JWT_ACCESS_SECRET || 'default_access_secret_key_12345';
@@ -54,7 +53,6 @@ describe('Student Attendance API Tests', () => {
       Address.deleteMany({}),
       Residence.deleteMany({}),
       Period.deleteMany({}),
-      Status.deleteMany({}),
       StudentAttendance.deleteMany({}),
       User.deleteMany({ email: { $in: ['std.admin@test.com'] } })
     ]);
@@ -114,21 +112,16 @@ describe('Student Attendance API Tests', () => {
     });
     studentClassId = sc._id;
 
-    // Create Period
+    // Create Period — periods belong to a term. Admins may mark attendance on
+    // any day, so the term itself doesn't need to exist for these tests.
     const period = await Period.create({
+      termId: new mongoose.Types.ObjectId(),
       per_no: 'P-STUDENT-TEST',
       per_name: 'Period 1',
-      time_in: '08:00 AM',
-      time_out: '09:00 AM'
+      time_in: '08:00',
+      time_out: '09:00'
     });
     periodId = period._id;
-
-    // Create Statuses
-    const s1 = await Status.create({ st_no: 'S-STUDENT-TEST-1', st_name: 'Present' });
-    const s2 = await Status.create({ st_no: 'S-STUDENT-TEST-2', st_name: 'Absent' });
-    statusPresentId = s1._id;
-    statusAbsentId = s2._id;
-
   }, 180000);
 
   afterAll(async () => {
@@ -143,14 +136,12 @@ describe('Student Attendance API Tests', () => {
         .post('/api/attendance')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          per_no: periodId.toString(),
-          y_no: yearId.toString(),
+          periodId: periodId.toString(),
           att_date: '2026-07-01',
-          att_time: '08:05 AM',
           attendance: [
             {
-              sc_no: studentClassId.toString(),
-              st_no: statusPresentId.toString(),
+              studentId: studentId.toString(),
+              status: 'Present',
               remarks: 'Present on time'
             }
           ]
@@ -159,9 +150,66 @@ describe('Student Attendance API Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.length).toBe(1);
-      expect(res.body.data[0].att_no).toBeDefined();
-      expect(res.body.data[0].st_no).toBe(statusPresentId.toString());
+      expect(res.body.data[0]._id).toBeDefined();
+      expect(res.body.data[0].studentId._id).toBe(studentId.toString());
+      expect(res.body.data[0].status).toBe('Present');
       expect(res.body.data[0].remarks).toBe('Present on time');
+    });
+  });
+
+  describe('saving the same period again', () => {
+    it('updates the existing mark instead of adding a second one', async () => {
+      const res = await request(app)
+        .post('/api/attendance')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          periodId: periodId.toString(),
+          att_date: '2026-07-01',
+          attendance: [{ studentId: studentId.toString(), status: 'Late', remarks: 'Bus was late' }]
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].status).toBe('Late');
+      expect(await StudentAttendance.countDocuments({ studentId })).toBe(1);
+
+      // Put it back so the report below still sees one present day.
+      await request(app)
+        .post('/api/attendance')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ periodId: periodId.toString(), att_date: '2026-07-01', attendance: [{ studentId: studentId.toString(), status: 'Present', remarks: 'Present on time' }] });
+    });
+  });
+
+  describe('GET /api/attendance/summary', () => {
+    it('counts today, the daily trend and each class in the database', async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      await request(app)
+        .post('/api/attendance')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ periodId: periodId.toString(), att_date: today, attendance: [{ studentId: studentId.toString(), status: 'Absent' }] });
+
+      const res = await request(app)
+        .get('/api/attendance/summary?days=30')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      const d = res.body.data;
+      expect(d.today).toMatchObject({ absent: 1, total: 1, rate: 0 });
+      expect(d.classesMarkedToday).toBe(1);
+      expect(d.absentToday[0]).toMatchObject({ studentId: studentId.toString(), status: 'Absent' });
+      expect(d.daily.find((x) => x.date === today)).toMatchObject({ absent: 1 });
+      expect(d.byClass).toHaveLength(1);
+
+      await StudentAttendance.deleteMany({ studentId, att_date: new Date(today) });
+    });
+
+    it('is not available to students', async () => {
+      const res = await request(app)
+        .get('/api/attendance/summary')
+        .set('Authorization', `Bearer ${studentToken}`);
+      // The token's user does not exist, so this stops at sign-in (401) rather than the role check (403).
+      expect([401, 403]).toContain(res.status);
     });
   });
 
@@ -174,8 +222,8 @@ describe('Student Attendance API Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.length).toBe(1);
-      expect(res.body.data[0].sc_no._id).toBe(studentClassId.toString());
-      expect(res.body.data[0].st_no._id).toBe(statusPresentId.toString());
+      expect(res.body.data[0].studentId._id).toBe(studentId.toString());
+      expect(res.body.data[0].status).toBe('Present');
     });
   });
 

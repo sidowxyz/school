@@ -97,38 +97,29 @@ export const markAttendance = async (req, res) => {
       }
     }
 
-    const savedRecords = [];
-
-    for (const record of attendance) {
-      const { studentId, status, remarks } = record;
-
-      let attendanceRecord = await StudentAttendance.findOne({
-        studentId,
-        periodId,
-        att_date: formattedDate,
-      });
-
-      if (attendanceRecord) {
-        attendanceRecord.status = status;
-        attendanceRecord.remarks = remarks;
-        attendanceRecord.updateBy = req.user ? req.user.id : null;
-        await attendanceRecord.save();
-      } else {
-        attendanceRecord = await StudentAttendance.create({
-          studentId,
-          periodId,
-          status,
-          remarks,
-          att_date: formattedDate,
-          createBy: req.user ? req.user.id : null,
-        });
-      }
-
-      savedRecords.push(attendanceRecord);
-    }
+    // One round trip for the whole class: upsert each student's mark for this
+    // period and day (the unique index is studentId + periodId + att_date).
+    const userId = req.user ? req.user.id : null;
+    await StudentAttendance.bulkWrite(
+      attendance.map(({ studentId, status, remarks }) => ({
+        updateOne: {
+          filter: { studentId, periodId, att_date: formattedDate },
+          update: {
+            $set: { status, remarks, updateBy: userId },
+            $setOnInsert: { createBy: userId },
+          },
+          upsert: true,
+        },
+      })),
+      { ordered: false }
+    );
 
     const populated = await populateRecord(
-      StudentAttendance.find({ _id: { $in: savedRecords.map((r) => r._id) } })
+      StudentAttendance.find({
+        periodId,
+        att_date: formattedDate,
+        studentId: { $in: attendance.map((r) => r.studentId) },
+      })
     );
 
     res.status(200).json({
@@ -243,15 +234,20 @@ export const getMonthlyReport = async (req, res) => {
     }
 
     const students = await Student.find(studentFilter)
+      .select('firstName lastName admissionNumber classId sectionId')
       .populate('classId', 'cl_name cl_no')
-      .populate('sectionId', 'name');
+      .populate('sectionId', 'name')
+      .sort({ firstName: 1, lastName: 1 })
+      .lean();
 
     const studentIds = students.map((s) => s._id);
 
     let attendanceRecords = await StudentAttendance.find({
       studentId: { $in: studentIds },
       att_date: { $gte: startDate, $lte: endDate },
-    });
+    })
+      .select('studentId periodId status att_date')
+      .lean();
 
     // Precision pass: even within an assigned class/section, a teacher only sees
     // attendance for the exact period + weekday slot they're actually timetabled for.
@@ -274,7 +270,7 @@ export const getMonthlyReport = async (req, res) => {
         const termId = periodTermMap.get(r.periodId.toString());
         if (!student || !termId) return false;
         const dayName = WEEKDAY_NAMES[new Date(r.att_date).getUTCDay()];
-        return assignedSlotKeys.has(`${student.classId._id}_${student.sectionId._id}_${termId}_${dayName}_${r.periodId}`);
+        return assignedSlotKeys.has(`${student.classId?._id}_${student.sectionId?._id}_${termId}_${dayName}_${r.periodId}`);
       });
     }
 
@@ -308,7 +304,8 @@ export const getMonthlyReport = async (req, res) => {
     const studentReports = Object.values(reportMap).map((item) => {
       const stats = item.stats;
       if (stats.totalDays > 0) {
-        stats.presentRate = parseFloat(((stats.present / stats.totalDays) * 100).toFixed(2));
+        // Late still means in school, so it counts towards attendance (same rule as the overview).
+        stats.presentRate = parseFloat((((stats.present + stats.late) / stats.totalDays) * 100).toFixed(2));
       }
       return item;
     });
@@ -325,7 +322,7 @@ export const getMonthlyReport = async (req, res) => {
     const summary = {
       totalStudents: students.length,
       totalWorkingDaysRecorded: totalDaysAll,
-      overallPresentRate: totalDaysAll > 0 ? parseFloat(((totalPresent / totalDaysAll) * 100).toFixed(2)) : 0,
+      overallPresentRate: totalDaysAll > 0 ? parseFloat((((totalPresent + totalLate) / totalDaysAll) * 100).toFixed(2)) : 0,
       overallAbsentRate: totalDaysAll > 0 ? parseFloat(((totalAbsent / totalDaysAll) * 100).toFixed(2)) : 0,
       overallLateRate: totalDaysAll > 0 ? parseFloat(((totalLate / totalDaysAll) * 100).toFixed(2)) : 0,
       overallExcusedRate: totalDaysAll > 0 ? parseFloat(((totalExcused / totalDaysAll) * 100).toFixed(2)) : 0,
@@ -387,6 +384,118 @@ export const getEnrolledStudents = async (req, res) => {
     res.status(200).json({
       success: true,
       data: enrolled
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 7. Overview — today's figures, a daily trend and per-class rates, counted in
+// the database so the page never downloads raw records.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const rate = (present, total) => (total > 0 ? Math.round((present / total) * 1000) / 10 : 0);
+
+export const getAttendanceSummary = async (req, res) => {
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 7), 120);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const from = new Date(today.getTime() - (days - 1) * DAY_MS);
+
+    // Which students are in scope: everyone, or a teacher's own classes/sections.
+    const studentFilter = { isDeleted: false, status: 'Active' };
+    const teacherAssignments = await getTeacherAssignments(req);
+    if (teacherAssignments) {
+      const pairs = uniqueClassSectionPairs(teacherAssignments);
+      if (pairs.length === 0) studentFilter._id = { $in: [] };
+      else studentFilter.$or = pairs.map((p) => ({ classId: p.classId, sectionId: p.sectionId }));
+    }
+    const students = await Student.find(studentFilter)
+      .select('firstName lastName admissionNumber classId')
+      .populate('classId', 'cl_name')
+      .lean();
+    const studentById = new Map(students.map((s) => [String(s._id), s]));
+    const ids = students.map((s) => s._id);
+
+    const [byDayStatus, byStudentStatus, absentToday] = await Promise.all([
+      StudentAttendance.aggregate([
+        { $match: { studentId: { $in: ids }, att_date: { $gte: from, $lte: today } } },
+        { $group: { _id: { day: '$att_date', status: '$status' }, n: { $sum: 1 } } },
+      ]),
+      StudentAttendance.aggregate([
+        { $match: { studentId: { $in: ids }, att_date: { $gte: from, $lte: today } } },
+        { $group: { _id: { student: '$studentId', status: '$status' }, n: { $sum: 1 } } },
+      ]),
+      StudentAttendance.find({ studentId: { $in: ids }, att_date: today, status: { $in: ['Absent', 'Late'] } })
+        .select('studentId status periodId')
+        .populate('periodId', 'per_name')
+        .lean(),
+    ]);
+
+    const blank = () => ({ present: 0, absent: 0, late: 0, excused: 0, total: 0 });
+    const add = (bucket, status, n) => {
+      const key = String(status).toLowerCase();
+      if (key in bucket) bucket[key] += n;
+      bucket.total += n;
+    };
+
+    // Totals and the daily series.
+    const totals = blank();
+    const dayMap = new Map();
+    for (const row of byDayStatus) {
+      const key = row._id.day.toISOString().slice(0, 10);
+      if (!dayMap.has(key)) dayMap.set(key, blank());
+      add(dayMap.get(key), row._id.status, row.n);
+      add(totals, row._id.status, row.n);
+    }
+    const todayKey = today.toISOString().slice(0, 10);
+    const todayStats = dayMap.get(todayKey) ?? blank();
+    const daily = [...dayMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, b]) => ({ date, ...b, rate: rate(b.present + b.late, b.total) }));
+
+    // Per class, from each student's counts.
+    const classMap = new Map();
+    for (const row of byStudentStatus) {
+      const student = studentById.get(String(row._id.student));
+      const name = student?.classId?.cl_name ?? 'No class';
+      if (!classMap.has(name)) classMap.set(name, blank());
+      add(classMap.get(name), row._id.status, row.n);
+    }
+    const byClass = [...classMap.entries()]
+      .map(([name, b]) => ({ name, ...b, rate: rate(b.present + b.late, b.total) }))
+      .sort((a, b) => a.rate - b.rate);
+
+    // Classes with at least one mark today, out of the classes in scope.
+    const classesInScope = new Set(students.map((s) => String(s.classId?._id ?? '')).filter(Boolean));
+    const markedToday = await StudentAttendance.distinct('studentId', { studentId: { $in: ids }, att_date: today });
+    const classesMarked = new Set(markedToday.map((id) => String(studentById.get(String(id))?.classId?._id ?? '')).filter(Boolean));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        days,
+        from: from.toISOString().slice(0, 10),
+        to: todayKey,
+        students: students.length,
+        today: { ...todayStats, rate: rate(todayStats.present + todayStats.late, todayStats.total) },
+        classesMarkedToday: classesMarked.size,
+        classesInScope: classesInScope.size,
+        period: { ...totals, rate: rate(totals.present + totals.late, totals.total) },
+        daily,
+        byClass,
+        absentToday: absentToday.slice(0, 20).map((r) => {
+          const s = studentById.get(String(r.studentId));
+          return {
+            studentId: String(r.studentId),
+            name: s ? `${s.firstName} ${s.lastName}` : 'Unknown',
+            admissionNumber: s?.admissionNumber ?? '',
+            className: s?.classId?.cl_name ?? '',
+            status: r.status,
+            period: r.periodId?.per_name ?? '',
+          };
+        }),
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

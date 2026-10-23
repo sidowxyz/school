@@ -11,6 +11,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 import ApiFeatures from '../utils/ApiFeatures.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { CONFLICT, findConflict, slotsOverlap } from '../utils/assignmentConflict.js';
+import { withTransaction } from '../utils/transaction.js';
 
 const generateStaffId = async () => {
   const count = await Teacher.countDocuments();
@@ -179,7 +180,7 @@ export const createTeacher = async (req, res, next) => {
   try {
     let newTeacher, newUser, temporaryPassword;
 
-    await session.withTransaction(async () => {
+    await withTransaction(session, async () => {
       const { 
         name, 
         fullName, 
@@ -324,7 +325,7 @@ export const updateTeacher = async (req, res, next) => {
   const session = await mongoose.startSession();
   try {
     let updatedTeacher;
-    await session.withTransaction(async () => {
+    await withTransaction(session, async () => {
       const teacher = await Teacher.findById(req.params.id).session(session);
       if (!teacher) throw new AppError('Teacher not found', 404);
 
@@ -529,7 +530,7 @@ export const getTimetable = async (req, res, next) => {
 
 // GET /api/teacher-assignments — every assignment across every teacher, with
 // the teacher's own name attached. Used to resolve "who teaches this
-// class/subject/section/term" from the outside (e.g. the Exam Schedule view),
+// class/subject/section/term" from the outside (e.g. the timetable view),
 // as opposed to the teacher-scoped lookups above.
 export const listAssignments = async (req, res, next) => {
   try {

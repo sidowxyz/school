@@ -15,36 +15,36 @@ export default function AuditTable({ logs }: AuditTableProps) {
 const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 const [open, setOpen] = useState(false);
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <Table className="min-w-full">
-          <TableHeader className="bg-gray-50">
-            <TableRow className="border-b border-gray-200">
-              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+          <TableHeader className="bg-muted/50">
+            <TableRow className="border-b border-border">
+              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-foreground/80">
                 Performed By
               </TableHead>
 
-              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-foreground/80">
                 Module
               </TableHead>
 
-              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-foreground/80">
                 Action
               </TableHead>
 
-              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-foreground/80">
                 Status
               </TableHead>
 
-              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-foreground/80">
                 IP Address
               </TableHead>
 
-              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+              <TableHead className="px-6 py-4 text-left text-sm font-semibold text-foreground/80">
                 Date & Time
               </TableHead>
 
-              <TableHead className="px-6 py-4 text-center text-sm font-semibold text-gray-700">
+              <TableHead className="px-6 py-4 text-center text-sm font-semibold text-foreground/80">
                 Actions
               </TableHead>
             </TableRow>
@@ -54,12 +54,12 @@ const [open, setOpen] = useState(false);
             {logs.map((log) => (
               <TableRow
                 key={log.id}
-                className="border-b border-gray-100 transition hover:bg-gray-50"
+                className="border-b border-border transition hover:bg-muted/50"
               >
                 {/* User */}
                 <TableCell className="px-6 py-4">
                   <div>
-                    <p className="font-semibold text-gray-900">
+                    <p className="font-semibold text-foreground">
                       {log.user}
                     </p>
 
@@ -67,13 +67,13 @@ const [open, setOpen] = useState(false);
                 </TableCell>
 
                 {/* Module */}
-                <TableCell className="px-6 py-4 text-gray-700">
+                <TableCell className="px-6 py-4 text-foreground/80">
                   {log.module}
                 </TableCell>
 
                 {/* Action */}
                 <TableCell className="px-6 py-4">
-                  <span className="font-medium text-gray-800">
+                  <span className="font-medium text-foreground">
                     {log.action}
                   </span>
                 </TableCell>
@@ -83,10 +83,10 @@ const [open, setOpen] = useState(false);
                   <span
                     className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                       log.status === "Success"
-                        ? "bg-green-100 text-green-700"
+                        ? "bg-primary/15 text-primary"
                         : log.status === "Warning"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-red-100 text-red-700"
+                        ? "bg-warning/15 text-warning"
+                        : "bg-destructive/15 text-destructive"
                     }`}
                   >
                     {log.status}
@@ -94,12 +94,12 @@ const [open, setOpen] = useState(false);
                 </TableCell>
 
                 {/* IP */}
-                <TableCell className="px-6 py-4 font-mono text-sm text-gray-600">
+                <TableCell className="px-6 py-4 font-mono text-sm text-muted-foreground">
                   {log.ip}
                 </TableCell>
 
                 {/* Time */}
-                <TableCell className="px-6 py-4 text-sm text-gray-600">
+                <TableCell className="px-6 py-4 text-sm text-muted-foreground">
                   {log.timestamp}
                 </TableCell>
 
@@ -109,7 +109,7 @@ const [open, setOpen] = useState(false);
   setSelectedLog(log);
   setOpen(true);
 }}
-                    className="inline-flex items-center gap-2 rounded-lg border border-green-200 px-3 py-2 text-sm font-medium text-green-600 transition hover:bg-green-50"
+                    className="inline-flex items-center gap-2 rounded-lg border border-primary/20 px-3 py-2 text-sm font-medium text-primary transition hover:bg-primary/10"
                   >
                     <Eye size={16} />
                     View
@@ -122,7 +122,7 @@ const [open, setOpen] = useState(false);
               <TableRow>
                 <TableCell
                   colSpan={7}
-                  className="py-12 text-center text-gray-500"
+                  className="py-12 text-center text-muted-foreground"
                 >
                   No audit logs found.
                 </TableCell>

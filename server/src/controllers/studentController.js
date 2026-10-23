@@ -18,7 +18,6 @@ import User        from '../models/User.js';
 import AppError     from '../utils/AppError.js';
 
 // Services
-import * as PromotionService from '../services/promotionService.js';
 import ApiResponse  from '../utils/ApiResponse.js';
 import * as studentService from '../services/studentService.js';
 import { generatePassword } from '../utils/generatePassword.js';
@@ -286,43 +285,6 @@ export const getReferenceData = async (req, res, next) => {
       classes, sections, guardians: guardianOptions, families, addresses, residences
     }, 'Reference data retrieved'));
   } catch (error) {
-    next(error);
-  }
-};
-
-// @desc   Promote a student to the next class in the hierarchy
-// @route  POST /api/students/:id/promote
-//
-// The destination is computed, not chosen: this endpoint only performs the
-// normal, consecutive promotion. Moving a student to any other class requires
-// POST /api/promotions/special, which records a reason and who authorised it.
-export const promoteStudent = async (req, res, next) => {
-  try {
-    const { toClassId, toSectionId, yearId } = req.body;
-
-    const { student, to_class } = await PromotionService.promoteOne(
-      {
-        student_id: req.params.id,
-        to_class_id: toClassId,
-        to_section_id: toSectionId,
-        year_id: yearId
-      },
-      req.user
-    );
-
-    res.status(200).json(new ApiResponse(200, {
-      student: {
-        ...student.toObject(),
-        class: student.classId.toString(),
-        admission_no: student.admissionNumber,
-        admissionType: student.admissionType
-      },
-      promotedTo: { _id: String(to_class._id), cl_name: to_class.cl_name }
-    }, `Student promoted to ${to_class.cl_name}`));
-  } catch (error) {
-    if (error.status === 400 || error.status === 404) {
-      return next(new AppError(error.message, error.status));
-    }
     next(error);
   }
 };

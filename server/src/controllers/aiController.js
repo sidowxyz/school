@@ -9,7 +9,6 @@ import {
   cancelActionService,
 } from '../services/aiService.js';
 import {
-  reviewExamUploadHttpService,
   reviewAssignmentUploadHttpService,
 } from '../services/aiUploadService.js';
 
@@ -106,21 +105,6 @@ export const deleteConversation = async (req, res, next) => {
   try {
     const data = await deleteConversationService(req, req.params.id);
     res.status(200).json(new ApiResponse(200, data, 'Conversation deleted'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Review an uploaded exam paper: structure, originality, grammar,
- *          and whether it should be redone
- * @route   POST /api/ai/exams/review-upload  (multipart, field "file")
- * @access  Private (admin, principal, academic_officer, teacher)
- */
-export const reviewExamUpload = async (req, res, next) => {
-  try {
-    const data = await reviewExamUploadHttpService(req);
-    res.status(200).json(new ApiResponse(200, data, 'Exam review complete'));
   } catch (error) {
     next(error);
   }

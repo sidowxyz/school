@@ -24,8 +24,8 @@ export default function AIAssistantButton() {
         <Button variant="plain"
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Open Buildings assistant"
-          className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-green-600 text-white shadow-lg transition-colors hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 print:hidden"
+          aria-label="Open school assistant"
+          className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 print:hidden"
         >
           <Sparkle size={19} />
         </Button>

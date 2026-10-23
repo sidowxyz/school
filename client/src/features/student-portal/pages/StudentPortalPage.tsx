@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, Trophy, FileText, CurrencyDollar, Bell, Chat, BookBookmark, Gear, UserCircle, CaretLeft } from '@phosphor-icons/react';
+import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, CurrencyDollar, Gear, UserCircle, CaretLeft } from '@phosphor-icons/react';
 
 import { useAuth } from '../../../hooks/useAuth';
 import type { Student } from '../../students/types';
@@ -15,14 +15,8 @@ import AttendanceTab from '../components/tabs/AttendanceTab';
 import TimetableTab from '../components/tabs/TimetableTab';
 import SubjectsTab from '../components/tabs/SubjectsTab';
 import AssignmentsTab from '../components/tabs/AssignmentsTab';
-import ResultsTab from '../components/tabs/ResultsTab';
-import ReportCardsTab from '../components/tabs/ReportCardsTab';
 import FeesTab from '../components/tabs/FeesTab';
-import NotificationsTab from '../components/tabs/NotificationsTab';
-import MessagesTab from '../components/tabs/MessagesTab';
-import LibraryTab from '../components/tabs/LibraryTab';
 import SettingsTab from '../components/tabs/SettingsTab';
-import { usePortal } from '../context/PortalContext';
 import { TAB_IDS, type TabId } from '../types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +28,6 @@ type TabDef = { id: TabId; label: string; icon: React.ElementType; badge?: numbe
 function StudentPortalContent({ student }: { student: Student | null }) {
   const { role } = useAuth();
   const isStudent = role === 'student';
-  const { studentId } = usePortal();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
   const tab: TabId = TAB_IDS.includes(rawTab as TabId) ? (rawTab as TabId) : 'dashboard';
@@ -47,26 +40,6 @@ function StudentPortalContent({ student }: { student: Student | null }) {
     });
   };
 
-  // Tab-nav badges — same unread counts NotificationsTab/MessagesTab compute
-  // for themselves, fetched once here so the sidebar can show them too.
-  const [unreadNotices, setUnreadNotices] = useState(0);
-  const [unreadMessages, setUnreadMessages] = useState(0);
-
-  useEffect(() => {
-    if (!student) return;
-    let cancelled = false;
-    Promise.allSettled([portalApi.getNotifications(studentId), portalApi.getMessages(studentId)]).then(
-      ([notifications, messages]) => {
-        if (cancelled) return;
-        if (notifications.status === 'fulfilled') setUnreadNotices(notifications.value.unread);
-        if (messages.status === 'fulfilled') setUnreadMessages(messages.value.unread);
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [student, studentId]);
-
   const tabs: TabDef[] = [
     { id: 'dashboard',     label: 'Dashboard',     icon: SquaresFour },
     { id: 'profile',       label: 'My Profile',    icon: User },
@@ -74,12 +47,7 @@ function StudentPortalContent({ student }: { student: Student | null }) {
     { id: 'timetable',     label: 'Timetable',     icon: CalendarBlank },
     { id: 'subjects',      label: 'Subjects',      icon: BookOpen },
     { id: 'assignments',   label: 'Assignments',   icon: ClipboardText },
-    { id: 'results',       label: 'My Results',    icon: Trophy },
-    { id: 'report-cards',  label: 'Report Cards',  icon: FileText },
     { id: 'fees',          label: 'Fees',          icon: CurrencyDollar },
-    { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadNotices },
-    { id: 'messages',      label: 'Messages',      icon: Chat, badge: unreadMessages },
-    { id: 'library',       label: 'Library',       icon: BookBookmark },
     { id: 'settings',      label: 'Settings',      icon: Gear },
   ];
 
@@ -148,12 +116,7 @@ function StudentPortalContent({ student }: { student: Student | null }) {
       {tab === 'timetable'     && <TimetableTab />}
       {tab === 'subjects'      && <SubjectsTab />}
       {tab === 'assignments'   && <AssignmentsTab />}
-      {tab === 'results'       && <ResultsTab />}
-      {tab === 'report-cards'  && <ReportCardsTab />}
       {tab === 'fees'          && <FeesTab />}
-      {tab === 'notifications' && <NotificationsTab />}
-      {tab === 'messages'      && <MessagesTab />}
-      {tab === 'library'       && <LibraryTab />}
       {tab === 'settings'      && <SettingsTab />}
     </>
   );
@@ -251,7 +214,7 @@ export default function StudentPortalPage() {
   const { role } = useAuth();
   const isStudent = role === 'student';
 
-  // Admin/staff must MagnifyingGlass for and select a student first; a logged-in student
+  // Admin/staff must search for and select a student first; a logged-in student
   // sees their own portal directly.
   const [selected, setSelected] = useState<Student | null>(null);
   const [meProfile, setMeProfile] = useState<Student | null>(null);
@@ -282,7 +245,7 @@ export default function StudentPortalPage() {
         const p = await portalApi.getMyProfile();
         if (!cancelled) setMeProfile(p);
       } catch {
-        // Leave null — banner/profile fall back to sample data.
+        // Leave null — the profile shows its loading/empty state; nothing is invented.
       }
     })();
     return () => { cancelled = true; };

@@ -7,15 +7,10 @@ import Guardian from '../models/Guardian.js';
 import Student from '../models/Student.js';
 import StudentAttendance from '../models/StudentAttendance.js';
 import StudentInvoice from '../models/StudentInvoice.js';
-import Result from '../models/Result.js';
-import Notice from '../models/notice.model.js';
-import Message from '../models/message.model.js';
 // Imported so their schemas are registered for the .populate() calls below —
 // otherwise the queries throw MissingSchemaError for these refs.
 import '../models/Period.js';
 import '../models/Subject.js';
-import '../models/Exam.js';
-import '../models/ExamReg.js';
 import '../models/User.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
@@ -125,55 +120,6 @@ export const getChildInvoices = async (req, res, next) => {
     }, { invoiced: 0, paid: 0, balance: 0 });
 
     res.status(200).json(new ApiResponse(200, { totals, invoices }, 'Invoices retrieved successfully'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// GET /api/portal/parent/children/:studentId/results
-export const getChildResults = async (req, res, next) => {
-  try {
-    const guardian = await resolveGuardian(req);
-    const child = await getLinkedChild(guardian._id, req.params.studentId);
-    const results = await Result.find({ id: child._id })
-      .populate({ path: 'cc_no', select: 'cc_no sub_no', populate: { path: 'sub_no', select: 'sub_name sub_no' } })
-      .populate({ path: 'ex_r_no', select: 'ex_r_no total_marks ex_no', populate: { path: 'ex_no', select: 'ex_name ex_no' } })
-      .sort({ createDate: -1 });
-    res.status(200).json(new ApiResponse(200, results, 'Results retrieved successfully'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// GET /api/portal/parent(/:guardianId)/notices
-// Published school notices (announcements). Not child-specific; resolveGuardian
-// is called only to validate access (and, for admins, that the guardian exists).
-export const getGuardianNotices = async (req, res, next) => {
-  try {
-    await resolveGuardian(req);
-    const notices = await Notice.find({ is_published: true })
-      .sort({ published_at: -1, createDate: -1 })
-      .limit(50);
-    res.status(200).json(new ApiResponse(200, notices, 'Notices retrieved successfully'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// GET /api/portal/parent(/:guardianId)/messages
-// The guardian's own inbox.
-export const getGuardianMessages = async (req, res, next) => {
-  try {
-    const guardian = await resolveGuardian(req);
-    if (!guardian.userId) {
-      return res.status(200).json(new ApiResponse(200, { total: 0, unread: 0, messages: [] }, 'Messages retrieved'));
-    }
-    const messages = await Message.find({ receiver_id: guardian.userId, is_deleted_by_receiver: { $ne: true } })
-      .populate('sender_id', 'firstName lastName email role')
-      .sort({ createDate: -1 })
-      .limit(100);
-    const unread = messages.filter((m) => !m.is_read).length;
-    res.status(200).json(new ApiResponse(200, { total: messages.length, unread, messages }, 'Messages retrieved'));
   } catch (error) {
     next(error);
   }

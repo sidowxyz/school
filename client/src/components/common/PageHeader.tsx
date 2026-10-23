@@ -9,9 +9,9 @@ interface Props {
 
 export default function PageHeader({ title, subtitle, action }: Props) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 pb-4 border-b border-border">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
       <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
           {title}
         </h1>
         {subtitle && (

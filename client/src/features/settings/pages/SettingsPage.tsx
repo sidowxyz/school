@@ -12,7 +12,6 @@ import RecentActivity from '../components/RecentActivity';
 import { settingsApi, type SystemSettings } from '../api/settingsApi';
 import { publishSchoolIdentity } from '../hooks/useSchoolIdentity';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 
 const tabs = [
   { id: 'School Profile', label: 'School Profile', icon: Buildings },
@@ -54,7 +53,7 @@ export default function SettingsPage() {
     setError('');
   };
 
-  const FloppyDisk = async () => {
+  const save = async () => {
     if (!draft) return;
     setSaving(true);
     setError('');
@@ -89,17 +88,16 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Settings & System Configuration"
-        subtitle="Manage Buildings identity, academic policies, branding, discount rules, and audit logs."
+        subtitle="Manage school identity, academic policies, branding, discount rules, and audit logs."
         action={
           editableTab ? (
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
-                size="sm"
                 type="button"
                 onClick={reset}
                 disabled={!draft || saving}
-                className="gap-1.5 text-xs"
+                className="h-10 gap-1.5 rounded-xl text-sm"
               >
                 <ArrowCounterClockwise className="h-3.5 w-3.5" />
                 Reset
@@ -109,7 +107,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={() => void save()}
                 disabled={!draft || saving}
-                className="gap-1.5 text-xs font-medium shadow-sm"
+                className="h-10 gap-1.5 rounded-xl text-sm font-semibold shadow-sm"
               >
                 {saving ? <SpinnerGap className="h-3.5 w-3.5 animate-spin" /> : <FloppyDisk className="h-3.5 w-3.5" />}
                 {saving ? 'Saving…' : 'Save Changes'}
@@ -119,43 +117,43 @@ export default function SettingsPage() {
         }
       />
 
-      {/* Tabs navigation */}
-      <div className="bg-muted/60 border border-border rounded-xl p-1.5">
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <Button
-                variant={isActive ? 'secondary' : 'ghost'}
-                size="sm"
-                type="button"
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition-all rounded-lg ${
-                  isActive
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{tab.label}</span>
-              </Button>
-            );
-          })}
-        </div>
-      </div>
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
+        {/* Section navigation */}
+        <nav aria-label="Settings sections" className="rounded-2xl border border-border bg-card p-2 shadow-sm lg:sticky lg:top-4">
+          <div className="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <Button
+                  variant="ghost"
+                  type="button"
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`h-10 shrink-0 justify-start gap-2.5 rounded-xl px-3 text-sm font-medium whitespace-nowrap ${
+                    isActive
+                      ? 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" weight={isActive ? 'fill' : 'regular'} />
+                  <span>{tab.label}</span>
+                </Button>
+              );
+            })}
+          </div>
+        </nav>
 
-      {error && (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+        <div className="min-w-0 space-y-4">
+          {error && (
+            <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
 
-      <Card className="min-h-[500px]">
-        <CardContent className="p-6">
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-24 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-card py-24 text-sm text-muted-foreground">
               <SpinnerGap className="h-5 w-5 animate-spin text-primary" />
               Loading settings…
             </div>
@@ -180,8 +178,8 @@ export default function SettingsPage() {
               {activeTab === 'Audit' && <RecentActivity />}
             </>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <SuccessModal
         open={showSuccess}

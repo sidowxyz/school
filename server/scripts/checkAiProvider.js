@@ -26,7 +26,7 @@ if (!key) {
   line('No GEMINI_API_KEY found in server/.env.');
   line('');
   line('The assistant still works without one — every data tool is a database');
-  line('query. A key only adds narrative phrasing and exam generation.');
+  line('query. A key only adds narrative phrasing and assignment feedback.');
   process.exit(1);
 }
 

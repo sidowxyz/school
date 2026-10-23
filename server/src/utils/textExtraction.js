@@ -4,8 +4,7 @@ import AppError from './AppError.js';
  * Turns an uploaded document into plain text.
  *
  * Supports exactly three formats, chosen deliberately: .txt needs no library
- * at all, .pdf and .docx cover what a school actually produces exam papers
- * and assignments in. Legacy .doc is not supported — mammoth cannot read the
+ * at all, .pdf and .docx cover what students actually hand assignments in as. Legacy .doc is not supported — mammoth cannot read the
  * old binary format reliably, and claiming to support it while silently
  * mangling the text would be worse than a clear rejection.
  *

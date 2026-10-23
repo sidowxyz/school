@@ -1,15 +1,16 @@
 import type { Icon } from '@phosphor-icons/react';
-import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 export type StatTone = 'emerald' | 'sky' | 'amber' | 'violet' | 'rose' | 'muted';
 
-const CHIP: Record<StatTone, string> = {
-  emerald: 'bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400',
-  sky: 'bg-sky-100/80 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400',
-  amber: 'bg-amber-100/80 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400',
-  violet: 'bg-violet-100/80 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400',
-  rose: 'bg-rose-100/80 text-rose-500 dark:bg-rose-950/50 dark:text-rose-400',
-  muted: 'bg-muted text-muted-foreground',
+// Each tone is a soft pastel tile with dark ink on top (see --tile-* in index.css).
+const TILE: Record<StatTone, string> = {
+  emerald: 'bg-tile-green text-tile-foreground',
+  sky: 'bg-tile-blue text-tile-foreground',
+  amber: 'bg-tile-yellow text-tile-foreground',
+  violet: 'bg-tile-violet text-tile-foreground',
+  rose: 'bg-tile-pink text-tile-foreground',
+  muted: 'border border-border bg-card text-card-foreground',
 };
 
 export interface StatItem {
@@ -19,9 +20,11 @@ export interface StatItem {
   tone?: StatTone;
   hint?: string;
   onClick?: () => void;
+  /** Marks the tile as the current selection (used when tiles act as tabs). */
+  active?: boolean;
 }
 
-/** One panel of stats separated by hairlines (shared look across the app's dashboards). */
+/** A row of pastel stat tiles (shared look across the app's dashboards and modules). */
 export default function StatStrip({ items }: { items: StatItem[] }) {
   const columns =
     items.length === 3
@@ -32,25 +35,32 @@ export default function StatStrip({ items }: { items: StatItem[] }) {
       ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-6'
       : 'grid-cols-2 lg:grid-cols-4';
   return (
-    <Card className="overflow-hidden border-border bg-border shadow-sm">
-      <div className={`grid gap-px ${columns}`}>
-        {items.map(({ label, value, icon: Icon, tone = 'muted', hint, onClick }) => (
-          <div
+    <div className={cn('grid gap-3 sm:gap-4', columns)}>
+      {items.map(({ label, value, icon: TileIcon, tone = 'muted', hint, onClick, active }) => {
+        const Tag = onClick ? 'button' : 'div';
+        return (
+          <Tag
             key={label}
+            type={onClick ? 'button' : undefined}
             onClick={onClick}
-            className={`bg-card p-4 sm:p-5 ${onClick ? 'cursor-pointer hover:bg-muted/40 transition-colors' : ''}`}
+            className={cn(
+              'flex min-w-0 flex-col rounded-2xl p-4 text-left sm:p-5',
+              TILE[tone],
+              active && 'ring-2 ring-foreground/30 ring-offset-2 ring-offset-background',
+              onClick && 'transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            )}
           >
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${CHIP[tone]}`}>
-                <Icon className="h-4 w-4" />
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-medium opacity-80">{label}</p>
+              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', tone === 'muted' ? 'bg-muted text-muted-foreground' : 'bg-white/60 dark:bg-white/10')}>
+                <TileIcon size={16} weight="bold" />
               </span>
             </div>
-            <p className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-foreground">{value}</p>
-            {hint && <p className="mt-2 text-xs text-muted-foreground">{hint}</p>}
-          </div>
-        ))}
-      </div>
-    </Card>
+            <p className="mt-2 truncate text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">{value}</p>
+            {hint && <p className="mt-auto pt-3 text-xs opacity-75">{hint}</p>}
+          </Tag>
+        );
+      })}
+    </div>
   );
 }

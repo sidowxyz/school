@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SpinnerGap, User, Bell, Globe, Lock, ShieldCheck, Sun, Moon, Laptop } from '@phosphor-icons/react';
+import { SpinnerGap, User, Globe, Lock, ShieldCheck, Sun, Moon, Laptop } from '@phosphor-icons/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useToast } from '../Toast';
 import { usePortal } from '../../context/PortalContext';
@@ -11,11 +11,10 @@ import { Input } from '@/components/ui/input';
 const PHONE_PATTERN = /^[+\d][\d\s-]{6,}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type SubTab = 'profile' | 'notifications' | 'appearance' | 'security';
+type SubTab = 'profile' | 'appearance' | 'security';
 
 const SUB_TABS: { id: SubTab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'appearance', label: 'Appearance', icon: Globe },
   { id: 'security', label: 'Security', icon: Lock },
 ];
@@ -29,7 +28,7 @@ export default function SettingsTab() {
     <div className="space-y-6">
       {/* Hairline Divided Summary KPI Strip */}
       <Card className="overflow-hidden border-border bg-border shadow-2xs">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-px">
           <KPICell
             icon={User}
             iconClass="text-primary"
@@ -39,21 +38,14 @@ export default function SettingsTab() {
           />
           <KPICell
             icon={Globe}
-            iconClass="text-sky-600 dark:text-sky-400"
+            iconClass="text-info"
             label="Theme"
             value={theme.charAt(0).toUpperCase() + theme.slice(1)}
             sub="Visual interface"
           />
           <KPICell
-            icon={Bell}
-            iconClass="text-amber-600 dark:text-amber-400"
-            label="Alerts"
-            value="Active"
-            sub="Notification digest"
-          />
-          <KPICell
             icon={ShieldCheck}
-            iconClass="text-emerald-600 dark:text-emerald-400"
+            iconClass="text-success"
             label="Security"
             value="Protected"
             sub="Standard credential"
@@ -65,7 +57,7 @@ export default function SettingsTab() {
       <Card className="border-border/80 shadow-2xs p-1.5">
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           {SUB_TABS.map((t) => (
-            <button
+            <Button variant="plain"
               type="button"
               key={t.id}
               onClick={() => setSub(t.id)}
@@ -76,14 +68,13 @@ export default function SettingsTab() {
               }`}
             >
               <t.icon size={14} /> {t.label}
-            </button>
+            </Button>
           ))}
         </div>
       </Card>
 
       {/* Sub Tab Panels */}
       {sub === 'profile' && <ProfileSettings />}
-      {sub === 'notifications' && <NotificationSettings />}
       {sub === 'appearance' && <AppearanceSettings />}
       {sub === 'security' && <SecuritySettings />}
     </div>
@@ -111,7 +102,7 @@ function ProfileSettings() {
   const addressValid = address.trim().length > 0;
   const formValid = phoneValid && emailValid && addressValid;
 
-  const FloppyDisk = () => {
+  const save = () => {
     setTouched({ phone: true, email: true });
     if (!formValid) {
       showToast('Please fix the highlighted fields before saving.', 'error');
@@ -191,8 +182,8 @@ function ProfileSettings() {
         </div>
 
         <div className="flex items-center justify-end pt-2">
-          <Button onClick={FloppyDisk} className="px-6 text-xs font-semibold">
-            FloppyDisk Changes
+          <Button onClick={save} className="px-6 text-xs font-semibold">
+            Save Changes
           </Button>
         </div>
       </CardContent>
@@ -208,7 +199,7 @@ function Toggle({ label, sub, defaultOn = true }: { label: string; sub: string; 
         <p className="text-sm font-medium text-foreground">{label}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
       </div>
-      <button
+      <Button variant="plain"
         type="button"
         onClick={() => setOn((v) => !v)}
         className={`w-11 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer ${
@@ -217,32 +208,12 @@ function Toggle({ label, sub, defaultOn = true }: { label: string; sub: string; 
         aria-pressed={on}
       >
         <span
-          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white dark:bg-card shadow-xs transition-all ${
+          className={`absolute top-0.5 w-5 h-5 rounded-full bg-card dark:bg-card shadow-xs transition-all ${
             on ? 'left-[22px]' : 'left-0.5'
           }`}
         />
-      </button>
+      </Button>
     </div>
-  );
-}
-
-function NotificationSettings() {
-  return (
-    <Card className="border-border/80 shadow-2xs">
-      <CardHeader className="border-b border-border/60 pb-4">
-        <CardTitle className="text-base font-semibold text-foreground">Notification Preferences</CardTitle>
-        <CardDescription className="text-xs mt-0.5">
-          Choose which notifications and alerts you receive across the academic term
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-6 divide-y divide-border/40">
-        <Toggle label="Academic notices" sub="Exam schedules, results publication, timetable changes" />
-        <Toggle label="Fee reminders" sub="Invoice due dates and payment receipts confirmation" />
-        <Toggle label="Library reminders" sub="Book loan return due dates and reservation updates" />
-        <Toggle label="Direct messages" sub="New messages from instructors and academic coordinators" />
-        <Toggle label="Events & announcements" sub="School-wide circulars and holiday calendar updates" defaultOn={false} />
-      </CardContent>
-    </Card>
   );
 }
 
@@ -270,7 +241,7 @@ function AppearanceSettings() {
           </label>
           <div className="grid grid-cols-3 gap-3 max-w-md">
             {THEME_OPTIONS.map((t) => (
-              <button
+              <Button variant="plain"
                 type="button"
                 key={t.id}
                 onClick={() => setTheme(t.id)}
@@ -282,7 +253,7 @@ function AppearanceSettings() {
               >
                 <t.icon size={14} />
                 {t.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

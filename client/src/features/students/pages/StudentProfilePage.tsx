@@ -2,16 +2,16 @@ import React, { useState, useEffect, useCallback, ReactNode } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
     ArrowLeft, DownloadSimple, PencilSimple, User, Users, Envelope, Phone, MapPin,
-    CurrencyDollar, CheckCircle, WarningCircle, CircleCheck,
-    CircleX, Clock, FileText, UploadSimple, Shield, GraduationCap,
-    Trophy, Calendar, Trash, BookOpen, Stack, Monitor,
+    CurrencyDollar, CheckCircle, WarningCircle,
+    XCircle, Clock, FileText, UploadSimple, Shield, GraduationCap,
+    Calendar, Trash, BookOpen, Stack, Monitor,
 } from '@phosphor-icons/react';
 import { studentsApi } from "../api/studentsApi";
 import { academicApi } from "../../academic-structure/api/academicApi";
 import { fileBaseURL } from "../../../lib/axios";
 import type {
     Student as ApiStudent, RefClass, RefSection, AssignedGuardian,
-    AttendanceRecord, ReportCard, Invoice, StudentDocument as ApiDocument,
+    AttendanceRecord, Invoice, StudentDocument as ApiDocument,
 } from "../types";
 import type { Subject } from "../../academic-structure/types";
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ import {
 
 // Types
 
-type ProfileTab = "Personal" | "Academic" | "Attendance" | "Results" | "Fees" | "Documents";
+type ProfileTab = "Personal" | "Academic" | "Attendance" | "Fees" | "Documents";
 
 interface StudentBase {
     id: string;
@@ -69,33 +69,9 @@ function calcAge(dob: string) {
 }
 
 function pctColor(pct: number) {
-    if (pct >= 90) return "text-emerald-600 dark:text-emerald-400";
-    if (pct >= 80) return "text-amber-600 dark:text-amber-400";
+    if (pct >= 90) return "text-success";
+    if (pct >= 80) return "text-warning";
     return "text-destructive";
-}
-
-function gradeColor(g: string) {
-    if (g.startsWith("A")) return "text-emerald-600 dark:text-emerald-400";
-    if (g.startsWith("B")) return "text-sky-600 dark:text-sky-400";
-    return "text-amber-600 dark:text-amber-400";
-}
-
-function scoreToGrade(score: number): string {
-    if (score >= 90) return "A+";
-    if (score >= 80) return "A";
-    if (score >= 70) return "B+";
-    if (score >= 60) return "B";
-    if (score >= 50) return "C";
-    return "F";
-}
-
-function scoreToRemark(score: number): string {
-    if (score >= 90) return "Outstanding";
-    if (score >= 80) return "Excellent";
-    if (score >= 70) return "Very Good";
-    if (score >= 60) return "Good";
-    if (score >= 50) return "Satisfactory";
-    return "Needs Improvement";
 }
 
 function formatBytes(bytes: number): string {
@@ -156,34 +132,34 @@ type SummaryTone = "sky" | "emerald" | "amber" | "rose" | "indigo" | "violet";
 
 const SUMMARY_ACCENTS: Record<SummaryTone, { chip: string; border: string; glow: string }> = {
     sky: {
-        chip: "bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/60",
-        border: "border-t-sky-500",
-        glow: "group-hover:border-sky-500/30",
+        chip: "bg-info/10 text-info border border-info/60",
+        border: "border-t-info",
+        glow: "group-hover:border-info/30",
     },
     emerald: {
-        chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60",
-        border: "border-t-emerald-500",
-        glow: "group-hover:border-emerald-500/30",
+        chip: "bg-success/10 text-success border border-success/60",
+        border: "border-t-success",
+        glow: "group-hover:border-success/30",
     },
     amber: {
-        chip: "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60",
-        border: "border-t-amber-500",
-        glow: "group-hover:border-amber-500/30",
+        chip: "bg-warning/10 text-warning border border-warning/60",
+        border: "border-t-warning",
+        glow: "group-hover:border-warning/30",
     },
     rose: {
-        chip: "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60",
-        border: "border-t-rose-500",
-        glow: "group-hover:border-rose-500/30",
+        chip: "bg-destructive/10 text-destructive border border-destructive/60",
+        border: "border-t-destructive",
+        glow: "group-hover:border-destructive/30",
     },
     indigo: {
-        chip: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60",
-        border: "border-t-indigo-500",
-        glow: "group-hover:border-indigo-500/30",
+        chip: "bg-info/10 text-info border border-info/60",
+        border: "border-t-info",
+        glow: "group-hover:border-info/30",
     },
     violet: {
-        chip: "bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 border border-violet-200/60 dark:border-violet-800/60",
-        border: "border-t-violet-500",
-        glow: "group-hover:border-violet-500/30",
+        chip: "bg-violet/10 text-violet border border-violet/60",
+        border: "border-t-violet",
+        glow: "group-hover:border-violet/30",
     },
 };
 
@@ -200,7 +176,7 @@ interface SummaryCardProps {
 function SummaryCard({ title, value, subtext, icon, tone, badge, onClick }: SummaryCardProps) {
     const config = SUMMARY_ACCENTS[tone];
     return (
-        <button
+        <Button variant="plain"
             type="button"
             onClick={onClick}
             className="group relative flex flex-col justify-between bg-card p-5 text-left transition-colors hover:bg-muted/40 focus:outline-none focus:ring-1 focus:ring-ring"
@@ -209,7 +185,7 @@ function SummaryCard({ title, value, subtext, icon, tone, badge, onClick }: Summ
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
                     {title}
                 </span>
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-transform group-hover:Scales-105 ${config.chip}`}>
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-transform group-hover:scale-105 ${config.chip}`}>
                     {icon}
                 </span>
             </div>
@@ -225,7 +201,7 @@ function SummaryCard({ title, value, subtext, icon, tone, badge, onClick }: Summ
                     View â†’
                 </span>
             </div>
-        </button>
+        </Button>
     );
 }
 
@@ -263,7 +239,7 @@ function EditProfileModal({
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
-    const sectionsForClass = sections.Funnel((section) => section.class === classId);
+    const sectionsForClass = sections.filter((section) => section.class === classId);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -282,7 +258,7 @@ function EditProfileModal({
             onSaved(updated);
             onClose();
         } catch (err: any) {
-            setError(err?.response?.data?.message || "Failed to FloppyDisk changes.");
+            setError(err?.response?.data?.message || "Failed to save changes.");
         } finally {
             setSubmitting(false);
         }
@@ -355,7 +331,7 @@ function EditProfileModal({
                     {/* Section 2: Academic Placement */}
                     <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4 shadow-2xs">
                         <div className="flex items-center gap-2 pb-2 border-b border-border/60">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-info/10 text-info">
                                 <GraduationCap size={15} />
                             </div>
                             <div>
@@ -383,14 +359,14 @@ function EditProfileModal({
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-foreground">Previous School</Label>
-                            <Input value={previousSchool} onChange={(e) => setPreviousSchool(e.target.value)} placeholder="Previous Buildings name (optional)" />
+                            <Input value={previousSchool} onChange={(e) => setPreviousSchool(e.target.value)} placeholder="Previous school name (optional)" />
                         </div>
                     </div>
 
                     {/* Section 3: Contact & Address */}
                     <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4 shadow-2xs">
                         <div className="flex items-center gap-2 pb-2 border-b border-border/60">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/10 text-warning">
                                 <MapPin size={15} />
                             </div>
                             <div>
@@ -429,7 +405,7 @@ function EditProfileModal({
                     {/* Section 4: Parent & Guardian Information */}
                     <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4 shadow-2xs">
                         <div className="flex items-center gap-2 pb-2 border-b border-border/60">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-success/10 text-success">
                                 <Users size={15} />
                             </div>
                             <div>
@@ -481,7 +457,7 @@ function EditProfileModal({
     );
 }
 
-// UploadSimple Document Modal
+// Upload Document Modal
 
 function UploadDocumentModal({ onClose, onUpload }: { onClose: () => void; onUpload: (file: File, name: string) => Promise<void> }) {
     const [docName, setDocName] = useState("");
@@ -508,7 +484,7 @@ function UploadDocumentModal({ onClose, onUpload }: { onClose: () => void; onUpl
         try {
             await onUpload(file, docName);
         } catch (err: any) {
-            setError(err?.response?.data?.message || "Failed to UploadSimple document.");
+            setError(err?.response?.data?.message || "Failed to upload document.");
             setSubmitting(false);
         }
     };
@@ -570,7 +546,7 @@ function PersonalTab({ student, guardian }: { student: StudentBase; guardian: As
                         </Link>
                     ) : (
                         <Link to="/parents">
-                            <Badge variant="outline" className="cursor-pointer hover:bg-amber-500/10 transition-colors text-amber-600 dark:text-amber-400 border-amber-500/30 text-xs">
+                            <Badge variant="outline" className="cursor-pointer hover:bg-warning/10 transition-colors text-warning border-warning/30 text-xs">
                                 Assign Parent â†’
                             </Badge>
                         </Link>
@@ -582,7 +558,7 @@ function PersonalTab({ student, guardian }: { student: StudentBase; guardian: As
                 {/* 1. Basic Information */}
                 <div className="space-y-3.5">
                     <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-info/10 text-info">
                             <User size={15} />
                         </div>
                         <div>
@@ -605,7 +581,7 @@ function PersonalTab({ student, guardian }: { student: StudentBase; guardian: As
                 {/* 2. Contact Information */}
                 <div className="pt-6 space-y-3.5">
                     <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-success/10 text-success">
                             <Envelope size={15} />
                         </div>
                         <div>
@@ -630,7 +606,7 @@ function PersonalTab({ student, guardian }: { student: StudentBase; guardian: As
                 <div className="pt-6 space-y-3.5">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/10 text-warning">
                                 <Users size={15} />
                             </div>
                             <div>
@@ -649,7 +625,7 @@ function PersonalTab({ student, guardian }: { student: StudentBase; guardian: As
                             <InfoField label="Email" value={guardian.email || "â€”"} icon={<Envelope size={13} />} />
                         </div>
                     ) : (
-                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                        <div className="rounded-lg bg-warning/10 border border-warning/20 px-3 py-2 text-xs text-warning">
                             No parent portal account linked yet. Contact details below are saved on the student record.
                         </div>
                     )}
@@ -668,18 +644,18 @@ function PersonalTab({ student, guardian }: { student: StudentBase; guardian: As
                 {/* 4. Prior Academic Background */}
                 <div className="pt-6 space-y-3.5">
                     <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-info/10 text-info">
                             <Shield size={15} />
                         </div>
                         <div>
                             <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
                                 Prior Academic Background
                             </h3>
-                            <p className="text-[11px] text-muted-foreground">Transfers and previous Buildings records</p>
+                            <p className="text-[11px] text-muted-foreground">Transfers and previous school records</p>
                         </div>
                     </div>
                     <div className="pt-1 max-w-md">
-                        <InfoField label="Previous Buildings Attended" value={student.previousSchool || "None on file"} icon={<BookOpen size={13} />} />
+                        <InfoField label="Previous School Attended" value={student.previousSchool || "None on file"} icon={<BookOpen size={13} />} />
                     </div>
                 </div>
             </CardContent>
@@ -696,7 +672,7 @@ function AcademicTab({ student, subjects }: { student: StudentBase; subjects: Su
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Enrolled Class</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-100/80 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-info/15 text-info">
                                 <GraduationCap className="h-4 w-4" />
                             </span>
                         </div>
@@ -707,7 +683,7 @@ function AcademicTab({ student, subjects }: { student: StudentBase; subjects: Su
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Enrolled Subjects</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
                                 <BookOpen className="h-4 w-4" />
                             </span>
                         </div>
@@ -718,7 +694,7 @@ function AcademicTab({ student, subjects }: { student: StudentBase; subjects: Su
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Class Advisor</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100/80 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15 text-warning">
                                 <User className="h-4 w-4" />
                             </span>
                         </div>
@@ -812,9 +788,9 @@ function groupAttendanceByMonth(records: AttendanceRecord[]): MonthAttendance[] 
 
 function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
     const byMonth = groupAttendanceByMonth(records);
-    const presentSum = records.Funnel((r) => r.status === "Present").length;
-    const absentSum = records.Funnel((r) => r.status === "Absent").length;
-    const lateSum = records.Funnel((r) => r.status === "Late").length;
+    const presentSum = records.filter((r) => r.status === "Present").length;
+    const absentSum = records.filter((r) => r.status === "Absent").length;
+    const lateSum = records.filter((r) => r.status === "Late").length;
     const overall = records.length > 0 ? (presentSum / records.length) * 100 : 0;
 
     return (
@@ -825,7 +801,7 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Attendance Rate</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
                                 <Calendar className="h-4 w-4" />
                             </span>
                         </div>
@@ -838,8 +814,8 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Sessions Present</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                                <CircleCheck className="h-4 w-4" />
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
+                                <CheckCircle className="h-4 w-4" />
                             </span>
                         </div>
                         <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-foreground">
@@ -851,8 +827,8 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Recorded Absences</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-100/80 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400">
-                                <CircleX className="h-4 w-4" />
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-destructive/15 text-destructive">
+                                <XCircle className="h-4 w-4" />
                             </span>
                         </div>
                         <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-destructive">
@@ -864,11 +840,11 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Late Arrivals</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100/80 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15 text-warning">
                                 <Clock className="h-4 w-4" />
                             </span>
                         </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-amber-600 dark:text-amber-400">
+                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-warning">
                             {lateSum}
                         </h4>
                         <p className="mt-2 text-xs text-muted-foreground">tardy sessions</p>
@@ -876,7 +852,7 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
                 </div>
             </Card>
 
-            {/* Attendance ClockCounterClockwise Block */}
+            {/* Attendance History Block */}
             <Card className="border-border/80 shadow-2xs">
                 <CardHeader className="pb-3 border-b border-border/40 flex flex-row items-center justify-between">
                     <div>
@@ -908,17 +884,17 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
                                         <TableRow key={row.key} className="border-b border-border/40 transition-colors hover:bg-muted/40">
                                             <TableCell className="py-3.5 px-4 font-medium text-foreground">{row.month}</TableCell>
                                             <TableCell className="py-3.5 px-4">
-                                                <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60 gap-1 font-semibold">
-                                                    <CircleCheck size={12} /> {row.present}
+                                                <Badge variant="outline" className="bg-success/10 text-success border-success/20 gap-1 font-semibold">
+                                                    <CheckCircle size={12} /> {row.present}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="py-3.5 px-4">
-                                                <Badge variant="outline" className="bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/60 gap-1 font-semibold">
-                                                    <CircleX size={12} /> {row.absent}
+                                                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 gap-1 font-semibold">
+                                                    <XCircle size={12} /> {row.absent}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="py-3.5 px-4">
-                                                <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/60 gap-1 font-semibold">
+                                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 gap-1 font-semibold">
                                                     <Clock size={12} /> {row.late}
                                                 </Badge>
                                             </TableCell>
@@ -936,149 +912,10 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
     );
 }
 
-function ResultsTab({ reportCards }: { reportCards: ReportCard[] }) {
-    const latest = reportCards.length > 0
-        ? [...reportCards].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-        : null;
-
-    if (!latest) {
-        return (
-            <Card className="border-border/80 shadow-2xs">
-                <CardContent className="p-12 text-center">
-                    <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/50 mb-3">
-                        <Trophy size={24} />
-                    </div>
-                    <h4 className="text-sm font-semibold text-foreground">No Published Examination Results</h4>
-                    <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
-                        Official grades and report card performance will appear here after examination evaluations are completed.
-                    </p>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    const marks = latest.marks;
-    const totalMarks = marks.reduce((s, m) => s + m.score, 0);
-    const maxMarks = marks.length * 100;
-    const bestSubject = marks.reduce((best, current) => current.score > best.score ? current : best, marks[0]);
-    const bestSubjectName = bestSubject.subject && typeof bestSubject.subject !== "string" ? bestSubject.subject.sub_name : "â€”";
-    const examName = latest.examReg && typeof latest.examReg !== "string" && latest.examReg.ex_no ? latest.examReg.ex_no.ex_name : "Term Examination";
-
-    return (
-        <div className="space-y-5">
-            {/* Results 4-Stat Strip: one panel, four cells separated by hairlines */}
-            <Card className="overflow-hidden border-border bg-border shadow-sm">
-                <div className="grid grid-cols-2 gap-px lg:grid-cols-4">
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Overall Average</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                                <Trophy className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400">
-                            {Math.round(latest.overallScore)}%
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Aggregate performance</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Score</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-100/80 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
-                                <CheckCircle className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-                            {totalMarks} <span className="text-xs text-muted-foreground font-normal">/ {maxMarks}</span>
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Across all subjects</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Top Subject</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100/80 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400">
-                                <Trophy className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-xl font-semibold tracking-tight text-foreground truncate max-w-[180px]" title={bestSubjectName}>
-                            {bestSubjectName}
-                        </h4>
-                        <p className="mt-2 text-xs font-semibold text-violet-600 dark:text-violet-400">
-                            {bestSubject.score}% â€¢ Grade {scoreToGrade(bestSubject.score)}
-                        </p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Final Grade</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100/80 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-                                <GraduationCap className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className={`mt-3 text-3xl font-semibold tabular-nums tracking-tight ${gradeColor(scoreToGrade(latest.overallScore))}`}>
-                            {scoreToGrade(latest.overallScore)}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Honor assessment</p>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Results Table Block */}
-            <Card className="border-border/80 shadow-2xs">
-                <CardHeader className="pb-3 border-b border-border/40 flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle className="text-sm font-semibold">{examName}</CardTitle>
-                        <CardDescription className="text-xs">
-                            Concluded {new Date(latest.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                        </CardDescription>
-                    </div>
-                    <Badge variant="outline" className="font-semibold text-xs">
-                        Grade {scoreToGrade(latest.overallScore)}
-                    </Badge>
-                </CardHeader>
-                <CardContent className="pt-4 p-0">
-                    <div className="overflow-x-auto">
-                        <Table className="w-full text-sm">
-                            <TableHeader>
-                                <TableRow className="border-b border-border/60 bg-muted/20">
-                                    <TableHead className="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Subject</TableHead>
-                                    <TableHead className="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Score Obtained</TableHead>
-                                    <TableHead className="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Grade</TableHead>
-                                    <TableHead className="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {marks.map((row, i) => {
-                                    const subjectName = row.subject && typeof row.subject !== "string" ? row.subject.sub_name : "â€”";
-                                    const grade = scoreToGrade(row.score);
-                                    return (
-                                        <TableRow key={i} className="border-b border-border/40 transition-colors hover:bg-muted/40">
-                                            <TableCell className="py-3.5 px-4 font-medium text-foreground">{subjectName}</TableCell>
-                                            <TableCell className="py-3.5 px-4 font-bold text-foreground">{row.score} <span className="text-xs text-muted-foreground font-normal">/ 100</span></TableCell>
-                                            <TableCell className="py-3.5 px-4">
-                                                <Badge variant="outline" className={`font-semibold ${gradeColor(grade)} border-current/30`}>
-                                                    {grade}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="py-3.5 px-4 text-muted-foreground text-xs">{scoreToRemark(row.score)}</TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
-
 function feeStatusBadge(status: Invoice["status"]) {
-    if (status === "Paid") return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60";
-    if (status === "Partially_Paid") return "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800/60";
-    return "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200 dark:border-rose-800/60";
+    if (status === "Paid") return "bg-success/10 text-success border-success/20";
+    if (status === "Partially_Paid") return "bg-warning/10 text-warning border-warning/20";
+    return "bg-destructive/10 text-destructive border-destructive/20";
 }
 
 function feeStatusLabel(status: Invoice["status"]) {
@@ -1096,7 +933,7 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Invoiced</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-100/80 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-info/15 text-info">
                                 <CurrencyDollar className="h-4 w-4" />
                             </span>
                         </div>
@@ -1109,11 +946,11 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Paid</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
                                 <CheckCircle className="h-4 w-4" />
                             </span>
                         </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400">
+                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-success">
                             ${totals.paid.toLocaleString()}
                         </h4>
                         <p className="mt-2 text-xs text-muted-foreground">Settled balance</p>
@@ -1122,7 +959,7 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Outstanding Balance</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-100/80 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-destructive/15 text-destructive">
                                 <WarningCircle className="h-4 w-4" />
                             </span>
                         </div>
@@ -1135,11 +972,11 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Next Due Date</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100/80 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15 text-warning">
                                 <Calendar className="h-4 w-4" />
                             </span>
                         </div>
-                        <h4 className={`mt-3 text-xl font-semibold tracking-tight ${nextDueInvoice ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                        <h4 className={`mt-3 text-xl font-semibold tracking-tight ${nextDueInvoice ? "text-warning" : "text-muted-foreground"}`}>
                             {nextDueInvoice ? (nextDueInvoice.dueDate ? new Date(nextDueInvoice.dueDate).toLocaleDateString() : "No deadline set") : "Fully Cleared"}
                         </h4>
                         <p className="mt-2 text-xs text-muted-foreground">
@@ -1149,7 +986,7 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                 </div>
             </Card>
 
-            {/* Invoice ClockCounterClockwise */}
+            {/* Invoice History */}
             <Card className="border-border/80 shadow-2xs">
                 <CardHeader className="pb-3 border-b border-border/40">
                     <CardTitle className="text-sm font-semibold">Billing Ledger & Invoices</CardTitle>
@@ -1181,7 +1018,7 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                                             <TableRow key={fee._id} className="border-b border-border/40 transition-colors hover:bg-muted/40">
                                                 <TableCell className="py-3.5 px-4 font-medium text-foreground">{feeTypeName}</TableCell>
                                                 <TableCell className="py-3.5 px-4 text-muted-foreground">${fee.invoice_amount.toLocaleString()}</TableCell>
-                                                <TableCell className="py-3.5 px-4 font-semibold text-emerald-600 dark:text-emerald-400">${fee.paid_amount.toLocaleString()}</TableCell>
+                                                <TableCell className="py-3.5 px-4 font-semibold text-success">${fee.paid_amount.toLocaleString()}</TableCell>
                                                 <TableCell className={`py-3.5 px-4 font-semibold ${fee.balance > 0 ? "text-destructive" : "text-muted-foreground"}`}>${fee.balance.toLocaleString()}</TableCell>
                                                 <TableCell className="py-3.5 px-4 text-muted-foreground text-xs">{new Date(fee.registerDate).toLocaleDateString()}</TableCell>
                                                 <TableCell className="py-3.5 px-4 text-muted-foreground text-xs">{fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : "â€”"}</TableCell>
@@ -1234,8 +1071,8 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
     }
 
     const totalDocs = docs.length;
-    const verifiedDocs = docs.Funnel(d => d.status === "Verified").length;
-    const pendingDocs = docs.Funnel(d => d.status === "Pending").length;
+    const verifiedDocs = docs.filter(d => d.status === "Verified").length;
+    const pendingDocs = docs.filter(d => d.status === "Pending").length;
 
     return (
         <div className="space-y-5">
@@ -1245,7 +1082,7 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Files</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-100/80 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-info/15 text-info">
                                 <FileText className="h-4 w-4" />
                             </span>
                         </div>
@@ -1258,11 +1095,11 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Verified Records</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                                <CircleCheck className="h-4 w-4" />
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
+                                <CheckCircle className="h-4 w-4" />
                             </span>
                         </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400">
+                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-success">
                             {verifiedDocs} <span className="text-xs text-muted-foreground font-normal">/ {totalDocs}</span>
                         </h4>
                         <p className="mt-2 text-xs text-muted-foreground">Compliant and approved</p>
@@ -1271,11 +1108,11 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                     <div className="bg-card p-5">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pending Review</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100/80 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15 text-warning">
                                 <Clock className="h-4 w-4" />
                             </span>
                         </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-amber-600 dark:text-amber-400">
+                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-warning">
                             {pendingDocs}
                         </h4>
                         <p className="mt-2 text-xs text-muted-foreground">Awaiting verification</p>
@@ -1291,7 +1128,7 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                         <CardDescription className="text-xs">Certificates, national IDs, and medical files</CardDescription>
                     </div>
                     <Button size="sm" onClick={() => setShowUpload(true)} className="gap-2 shadow-2xs">
-                        <UploadSimple size={14} /> UploadSimple Document
+                        <UploadSimple size={14} /> Upload Document
                     </Button>
                 </CardHeader>
                 <CardContent className="pt-4 p-0">
@@ -1324,8 +1161,8 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                                             <TableCell className="py-3.5 px-4">
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                                                     doc.status === "Verified"
-                                                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
-                                                        : "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800/60"
+                                                        ? "bg-success/10 text-success border-success/20"
+                                                        : "bg-warning/10 text-warning border-warning/20"
                                                 }`}>
                                                     <CheckCircle size={12} /> {doc.status}
                                                 </span>
@@ -1338,9 +1175,9 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                                                             size="sm"
                                                             onClick={() => handleVerify(doc._id)}
                                                             disabled={busyId === doc._id}
-                                                            className="h-8 gap-1 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                                                            className="h-8 gap-1 text-xs text-success hover:text-success hover:bg-success/10"
                                                         >
-                                                            <CircleCheck size={13} /> Verify
+                                                            <CheckCircle size={13} /> Verify
                                                         </Button>
                                                     )}
                                                     <a
@@ -1349,7 +1186,7 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                                                         rel="noreferrer"
                                                         className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                                                     >
-                                                        <DownloadSimple size={13} /> DownloadSimple
+                                                        <DownloadSimple size={13} /> Download
                                                     </a>
                                                     <Button
                                                         variant="ghost"
@@ -1381,7 +1218,6 @@ const TABS: { id: ProfileTab; icon: React.ElementType }[] = [
     { id: "Personal", icon: User },
     { id: "Academic", icon: GraduationCap },
     { id: "Attendance", icon: Calendar },
-    { id: "Results", icon: Trophy },
     { id: "Fees", icon: CurrencyDollar },
     { id: "Documents", icon: FileText },
 ];
@@ -1395,7 +1231,6 @@ export default function StudentProfilePage() {
     const [sections, setSections] = useState<RefSection[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-    const [reportCards, setReportCards] = useState<ReportCard[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [invoiceTotals, setInvoiceTotals] = useState({ invoiced: 0, paid: 0, balance: 0 });
     const [documents, setDocuments] = useState<ApiDocument[]>([]);
@@ -1408,16 +1243,15 @@ export default function StudentProfilePage() {
             setLoading(true);
             // The student record is the only critical request. Optional modules
             // must not hide a valid profile just because that student has no fee,
-            // attendance, result, document, or academic reference data yet.
+            // attendance, document, or academic reference data yet.
             const s = await studentsApi.getById(id);
             setApiStudent(s);
             setLoadError("");
 
-            const [references, subjectResult, attendanceResult, cardResult, invoiceResult, documentResult] = await Promise.allSettled([
+            const [references, subjectResult, attendanceResult, invoiceResult, documentResult] = await Promise.allSettled([
                 studentsApi.getReferenceData(),
                 academicApi.getSubjects(),
                 studentsApi.getAttendance(id),
-                studentsApi.getReportCards(id),
                 studentsApi.getInvoices(id),
                 studentsApi.getDocuments(id),
             ]);
@@ -1427,10 +1261,9 @@ export default function StudentProfilePage() {
             }
             if (subjectResult.status === "fulfilled") {
                 const studentClassId = s.classId && typeof s.classId !== "string" ? s.classId._id : s.classId;
-                setSubjects(subjectResult.value.Funnel((subject) => subject.classId === studentClassId));
+                setSubjects(subjectResult.value.filter((subject) => subject.classId === studentClassId));
             }
             if (attendanceResult.status === "fulfilled") setAttendanceRecords(attendanceResult.value.records);
-            if (cardResult.status === "fulfilled") setReportCards(cardResult.value);
             if (invoiceResult.status === "fulfilled") {
                 setInvoices(invoiceResult.value.invoices);
                 setInvoiceTotals(invoiceResult.value.totals);
@@ -1467,13 +1300,8 @@ export default function StudentProfilePage() {
     const assignedGuardian: AssignedGuardian | null = guardianLink && typeof guardianLink !== "string" ? guardianLink : null;
 
     // Dynamically computed metrics for summary cards
-    const attendancePresent = attendanceRecords.Funnel((r) => r.status === "Present").length;
+    const attendancePresent = attendanceRecords.filter((r) => r.status === "Present").length;
     const attendanceRate = attendanceRecords.length > 0 ? Math.round((attendancePresent / attendanceRecords.length) * 100) : 0;
-
-    const latestReportCard = reportCards.length > 0
-        ? [...reportCards].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-        : null;
-    const resultsPct = latestReportCard ? Math.round(latestReportCard.overallScore) : 0;
 
     const feesTotal = invoiceTotals.invoiced;
     const feesPaid = invoiceTotals.paid;
@@ -1521,7 +1349,7 @@ export default function StudentProfilePage() {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         {/* Avatar & Identifiers */}
                         <div className="flex items-center gap-5">
-                            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted/50 border-2 border-border shadow-xs">
+                            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/50 border-2 border-border shadow-xs">
                                 {student.photo ? (
                                     <img src={student.photo} alt="Student Avatar" className="h-full w-full object-cover" />
                                 ) : (
@@ -1539,7 +1367,7 @@ export default function StudentProfilePage() {
                                         variant="outline"
                                         className={`font-semibold text-xs ${
                                             student.status.toLowerCase() === "active"
-                                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
+                                                ? "bg-success/10 text-success border-success/20"
                                                 : "bg-muted text-muted-foreground"
                                         }`}
                                     >
@@ -1567,7 +1395,7 @@ export default function StudentProfilePage() {
                         <div className="grid grid-cols-3 gap-3 border-t border-border/60 pt-4 md:border-t-0 md:border-l md:border-border/60 md:pl-6 md:pt-0">
                             <div className="text-center px-2">
                                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Attendance</p>
-                                <p className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 mt-0.5">{attendanceRate}%</p>
+                                <p className="text-2xl font-bold tracking-tight text-success mt-0.5">{attendanceRate}%</p>
                                 <span className="text-[10px] text-muted-foreground">{attendancePresent}/{attendanceRecords.length} Days</span>
                             </div>
                             <div className="text-center px-2 border-x border-border/40">
@@ -1587,7 +1415,7 @@ export default function StudentProfilePage() {
 
             {/* Quick summary cards: single card with hairline cell dividers */}
             <Card className="overflow-hidden border-border bg-border shadow-sm mb-6">
-                <div className="grid grid-cols-2 gap-px sm:grid-cols-3 lg:grid-cols-5">
+                <div className="grid grid-cols-2 gap-px lg:grid-cols-4">
                     <SummaryCard
                         title="Academic"
                         value={student.classId}
@@ -1605,17 +1433,9 @@ export default function StudentProfilePage() {
                         onClick={() => setActiveTab("Attendance")}
                         badge={
                             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                                <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${attendanceRate}%` }} />
+                                <div className="h-full rounded-full bg-success transition-all duration-500" style={{ width: `${attendanceRate}%` }} />
                             </div>
                         }
-                    />
-                    <SummaryCard
-                        title="Performance"
-                        value={latestReportCard ? `${resultsPct}%` : "â€”"}
-                        subtext={latestReportCard ? `Grade ${scoreToGrade(latestReportCard.overallScore)}` : "No results yet"}
-                        icon={<Trophy size={16} />}
-                        tone="amber"
-                        onClick={() => setActiveTab("Results")}
                     />
                     <SummaryCard
                         title="Fees & Balance"
@@ -1627,10 +1447,10 @@ export default function StudentProfilePage() {
                         badge={
                             <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                                 feesBalance === 0
-                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
+                                    ? "bg-success/10 text-success border-success/20"
                                     : feesBalance < 100
-                                        ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800/60"
-                                        : "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200 dark:border-rose-800/60"
+                                        ? "bg-warning/10 text-warning border-warning/20"
+                                        : "bg-destructive/10 text-destructive border-destructive/20"
                             }`}>
                                 {feesBalance === 0 ? "Fully Paid" : "Payment Pending"}
                             </span>
@@ -1639,15 +1459,15 @@ export default function StudentProfilePage() {
                     <SummaryCard
                         title="Documents"
                         value={`${documents.length} Uploaded`}
-                        subtext={`${documents.Funnel(d => d.status === "Verified").length} / ${documents.length} Verified`}
+                        subtext={`${documents.filter(d => d.status === "Verified").length} / ${documents.length} Verified`}
                         icon={<FileText size={16} />}
                         tone="violet"
                         onClick={() => setActiveTab("Documents")}
                         badge={
                             <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                                 documents.length > 0 && documents.every(d => d.status === "Verified")
-                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
-                                    : "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800/60"
+                                    ? "bg-success/10 text-success border-success/20"
+                                    : "bg-warning/10 text-warning border-warning/20"
                             }`}>
                                 {documents.length > 0 && documents.every(d => d.status === "Verified") ? "All Verified" : "Pending Review"}
                             </span>
@@ -1682,7 +1502,6 @@ export default function StudentProfilePage() {
             {activeTab === "Personal" && <PersonalTab student={student} guardian={assignedGuardian} />}
             {activeTab === "Academic" && <AcademicTab student={student} subjects={subjects} />}
             {activeTab === "Attendance" && <AttendanceTab records={attendanceRecords} />}
-            {activeTab === "Results" && <ResultsTab reportCards={reportCards} />}
             {activeTab === "Fees" && <FeesTab invoices={invoices} totals={invoiceTotals} />}
             {activeTab === "Documents" && <DocumentsTab studentId={student.id} docs={documents} onReload={reloadDocuments} />}
 

@@ -10,12 +10,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { teachersApi } from '@/features/teachers/api/teachersApi';
 import type { TeacherAssignment } from '@/features/teachers/types';
 
-import { StatCard } from '@/components/teaching-log/portal/portalData';
+import StatStrip from '@/components/shared/StatStrip';
 import TimetableTab from '@/components/teaching-log/portal/TimetableTab';
 import ClassesTab from '@/components/teaching-log/portal/ClassesTab';
 import AttendanceTab from '@/components/teaching-log/portal/AttendanceTab';
 import LessonsTab from '@/components/teaching-log/portal/LessonsTab';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/common/PageHeader';
 
 type TabId = 'logs' | 'timetable' | 'classes' | 'attendance' | 'lessons';
 
@@ -95,8 +96,8 @@ export default function TeachingLogPage({
 
   // Log stats
   const logStats = useMemo(() => {
-    const completedCount = logs.Funnel((log) => log.status === 'completed').length;
-    const draftCount = logs.Funnel((log) => log.status === 'draft').length;
+    const completedCount = logs.filter((log) => log.status === 'completed').length;
+    const draftCount = logs.filter((log) => log.status === 'draft').length;
     const uniqueSubjects = new Set(logs.map((log) => log.subject)).size;
     return {
       totalLogs: total,
@@ -110,7 +111,7 @@ export default function TeachingLogPage({
   const assignmentStats = useMemo(() => {
     const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
     const todaysPeriods = assignments.reduce(
-      (sum, a) => sum + a.timetableSlots.Funnel((s) => s.day === todayName).length, 0
+      (sum, a) => sum + a.timetableSlots.filter((s) => s.day === todayName).length, 0
     );
     const classCount = new Set(assignments.map((a) => a.classId?._id)).size;
     const subjectCount = new Set(assignments.map((a) => a.subjectId?._id)).size;
@@ -118,59 +119,57 @@ export default function TeachingLogPage({
   }, [assignments]);
 
   const filterOptions = useMemo(() => ({
-    classes: [...new Set(assignments.map((assignment) => assignment.classId?.cl_name).Funnel(Boolean))].sort(),
-    subjects: [...new Set(assignments.map((assignment) => assignment.subjectId?.sub_name).Funnel(Boolean))].sort(),
+    classes: [...new Set(assignments.map((assignment) => assignment.classId?.cl_name).filter(Boolean))].sort(),
+    subjects: [...new Set(assignments.map((assignment) => assignment.subjectId?.sub_name).filter(Boolean))].sort(),
   }), [assignments]);
 
   const hasActiveFilters = Object.entries(filters)
     .some(([key, val]) => key !== 'teacherId' && val !== undefined && val !== '');
   const displayName = teacherName || user?.name || 'Teacher';
   const initials = displayName
-    .split(' ').Funnel(Boolean).map((p) => p[0]?.toUpperCase()).slice(0, 2).join('') || 'T';
+    .split(' ').filter(Boolean).map((p) => p[0]?.toUpperCase()).slice(0, 2).join('') || 'T';
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{teacherName ? `${teacherName}'s Teacher Portal` : 'Teaching Log'}</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {readOnly
-              ? 'Review this teacher’s schedule, classes, attendance context, lessons, and daily logs'
-              : 'Your complete teaching workspace — schedule, classes, attendance, lessons and daily logs'}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
+      <PageHeader
+        title={teacherName ? `${teacherName}'s Teacher Portal` : 'Teaching Log'}
+        subtitle={readOnly
+          ? 'Review this teacher’s schedule, classes, attendance context, lessons, and daily logs'
+          : 'Your complete teaching workspace — schedule, classes, attendance, lessons and daily logs'}
+        action={
+        <>
           {!readOnly && <Button variant="plain"
             onClick={() => navigate('/teaching-log/create')}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer"
           >
             <Plus size={16} /> Add New Log
           </Button>}
-          <div className="flex items-center gap-3 bg-white border rounded-xl px-4 py-2.5 shadow-sm">
-            <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+          <div className="flex items-center gap-3 bg-card border rounded-xl px-4 py-2.5 shadow-sm">
+            <div className="w-9 h-9 rounded-full bg-info flex items-center justify-center text-info-foreground text-xs font-bold">
               {initials}
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-800 leading-tight">{displayName}</p>
-              <p className="text-xs text-gray-400 leading-tight capitalize">{readOnly ? 'Teacher portal' : (user?.role || 'teacher')}</p>
+              <p className="text-sm font-semibold text-foreground leading-tight">{displayName}</p>
+              <p className="text-xs text-muted-foreground leading-tight capitalize">{readOnly ? 'Teacher portal' : (user?.role || 'teacher')}</p>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+        }
+      />
 
       {/* Overview stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <StatCard title="Today's Periods"  value={String(assignmentStats.todaysPeriods)} sub="Periods scheduled today" icon={CalendarBlank} accent="blue" />
-        <StatCard title="Classes Teaching" value={String(assignmentStats.classCount)}    sub="Different classes"       icon={Users}        accent="green" />
-        <StatCard title="Subjects Teaching" value={String(assignmentStats.subjectCount)} sub="Different subjects"      icon={Stack}       accent="purple" />
-        <StatCard title="Total Logs"       value={String(logStats.totalLogs)}            sub="All teaching logs"       icon={BookOpen}     accent="orange" />
-        <StatCard title="Draft Lessons"    value={String(logStats.draftLogs)}     sub="Awaiting completion"      icon={FileText} accent="slate" />
-        <StatCard title="Subjects Logged"  value={String(logStats.subjectsCount)} sub="Different curriculum areas" icon={ChartPie} accent="indigo" />
-      </div>
+      <StatStrip items={[
+        { label: "Today's periods", value: assignmentStats.todaysPeriods, icon: CalendarBlank, tone: 'sky', hint: 'Scheduled today' },
+        { label: 'Classes', value: assignmentStats.classCount, icon: Users, tone: 'emerald', hint: 'Classes taught' },
+        { label: 'Subjects', value: assignmentStats.subjectCount, icon: Stack, tone: 'violet', hint: 'Subjects taught' },
+        { label: 'Total logs', value: logStats.totalLogs, icon: BookOpen, tone: 'amber', hint: 'All teaching logs' },
+        { label: 'Drafts', value: logStats.draftLogs, icon: FileText, tone: 'muted', hint: 'Awaiting completion' },
+        { label: 'Subjects logged', value: logStats.subjectsCount, icon: ChartPie, tone: 'sky', hint: 'Curriculum areas covered' },
+      ]} />
 
       {/* Tab bar */}
-      <div className="bg-gray-100/80 border border-gray-100 rounded-xl p-1.5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1">
+      <div className="bg-muted/80 border border-border rounded-xl p-1.5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1">
         {visibleTabs.map((t) => {
           const active = tab === t.id;
           const Icon = t.icon;
@@ -180,11 +179,11 @@ export default function TeachingLogPage({
               onClick={() => setTab(t.id)}
               className={`flex items-center justify-center gap-2 py-2.5 px-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 active
-                  ? 'bg-white text-green-700 shadow-sm ring-1 ring-black/5'
-                  : 'text-gray-500 hover:text-gray-800 hover:bg-white/60'
+                  ? 'bg-card text-primary shadow-sm ring-1 ring-black/5'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/60'
               }`}
             >
-              <Icon size={15} className={active ? 'text-green-600' : 'text-gray-400'} />
+              <Icon size={15} className={active ? 'text-primary' : 'text-muted-foreground'} />
               <span className="truncate">{t.label}</span>
             </Button>
           );
@@ -193,7 +192,7 @@ export default function TeachingLogPage({
 
       {/* Tab content */}
       {assignmentsError && tab !== 'logs' && (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm flex items-center justify-between gap-3">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-xl px-4 py-3 text-sm flex items-center justify-between gap-3">
           <span>{assignmentsError}</span>
           <Button variant="plain" onClick={loadAssignments} className="font-semibold hover:underline">Try again</Button>
         </div>
@@ -217,7 +216,7 @@ export default function TeachingLogPage({
             <EmptyState
               message={
                 hasActiveFilters
-                  ? 'No teaching logs match your Funnel criteria. Try clearing filters or altering MagnifyingGlass terms.'
+                  ? 'No teaching logs match your filter criteria. Try clearing filters or altering search terms.'
                   : readOnly
                     ? 'This teacher has not recorded any daily lesson logs yet.'
                     : 'There are no daily lesson logs recorded yet. Click Add New Log to register your first lesson!'
@@ -259,35 +258,35 @@ export default function TeachingLogPage({
           onClick={() => setDeleteTargetId(null)}
         >
           <div
-            className="bg-white rounded-2xl border border-gray-100 shadow-xl max-w-md w-full p-6"
+            className="bg-card rounded-xl border border-border shadow-xl max-w-md w-full p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between mb-4 border-b border-gray-100 pb-3">
-              <h3 className="text-base font-bold flex items-center gap-2 text-red-700">
+            <div className="flex items-start justify-between mb-4 border-b border-border pb-3">
+              <h3 className="text-base font-bold flex items-center gap-2 text-destructive">
                 <Trash size={18} /> Delete Teaching Log
               </h3>
               <Button variant="plain"
                 onClick={() => setDeleteTargetId(null)}
-                className="text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50 p-1 cursor-pointer"
+                className="text-muted-foreground hover:text-muted-foreground rounded-lg hover:bg-muted/50 p-1 cursor-pointer"
               >
                 <X size={18} />
               </Button>
             </div>
 
-            <p className="text-sm text-gray-650 leading-relaxed mb-6">
+            <p className="text-sm text-foreground/80 leading-relaxed mb-6">
               Are you sure you want to delete this teaching log entry? This action is permanent and cannot be undone once synchronized with the backend server database.
             </p>
 
             <div className="flex justify-end gap-3">
               <Button variant="plain"
                 onClick={() => setDeleteTargetId(null)}
-                className="px-4 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                className="px-4 py-2 border border-border text-foreground/80 hover:bg-muted/50 rounded-lg text-xs font-bold transition-colors cursor-pointer"
               >
                 Cancel
               </Button>
               <Button variant="plain"
                 onClick={handleDeleteConfirm}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                className="px-4 py-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg text-xs font-bold transition-colors cursor-pointer"
               >
                 Delete Log
               </Button>

@@ -7,17 +7,13 @@ export type FilterType =
   | 'class'
   | 'section'
   | 'subject'
-  | 'exam-scope'
-  | 'exam-period'
   | 'date'
   | 'number'
   | 'year'
   | 'fee-type'
   | 'payment-method'
-  | 'book-category'
-  // A generic dropdown with server-supplied options (see FILTERS.borrowStatus
-  // and FILTERS.fineStatus in server/src/reports/helpers.js) — used when the
-  // choices are a small fixed enum, not something fetched by id.
+  // A generic dropdown with server-supplied options — used when the choices
+  // are a small fixed enum, not something fetched by id.
   | 'select';
 
 export interface ReportFilter {

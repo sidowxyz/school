@@ -9,7 +9,6 @@ import {
   Users,
   UserCheck,
   UserCircle,
-  CircleUser,
   Warning,
   PencilSimple,
   Trash,
@@ -98,7 +97,7 @@ function StudentFormModal({
   const [credentialIndex, setCredentialIndex] = useState(0);
 
   const classSections = useMemo(
-    () => sections.Funnel((section) => refId(section.class) === classId),
+    () => sections.filter((section) => refId(section.class) === classId),
     [classId, sections],
   );
   const selectedGuardian = guardians.find((guardian) => guardian._id === guardianId);
@@ -152,15 +151,15 @@ function StudentFormModal({
         onClose();
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to FloppyDisk student record.");
+      setError(err?.response?.data?.message || "Failed to save student record.");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
-      <Card className="w-full max-w-lg shadow-xl border-border animate-in fade-in-50 zoom-in-95 my-8 max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] flex h-dvh justify-end bg-black/40" onClick={onClose}>
+      <Card className="w-full max-w-lg h-dvh rounded-none border-y-0 border-r-0 shadow-lg border-border animate-in slide-in-from-right duration-300 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <CardHeader className="flex flex-row items-start justify-between pb-4 border-b border-border">
           <div>
             <CardTitle className="text-lg font-bold">
@@ -473,14 +472,14 @@ export default function StudentListPage() {
 
   const stats = useMemo(() => {
     const total = students.length;
-    const active = students.Funnel((s) => s.status === "Active").length;
-    const male = students.Funnel((s) => s.gender === "Male").length;
-    const female = students.Funnel((s) => s.gender === "Female").length;
+    const active = students.filter((s) => s.status === "Active").length;
+    const male = students.filter((s) => s.gender === "Male").length;
+    const female = students.filter((s) => s.gender === "Female").length;
     return { total, active, male, female };
   }, [students]);
 
   const filtered = useMemo(() => {
-    return students.Funnel((s) => {
+    return students.filter((s) => {
       const q = search.toLowerCase();
       const haystack = [
         `${s.firstName} ${s.lastName}`,
@@ -493,7 +492,7 @@ export default function StudentListPage() {
       const matchesClass = !classFilter || refId(s.classId) === classFilter;
       return matchesSearch && matchesClass;
     });
-  }, [students, MagnifyingGlass, classFilter]);
+  }, [students, search, classFilter]);
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -541,11 +540,11 @@ export default function StudentListPage() {
           { label: "Total Students", value: stats.total, icon: Users, tone: "sky", hint: "Total registered in database" },
           { label: "Active Enrolled", value: stats.active, icon: UserCheck, tone: "emerald", hint: "Active class attendees" },
           { label: "Male Students", value: stats.male, icon: UserCircle, tone: "violet", hint: `${stats.total ? Math.round((stats.male / stats.total) * 100) : 0}% of student body` },
-          { label: "Female Students", value: stats.female, icon: CircleUser, tone: "rose", hint: `${stats.total ? Math.round((stats.female / stats.total) * 100) : 0}% of student body` },
+          { label: "Female Students", value: stats.female, icon: UserCircle, tone: "rose", hint: `${stats.total ? Math.round((stats.female / stats.total) * 100) : 0}% of student body` },
         ]}
       />
 
-      {/* Combined MagnifyingGlass + Data Table */}
+      {/* Combined search + Data Table */}
       <Card>
         <CardHeader className="py-3 px-4 border-b">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -563,7 +562,7 @@ export default function StudentListPage() {
                 <Input
                   type="text"
                   placeholder="Search by name, admission #, phone..."
-                  value={MagnifyingGlass}
+                  value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9 h-9 text-xs"
                 />

@@ -19,17 +19,17 @@ export default function AssignmentsTab() {
           />
           <KPICell
             icon={Clock}
-            iconClass="text-amber-600 dark:text-amber-400"
+            iconClass="text-warning"
             label="Pending Review"
             value="0"
             sub="Awaiting submission"
           />
           <KPICell
             icon={CheckCircle}
-            iconClass="text-emerald-600 dark:text-emerald-400"
+            iconClass="text-success"
             label="Completed"
             value="0"
-            sub="Submitted & graded"
+            sub="Submitted & reviewed"
           />
         </div>
       </Card>
@@ -44,7 +44,7 @@ export default function AssignmentsTab() {
         </CardHeader>
         <CardContent className="p-6">
           <div className="text-center py-16 text-muted-foreground space-y-3">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-muted/60 border border-border/60 flex items-center justify-center">
+            <div className="w-14 h-14 mx-auto rounded-xl bg-muted/60 border border-border/60 flex items-center justify-center">
               <ClipboardText size={26} className="text-muted-foreground/60" />
             </div>
             <div>

@@ -11,6 +11,8 @@ const studentAttendanceSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 studentAttendanceSchema.index({ studentId: 1, periodId: 1, att_date: 1 }, { unique: true });
+// Date-range reads (overview, monthly report) scan by day first.
+studentAttendanceSchema.index({ att_date: 1, studentId: 1 });
 
 const StudentAttendance = mongoose.model('StudentAttendance', studentAttendanceSchema);
 export default StudentAttendance;

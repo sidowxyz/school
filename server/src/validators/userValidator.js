@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const ROLES = ['admin', 'principal', 'academic_officer', 'teacher', 'accountant', 'student', 'parent', 'librarian'];
+export const ROLES = ['admin', 'principal', 'academic_officer', 'teacher', 'accountant', 'student', 'parent'];
 
 export const updateUserRoleSchema = z.object({
   role: z.enum(ROLES, {

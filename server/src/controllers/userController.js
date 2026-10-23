@@ -10,7 +10,7 @@ import { generatePassword } from '../utils/generatePassword.js';
 const SAFE_FIELDS = '-password -refreshToken -passwordResetToken -passwordResetExpires';
 
 // POST /api/users — direct account creation for roles that have no dedicated
-// profile-creation flow of their own (principal, accountant, librarian,
+// profile-creation flow of their own (principal, accountant,
 // academic_officer, admin). Teacher/Student/Parent already create their User
 // row as part of their own richer creation flows (createTeacher, etc.).
 export const createUser = async (req, res, next) => {

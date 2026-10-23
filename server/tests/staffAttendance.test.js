@@ -2,33 +2,21 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import app from '../src/server.js';
-import People from '../src/models/People.js';
-import Job from '../src/models/Job.js';
-import Department from '../src/models/Department.js';
-import Role from '../src/models/Role.js';
-import Specialization from '../src/models/Specialization.js';
-import Degree from '../src/models/Degree.js';
-import Staff from '../src/models/Staff.js';
-import Status from '../src/models/Status.js';
-import Year from '../src/models/Year.js';
+import Teacher from '../src/models/Teacher.js';
 import StaffAttendance from '../src/models/StaffAttendance.js';
 import User from '../src/models/User.js';
 
+// Staff attendance is recorded per teacher ({ teacherId, status }), with the
+// department stored as text on the Teacher profile — see StaffAttendanceService.
 const adminUserId = new mongoose.Types.ObjectId();
-const staffUserId = new mongoose.Types.ObjectId();
+const studentUserId = new mongoose.Types.ObjectId();
+const teacherUserId1 = new mongoose.Types.ObjectId();
+const teacherUserId2 = new mongoose.Types.ObjectId();
 let adminToken;
-let staffToken;
+let studentToken;
 
 describe('Staff Attendance API Tests', () => {
-  let personId1, personId2;
-  let jobId1, jobId2;
-  let depId1, depId2;
-  let roleId1, roleId2;
-  let spId1, spId2;
-  let degId1, degId2;
-  let staffId1, staffId2;
-  let statusPresentId, statusAbsentId, statusLateId, statusExcusedId;
-  let yearId;
+  let teacherId1, teacherId2;
   let attendanceRecordId;
 
   beforeAll(async () => {
@@ -38,117 +26,37 @@ describe('Staff Attendance API Tests', () => {
     // hardcoded cluster/credential, which risked silently diverging from
     // every other test file's shared connection.
 
-    // Drop stale indexes left over from a merge conflict (old User schema had user_no, user_name)
-    const usersCol = mongoose.connection.db.collection('users');
-    await usersCol.dropIndex('user_no_1').catch(() => {});
-    await usersCol.dropIndex('user_name_1').catch(() => {});
+    const emails = ['sa.admin@test.com', 'sa.student@test.com', 'sa.teacher1@test.com', 'sa.teacher2@test.com'];
 
-    // Clean up
+    // Clean up. The monthly report counts every teacher, so start from none.
     await Promise.all([
-      People.deleteMany({}),
-      Job.deleteMany({}),
-      Department.deleteMany({}),
-      Role.deleteMany({}),
-      Specialization.deleteMany({}),
-      Degree.deleteMany({}),
-      Staff.deleteMany({}),
-      Status.deleteMany({}),
-      Year.deleteMany({}),
+      Teacher.deleteMany({}),
       StaffAttendance.deleteMany({}),
-      User.deleteMany({ email: { $in: ['sa.admin@test.com', 'sa.student@test.com'] } })
+      User.deleteMany({ email: { $in: emails } })
     ]);
 
     const secret = process.env.JWT_ACCESS_SECRET || 'default_access_secret_key_12345';
     adminToken = jwt.sign({ id: adminUserId.toString(), role: 'admin', name: 'Test Admin' }, secret);
-    staffToken = jwt.sign({ id: staffUserId.toString(), role: 'student', name: 'Test Student' }, secret);
+    studentToken = jwt.sign({ id: studentUserId.toString(), role: 'student', name: 'Test Student' }, secret);
 
-    // Login accounts backing the tokens
+    // Login accounts backing the tokens, plus the two teachers' accounts
     await User.create([
-      { _id: adminUserId, firstName: 'Test', lastName: 'Admin', email: 'sa.admin@test.com', password: 'password123', role: 'admin' },
-      { _id: staffUserId, firstName: 'Test', lastName: 'Student', email: 'sa.student@test.com', password: 'password123', role: 'student' }
+      { _id: adminUserId, firstName: 'Test', lastName: 'Admin', email: emails[0], password: 'password123', role: 'admin' },
+      { _id: studentUserId, firstName: 'Test', lastName: 'Student', email: emails[1], password: 'password123', role: 'student' },
+      { _id: teacherUserId1, firstName: 'John', lastName: 'Doe', email: emails[2], password: 'password123', role: 'teacher' },
+      { _id: teacherUserId2, firstName: 'Jane', lastName: 'Smith', email: emails[3], password: 'password123', role: 'teacher' }
     ]);
 
-    // Setup Reference Data
-    const p1 = await People.create({ p_no: 'P-TEST-1', name: 'John Doe', tell: '111111', sex: 'Male' });
-    const p2 = await People.create({ p_no: 'P-TEST-2', name: 'Jane Smith', tell: '222222', sex: 'Female' });
-    personId1 = p1._id;
-    personId2 = p2._id;
-
-    const j1 = await Job.create({ job_no: 'J-TEST-1', title: 'Cleaner', salary: 500 });
-    const j2 = await Job.create({ job_no: 'J-TEST-2', title: 'Finance Officer', salary: 1200 });
-    jobId1 = j1._id;
-    jobId2 = j2._id;
-
-    const d1 = await Department.create({ dep_no: 'DEP-TEST-1', dep_name: 'Cleaning & Support' });
-    const d2 = await Department.create({ dep_no: 'DEP-TEST-2', dep_name: 'Finance Department' });
-    depId1 = d1._id;
-    depId2 = d2._id;
-
-    const r1 = await Role.create({ role_no: 'ROLE-TEST-1', role_name: 'Cleaner' });
-    const r2 = await Role.create({ role_no: 'ROLE-TEST-2', role_name: 'Finance Manager' });
-    roleId1 = r1._id;
-    roleId2 = r2._id;
-
-    const sp1 = await Specialization.create({ sp_no: 'SP-TEST-1', sp_name: 'Floor Cleaning' });
-    const sp2 = await Specialization.create({ sp_no: 'SP-TEST-2', sp_name: 'Accounting' });
-    spId1 = sp1._id;
-    spId2 = sp2._id;
-
-    const deg1 = await Degree.create({ dec_no: 'DEG-TEST-1', dec_name: 'High School Diploma', description: 'Secondary Education' });
-    const deg2 = await Degree.create({ dec_no: 'DEG-TEST-2', dec_name: 'Bachelor of Commerce', description: 'B.Com Accounting' });
-    degId1 = deg1._id;
-    degId2 = deg2._id;
-
-    // Create Staff
-    const s1 = await Staff.create({
-      stf_no: 'STF-TEST-1',
-      staffNo: 'STF-TEST-1',
-      p_no: personId1,
-      personId: personId1,
-      job_no: jobId1,
-      jobId: jobId1,
-      dep_no: depId1,
-      role_no: roleId1,
-      sp_no: spId1,
-      specializationId: spId1,
-      dec_no: degId1,
-      degreeId: degId1
-    });
-    const s2 = await Staff.create({
-      stf_no: 'STF-TEST-2',
-      staffNo: 'STF-TEST-2',
-      p_no: personId2,
-      personId: personId2,
-      job_no: jobId2,
-      jobId: jobId2,
-      dep_no: depId2,
-      role_no: roleId2,
-      sp_no: spId2,
-      specializationId: spId2,
-      dec_no: degId2,
-      degreeId: degId2
-    });
-    staffId1 = s1._id;
-    staffId2 = s2._id;
-
-    // Create Statuses
-    const as1 = await Status.create({ st_no: 'AS-TEST-1', st_name: 'Present' });
-    const as2 = await Status.create({ st_no: 'AS-TEST-2', st_name: 'Absent' });
-    const as3 = await Status.create({ st_no: 'AS-TEST-3', st_name: 'Late' });
-    const as4 = await Status.create({ st_no: 'AS-TEST-4', st_name: 'Excused' });
-    statusPresentId = as1._id;
-    statusAbsentId = as2._id;
-    statusLateId = as3._id;
-    statusExcusedId = as4._id;
-
-    // Create Year
-    const yearObj = await Year.create({ y_no: 'Y-TEST-STAFF', y_name: '2026 Staff Year' });
-    yearId = yearObj._id;
-
+    const [t1, t2] = await Teacher.create([
+      { userId: teacherUserId1, staffId: 'STF-TEST-1', department: 'Support' },
+      { userId: teacherUserId2, staffId: 'STF-TEST-2', department: 'Finance' }
+    ]);
+    teacherId1 = t1._id;
+    teacherId2 = t2._id;
   }, 180000);
 
   afterAll(async () => {
-    await User.deleteMany({ email: { $in: ['sa.admin@test.com', 'sa.student@test.com'] } });
+    await User.deleteMany({ email: { $in: ['sa.admin@test.com', 'sa.student@test.com', 'sa.teacher1@test.com', 'sa.teacher2@test.com'] } });
     // Do not close the shared connection — it's reused across every test
     // file in this run (see beforeAll above).
   }, 180000);
@@ -157,14 +65,13 @@ describe('Staff Attendance API Tests', () => {
     it('should block non-admin users with 403', async () => {
       const res = await request(app)
         .post('/api/staff-attendance')
-        .set('Authorization', `Bearer ${staffToken}`)
+        .set('Authorization', `Bearer ${studentToken}`)
         .send({
           att_date: '2026-07-01',
-          y_no: yearId.toString(),
           attendance: [
             {
-              stf_no: staffId1.toString(),
-              st_no: statusPresentId.toString(),
+              teacherId: teacherId1.toString(),
+              status: 'Present',
               time_in: '08:00 AM',
               time_out: '04:30 PM',
               remarks: 'On time'
@@ -195,18 +102,17 @@ describe('Staff Attendance API Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           att_date: '2026-07-01',
-          y_no: yearId.toString(),
           attendance: [
             {
-              stf_no: staffId1.toString(),
-              st_no: statusPresentId.toString(),
+              teacherId: teacherId1.toString(),
+              status: 'Present',
               time_in: '08:00 AM',
               time_out: '05:00 PM',
               remarks: 'On time'
             },
             {
-              stf_no: staffId2.toString(),
-              st_no: statusAbsentId.toString(),
+              teacherId: teacherId2.toString(),
+              status: 'Absent',
               remarks: 'Sick leave'
             }
           ]
@@ -215,10 +121,10 @@ describe('Staff Attendance API Tests', () => {
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data.length).toBe(2);
-      
-      const record1 = res.body.data.find(r => r.stf_no._id === staffId1.toString());
+
+      const record1 = res.body.data.find(r => r.teacherId._id === teacherId1.toString());
       expect(record1).toBeDefined();
-      expect(record1.st_no.st_name).toBe('Present');
+      expect(record1.status).toBe('Present');
       expect(record1.remarks).toBe('On time');
 
       attendanceRecordId = record1._id;
@@ -237,22 +143,22 @@ describe('Staff Attendance API Tests', () => {
       expect(res.body.pagination.totalRecords).toBe(2);
     });
 
-    it('should filter by department and role', async () => {
+    it('should filter by department and by teacher', async () => {
       const resDep = await request(app)
-        .get(`/api/staff-attendance?dep_no=${depId1.toString()}`)
+        .get('/api/staff-attendance?department=Support')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(resDep.status).toBe(200);
       expect(resDep.body.data.length).toBe(1);
-      expect(resDep.body.data[0].stf_no._id).toBe(staffId1.toString());
+      expect(resDep.body.data[0].teacherId._id).toBe(teacherId1.toString());
 
-      const resRole = await request(app)
-        .get(`/api/staff-attendance?role_no=${roleId2.toString()}`)
+      const resTeacher = await request(app)
+        .get(`/api/staff-attendance?teacherId=${teacherId2.toString()}`)
         .set('Authorization', `Bearer ${adminToken}`);
 
-      expect(resRole.status).toBe(200);
-      expect(resRole.body.data.length).toBe(1);
-      expect(resRole.body.data[0].stf_no._id).toBe(staffId2.toString());
+      expect(resTeacher.status).toBe(200);
+      expect(resTeacher.body.data.length).toBe(1);
+      expect(resTeacher.body.data[0].teacherId._id).toBe(teacherId2.toString());
     });
 
     it('should filter by date', async () => {
@@ -281,7 +187,7 @@ describe('Staff Attendance API Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data._id).toBe(attendanceRecordId);
-      expect(res.body.data.stf_no._id).toBe(staffId1.toString());
+      expect(res.body.data.teacherId._id).toBe(teacherId1.toString());
     });
 
     it('should return 404 if ID does not exist', async () => {
@@ -301,14 +207,14 @@ describe('Staff Attendance API Tests', () => {
         .put(`/api/staff-attendance/${attendanceRecordId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          st_no: statusLateId.toString(),
+          status: 'Late',
           remarks: 'Late by 15 mins',
           time_in: '08:15 AM'
         });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.st_no._id).toBe(statusLateId.toString());
+      expect(res.body.data.status).toBe('Late');
       expect(res.body.data.remarks).toBe('Late by 15 mins');
       expect(res.body.data.time_in).toBe('08:15 AM');
     });
@@ -322,30 +228,62 @@ describe('Staff Attendance API Tests', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      
+
       const report = res.body.data;
       expect(report.summary.totalStaff).toBe(2);
       expect(report.summary.totalWorkingDaysRecorded).toBe(2);
       expect(report.staffReports.length).toBe(2);
 
-      const reportStaff1 = report.staffReports.find(item => item.staff._id === staffId1.toString());
+      const reportStaff1 = report.staffReports.find(item => item.staff._id === teacherId1.toString());
       expect(reportStaff1.stats.totalDays).toBe(1);
       expect(reportStaff1.stats.late).toBe(1);
       expect(reportStaff1.stats.present).toBe(0);
 
-      const reportStaff2 = report.staffReports.find(item => item.staff._id === staffId2.toString());
+      const reportStaff2 = report.staffReports.find(item => item.staff._id === teacherId2.toString());
       expect(reportStaff2.stats.totalDays).toBe(1);
       expect(reportStaff2.stats.absent).toBe(1);
     });
 
     it('should filter monthly report by department', async () => {
       const res = await request(app)
-        .get(`/api/staff-attendance/report?year=2026&month=7&dep_no=${depId1.toString()}`)
+        .get('/api/staff-attendance/report?year=2026&month=7&department=Support')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.data.summary.totalStaff).toBe(1);
-      expect(res.body.data.staffReports[0].staff._id).toBe(staffId1.toString());
+      expect(res.body.data.staffReports[0].staff._id).toBe(teacherId1.toString());
+    });
+  });
+
+  describe('GET /api/staff-attendance/summary', () => {
+    it('counts today, the daily trend and who missed most in the database', async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const saved = await request(app)
+        .post('/api/staff-attendance')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ att_date: today, attendance: [{ teacherId: teacherId1.toString(), status: 'Absent', remarks: 'Sick' }] });
+      expect(saved.status).toBe(201);
+
+      // Saving the same day again updates that record rather than adding one.
+      await request(app)
+        .post('/api/staff-attendance')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ att_date: today, attendance: [{ teacherId: teacherId1.toString(), status: 'Absent' }] });
+      expect(await StaffAttendance.countDocuments({ teacherId: teacherId1, att_date: new Date(today) })).toBe(1);
+
+      const res = await request(app)
+        .get('/api/staff-attendance/summary?days=30')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      const d = res.body.data;
+      expect(d.staff).toBe(2);
+      expect(d.today).toMatchObject({ absent: 1, total: 1, notMarked: 1 });
+      expect(d.awayToday[0]).toMatchObject({ teacherId: teacherId1.toString(), status: 'Absent', remarks: 'Sick' });
+      expect(d.mostAbsent[0]).toMatchObject({ teacherId: teacherId1.toString(), absent: 1 });
+      expect(d.daily.find((x) => x.date === today)).toMatchObject({ absent: 1 });
+
+      await StaffAttendance.deleteMany({ att_date: new Date(today) });
     });
   });
 

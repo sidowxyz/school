@@ -10,7 +10,6 @@ import {
   uploadPhoto,
   getPhoto,
   getReferenceData,
-  promoteStudent,
   createStudentAccount
 } from '../controllers/studentController.js';
 import {
@@ -34,42 +33,48 @@ import {
 } from '../middleware/upload.js';
 import { authenticate } from '../middleware/authenticate.js';
 
+// Writes and documents: the roles that administer student records.
 const staffOnly = authorize('admin', 'principal', 'academic_officer');
+
+// Reads: every staff role that looks students up — teachers (class rosters,
+// attendance) and accountants (fees). Students and
+// parents get their own records through /api/portal/* instead, never here.
+const canViewStudents = authorize('admin', 'principal', 'academic_officer', 'teacher', 'accountant');
 
 const router = express.Router();
 
 // GET    /api/students                  - List students (search, filter, pagination)
-router.get('/',                 authenticate, getStudents);
+router.get('/',                 authenticate, canViewStudents, getStudents);
 
 // POST   /api/students                  - Create student
-router.post('/',                authenticate, auditLogger('Student', 'CREATE'), validate(createStudentSchema), createStudent);
+router.post('/',                authenticate, staffOnly, auditLogger('Student', 'CREATE'), validate(createStudentSchema), createStudent);
 
 // POST   /api/students/bulk-import      - Bulk import from CSV
-router.post('/bulk-import',     authenticate, auditLogger('Student', 'CREATE'), uploadCSVMiddleware, bulkImportStudents);
+router.post('/bulk-import',     authenticate, staffOnly, auditLogger('Student', 'CREATE'), uploadCSVMiddleware, bulkImportStudents);
 
 // GET    /api/students/references/all   - Reference data for dropdowns
-router.get('/references/all',   authenticate, getReferenceData);
+router.get('/references/all',   authenticate, canViewStudents, getReferenceData);
 
 // GET    /api/students/photo/:fileId    - Stream photo from GridFS (must be before /:id)
+// Left unauthenticated on purpose: it is loaded by <img src>, which cannot send
+// the Bearer header, and the portals render the signed-in student's own photo.
 router.get('/photo/:fileId',    getPhoto);
 
 // GET    /api/students/:id              - Single student full profile
-router.get('/:id',              authenticate, getStudentById);
+router.get('/:id',              authenticate, canViewStudents, getStudentById);
 
 // PUT    /api/students/:id              - Update student profile
-router.put('/:id',              authenticate, auditLogger('Student', 'UPDATE'), validate(updateStudentSchema), updateStudent);
+router.put('/:id',              authenticate, staffOnly, auditLogger('Student', 'UPDATE'), validate(updateStudentSchema), updateStudent);
 
 // DELETE /api/students/:id              - Soft delete student
-router.delete('/:id',           authenticate, auditLogger('Student', 'DELETE'), deleteStudent);
+router.delete('/:id',           authenticate, staffOnly, auditLogger('Student', 'DELETE'), deleteStudent);
 
 // POST   /api/students/:id/status       - Update enrollment status
-router.post('/:id/status',      authenticate, auditLogger('Student', 'UPDATE'), validate(updateStatusSchema), updateStudentStatus);
+router.post('/:id/status',      authenticate, staffOnly, auditLogger('Student', 'UPDATE'), validate(updateStatusSchema), updateStudentStatus);
 
 // POST   /api/students/:id/photo        - Upload profile photo
-router.post('/:id/photo',       authenticate, auditLogger('Student', 'UPDATE'), uploadPhotoMiddleware, uploadPhoto);
+router.post('/:id/photo',       authenticate, staffOnly, auditLogger('Student', 'UPDATE'), uploadPhotoMiddleware, uploadPhoto);
 
-// POST   /api/students/:id/promote      - Promote student to a new class
-router.post('/:id/promote',     authenticate, authorize('admin'), promoteStudent);
 
 // POST   /api/students/:id/account      - Provision login account for a student
 router.post('/:id/account',     authenticate, authorize('admin'), createStudentAccount);

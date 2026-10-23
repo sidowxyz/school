@@ -2,8 +2,6 @@ import mongoose from 'mongoose';
 import Teacher from '../models/Teacher.js';
 import TeacherAssignment from '../models/TeacherAssignment.js';
 import TeachingLog from '../models/TeachingLog.js';
-import Student from '../models/Student.js';
-import Mark from '../models/mark.js';
 import Term from '../models/Term.js';
 
 /**
@@ -12,7 +10,7 @@ import Term from '../models/Term.js';
  * These live in services/ rather than in src/ai/ deliberately: they are ordinary
  * school queries that any part of the app could want, not assistant-specific
  * logic. Keeping them here preserves the rule that AI tools only ever call
- * services, and means the marks and teaching-log modules can reuse them.
+ * services, and means the teaching-log module can reuse them.
  */
 
 const startOfDay = (d) => {
@@ -151,93 +149,5 @@ export const getTeacherWorkloadService = async ({ termId } = {}) => {
       ? Math.round((totalPeriods / teachers.length) * 10) / 10
       : 0,
     teachers,
-  };
-};
-
-/**
- * Class/subject combinations where marks are still outstanding for a term.
- *
- * "Expected" comes from TeacherAssignment — the authoritative record of which
- * subject is taught to which class/section — and "entered" from Mark. The
- * difference is what is genuinely missing, rather than a guess.
- */
-export const getPendingMarksService = async ({ termId } = {}) => {
-  let term;
-  if (termId) {
-    if (!mongoose.isValidObjectId(termId)) throw new Error('Invalid termId supplied.');
-    term = await Term.findById(termId);
-  } else {
-    term = await Term.findOne({ status: 'active' }).sort({ createdAt: -1 });
-  }
-
-  if (!term) {
-    return {
-      termId: null,
-      termName: null,
-      message: 'No active term is configured, so mark completion cannot be determined.',
-      totalExpected: 0,
-      totalEntered: 0,
-      pendingCount: 0,
-      pending: [],
-    };
-  }
-
-  const academicYear = term.academicYearId ?? null;
-
-  const assignments = await TeacherAssignment.find({ termId: term._id })
-    .populate('subjectId', 'sub_name')
-    .populate('classId', 'cl_name')
-    .populate('sectionId', 'name');
-
-  const rows = [];
-  let totalExpected = 0;
-  let totalEntered = 0;
-
-  for (const a of assignments) {
-    if (!a.subjectId || !a.classId) continue;
-
-    const studentIds = await Student.find({
-      classId: a.classId._id,
-      sectionId: a.sectionId?._id,
-      isDeleted: false,
-    }).distinct('_id');
-
-    if (studentIds.length === 0) continue;
-
-    const markFilter = {
-      subject: a.subjectId._id,
-      term: term._id,
-      student: { $in: studentIds },
-    };
-    if (academicYear) markFilter.academicYear = academicYear;
-
-    const entered = await Mark.countDocuments(markFilter);
-
-    totalExpected += studentIds.length;
-    totalEntered += entered;
-
-    if (entered < studentIds.length) {
-      rows.push({
-        class: a.classId.cl_name ?? 'Unknown',
-        section: a.sectionId?.name ?? '',
-        subject: a.subjectId.sub_name ?? 'Unknown',
-        expected: studentIds.length,
-        entered,
-        missing: studentIds.length - entered,
-      });
-    }
-  }
-
-  rows.sort((a, b) => b.missing - a.missing);
-
-  return {
-    termId: term._id.toString(),
-    termName: term.name ?? '',
-    totalExpected,
-    totalEntered,
-    completionRate:
-      totalExpected > 0 ? Math.round((totalEntered / totalExpected) * 1000) / 10 : 0,
-    pendingCount: rows.length,
-    pending: rows,
   };
 };

@@ -4,19 +4,10 @@ import type {
   AssignmentReviewResult,
   AssistantResponse,
   ConversationSummary,
-  ExamUploadReviewResult,
   PageContext,
   QuickAction,
   StoredConversation,
 } from '../types/ai.types';
-
-export interface ExamUploadMeta {
-  subjectId?: string;
-  classId?: string;
-  subjectName?: string;
-  className?: string;
-  expectedTotalMarks?: number;
-}
 
 export interface AssignmentUploadMeta {
   studentQuery: string;
@@ -69,7 +60,7 @@ export const aiApi = {
   },
 
   /**
-   * Both uploads post FormData rather than JSON. The shared instance sets a
+   * Uploads post FormData rather than JSON. The shared instance sets a
    * default `Content-Type: application/json`, so it's cleared explicitly here
    * rather than relied on to be auto-stripped — the browser then sets
    * multipart/form-data with the correct boundary itself. A wrong or missing
@@ -77,19 +68,6 @@ export const aiApi = {
    * error, so this is worth being explicit about rather than trusting axios's
    * FormData auto-detection to always kick in.
    */
-  reviewExamUpload: async (file: File, meta: ExamUploadMeta): Promise<ExamUploadReviewResult> => {
-    const form = new FormData();
-    form.append('file', file);
-    for (const [key, value] of Object.entries(meta)) {
-      if (value !== undefined && value !== '') form.append(key, String(value));
-    }
-    return (
-      await api.post('/ai/exams/review-upload', form, {
-        headers: { 'Content-Type': undefined },
-      })
-    ).data.data;
-  },
-
   reviewAssignmentUpload: async (
     file: File,
     meta: AssignmentUploadMeta

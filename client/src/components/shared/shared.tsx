@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { CaretDown, MagnifyingGlass } from '@phosphor-icons/react';
+import { CaretDown, MagnifyingGlass, TrendDown, TrendUp } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 /**
  * Single source of truth for the small "stat card / section card / status badge"
- * primitives used across the Student Portal, Parent Portal, and Library Management
+ * primitives used across the Student Portal and Parent Portal
  * features. Fully unified to official shadcn/ui design tokens.
  */
 
@@ -37,8 +36,8 @@ export function StatCard({
       <CardContent>
         <div className="text-2xl font-bold tracking-tight text-foreground">{value}</div>
         {sub && (
-          <p className={cn('text-xs mt-1 text-muted-foreground', alert && 'text-destructive', positive && 'text-primary font-medium')}>
-            {positive && '▲ '}{sub}
+          <p className={cn('text-xs mt-1 text-muted-foreground', alert && 'text-destructive', positive && 'flex items-center gap-1 text-primary font-medium')}>
+            {positive && <TrendUp size={12} weight="bold" />}{sub}
           </p>
         )}
       </CardContent>
@@ -69,7 +68,7 @@ export function DashboardStatCard({
       <CardContent>
         <div className="text-2xl font-bold tracking-tight text-foreground">{value}</div>
         <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
-          <span className={positive ? 'text-primary font-medium' : 'text-muted-foreground'}>▲ {change}</span>
+          <span className={cn('inline-flex items-center gap-0.5', positive ? 'text-primary font-medium' : 'text-muted-foreground')}>{positive ? <TrendUp size={12} weight="bold" /> : <TrendDown size={12} weight="bold" />}{change}</span>
           <span>from last month</span>
         </div>
       </CardContent>
@@ -100,38 +99,8 @@ export function SectionCard({
   );
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  Active: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200/50',
-  Present: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200/50',
-  Returned: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200/50',
-  Paid: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200/50',
-  Graded: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200/50',
-  Submitted: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200/50',
-  Absent: 'bg-destructive/10 text-destructive border-destructive/20',
-  Overdue: 'bg-destructive/10 text-destructive border-destructive/20',
-  Unpaid: 'bg-destructive/10 text-destructive border-destructive/20',
-  Late: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200/50',
-  Pending: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200/50',
-  Due: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200/50',
-  'Partially Paid': 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200/50',
-  Excused: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200/50',
-  Weekend: 'bg-muted text-muted-foreground border-border',
-  Holiday: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200/50',
-  Promoted: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200/50',
-  Retained: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200/50',
-};
-
-export function StatusBadge({ status }: { status: string }) {
-  const customClass = STATUS_STYLES[status];
-  if (customClass) {
-    return <Badge variant="outline" className={cn('text-xs font-medium', customClass)}>{status}</Badge>;
-  }
-  return <Badge variant="secondary" className="text-xs font-medium">{status}</Badge>;
-}
-
-export function EmptyState({ text }: { text: string }) {
-  return <p className="text-xs text-muted-foreground py-8 text-center">{text}</p>;
-}
+export { StatusBadge } from '@/components/common/StatusBadge';
+export { EmptyState } from '@/components/common/EmptyState';
 
 export function SearchBox({ value, onChange, placeholder = 'Search...' }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
@@ -172,7 +141,7 @@ export function SearchableSelect({
 
   const selected = options.find((o) => o.value === value);
   const q = query.trim().toLowerCase();
-  const filtered = options.Funnel(
+  const filtered = options.filter(
     (o) => !q || o.label.toLowerCase().includes(q) || (o.sub ?? '').toLowerCase().includes(q)
   );
 

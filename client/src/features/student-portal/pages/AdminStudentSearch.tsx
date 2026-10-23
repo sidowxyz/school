@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import PageHeader from '@/components/common/PageHeader';
 
 // A student's classId comes back either populated ({ _id, cl_name, ... }) or as a
-// raw id string — normalise to the id so we can group/Funnel consistently.
+// raw id string — normalise to the id so we can group/filter consistently.
 function refId(ref: string | { _id: string } | null | undefined): string {
   if (!ref) return '';
   return typeof ref === 'string' ? ref : ref._id;
@@ -66,12 +67,12 @@ export default function AdminStudentSearch({ onSelect }: Props) {
     return map;
   }, [allStudents]);
 
-  // Free-text MagnifyingGlass across the whole roster (takes priority over class browsing).
+  // Free-text search across the whole roster (takes priority over class browsing).
   const searchResults = useMemo(() => {
     const q = term.trim().toLowerCase();
     if (!q) return [];
     return allStudents
-      .Funnel((s) => {
+      .filter((s) => {
         const haystack = [
           `${s.firstName} ${s.lastName}`,
           s.admissionNumber,
@@ -88,7 +89,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
   const studentsInActiveClass = useMemo(() => {
     if (!activeClass) return [];
     return allStudents
-      .Funnel((s) => refId(s.classId) === activeClass._id)
+      .filter((s) => refId(s.classId) === activeClass._id)
       .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
   }, [activeClass, allStudents]);
 
@@ -137,14 +138,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
   return (
     <div className="space-y-6 w-full">
       {/* Page Title & Subtitle */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Student Portal
-        </h1>
-        <p className="text-xs text-muted-foreground mt-1">
-          MagnifyingGlass for a student, or browse a class, to view their complete academic and portal profile.
-        </p>
-      </div>
+      <PageHeader title="Student Portal" subtitle="Search for a student, or browse a class, to view their complete academic and portal profile." />
 
       {/* Hairline Divided Summary KPI Strip */}
       <Card className="overflow-hidden border-border bg-border shadow-2xs">
@@ -160,7 +154,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
 
           <div className="bg-card p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Buildings size={14} className="text-sky-600 dark:text-sky-400" />
+              <Buildings size={14} className="text-info" />
               <span className="text-[11px] font-medium uppercase tracking-wider">Total Classes</span>
             </div>
             <div className="text-2xl font-bold text-foreground">{classes.length}</div>
@@ -169,7 +163,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
 
           <div className="bg-card p-4 col-span-2 sm:col-span-1">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Sparkle size={14} className="text-amber-600 dark:text-amber-400" />
+              <Sparkle size={14} className="text-warning" />
               <span className="text-[11px] font-medium uppercase tracking-wider">Direct Access</span>
             </div>
             <div className="text-sm font-semibold text-foreground mt-1">Instant Lookup</div>
@@ -178,7 +172,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
         </div>
       </Card>
 
-      {/* MagnifyingGlass box */}
+      {/* Search box */}
       <div className="relative">
         <MagnifyingGlass size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
@@ -200,7 +194,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
         </div>
       )}
 
-      {/* 1) MagnifyingGlass results take over the view while typing */}
+      {/* 1) search results take over the view while typing */}
       {isSearching ? (
         <div className="space-y-2.5">
           <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
@@ -295,7 +289,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
                   >
                     <CardContent className="p-5 flex flex-col justify-between h-full">
                       <div className="flex items-start justify-between">
-                        <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center transition-transform group-hover:Scales-105">
+                        <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center transition-transform group-hover:scale-105">
                           <GraduationCap size={20} />
                         </div>
                         <ArrowRight

@@ -6,6 +6,7 @@ import ModuleRoute from './ModuleRoute';
 import AppLayout from '../components/layout/AppLayout';
 import AuthLayout from '../components/layout/AuthLayout';
 import ForbiddenPage from '../components/common/ForbiddenPage';
+import NotFoundPage from '../components/common/NotFoundPage';
 
 // Authentication
 import LoginPage from '../features/auth/pages/LoginPage';
@@ -47,19 +48,8 @@ import UserListPage from '../features/users/pages/UserListPage';
 // Timetable
 import TimetablePage from '../features/timetable/pages/TimetablePage';
 
-// Examinations & Results
-import ExaminationsPage from '../features/examinations/pages/ExamManagementPage';
-import MarkEntryPage from '../features/results/pages/MarkEntryPage';
-
 // Finance
 import FeeManagementPage from '../features/finance/pages/FeeManagementPage';
-import AccountingPage from '../features/finance/pages/AccountingPage';
-
-// Library
-import LibraryPage from '../features/library/pages/LibraryPage';
-
-// Communication
-import CommunicationPage from '../features/communication/pages/CommunicationPage';
 
 // Reports
 import ReportsPage from '../features/reports/pages/ReportsPage';
@@ -69,8 +59,6 @@ import SettingsPage from '../features/settings/pages/SettingsPage';
 
 // Audit Logs
 import AuditLogsPage from '../features/audit-logs/pages/AuditLogsPage';
-
-import PromotionPage from '../features/promotion/pages/PromotionPage';
 
 // Parent Portal
 import ParentPortalPage from '../features/parent-portal/pages/ParentPortalPage';
@@ -185,18 +173,11 @@ export const router = createBrowserRouter([
             { path: '/timetable', element: <TimetablePage /> },
           ]),
 
-          moduleGated('examinations', [
-            { path: '/examinations', element: <ExaminationsPage /> },
-          ]),
-
           moduleGated('fees', [
             { path: '/finance', element: <FeeManagementPage /> },
-            { path: '/finance/accounting', element: <AccountingPage /> },
             { path: '/fees', element: <Navigate to="/finance" replace /> },
-          ]),
-
-          moduleGated('communication', [
-            { path: '/communication', element: <CommunicationPage /> },
+            // The advanced accounting page was removed for the MVP.
+            { path: '/finance/accounting', element: <Navigate to="/finance" replace /> },
           ]),
 
           moduleGated('reports', [
@@ -214,25 +195,12 @@ export const router = createBrowserRouter([
             { path: '/audit-logs', element: <AuditLogsPage /> },
           ]),
 
-          moduleGated('marks-results', [
-            { path: '/marks-results', element: <MarkEntryPage /> },
-            { path: '/results', element: <Navigate to="/marks-results" replace /> },
-          ]),
-
-          moduleGated('student-promotion', [
-            { path: '/promotion', element: <PromotionPage /> },
-          ]),
-
           moduleGated('parent-portal', [
             { path: '/parent-portal', element: <ParentPortalPage /> },
           ]),
 
           moduleGated('student-portal', [
             { path: '/student-portal', element: <StudentPortalPage /> },
-          ]),
-
-          moduleGated('library', [
-            { path: '/library', element: <LibraryPage /> },
           ]),
 
           moduleGated('teaching-log', [
@@ -247,6 +215,8 @@ export const router = createBrowserRouter([
             { path: '/dashboard/teaching-log/:id', element: <TeachingLogDetailPage /> },
             { path: '/dashboard/teaching-log/:id/edit', element: <TeachingLogEditPage /> },
           ]),
+
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],

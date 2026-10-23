@@ -12,9 +12,9 @@ const confirmation = (overrides: Partial<Confirmation> = {}): Confirmation => ({
   state: 'awaiting',
   preview: {
     title: 'Publish "Term 2 fee deadline"',
-    summary: 'This will publish announcement NOT-0004 and notify each recipient.',
+    summary: 'This will apply the change and record it in the audit log.',
     impact: 'Notify 412 people',
-    details: { recipients: 412, targetRole: 'all', noticeNo: 'NOT-0004' },
+    details: { records: 412, scope: 'all' },
   },
   ...overrides,
 });

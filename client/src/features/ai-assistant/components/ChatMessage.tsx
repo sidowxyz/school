@@ -2,7 +2,6 @@ import { WarningCircle, FileText, Sparkle } from '@phosphor-icons/react';
 import type { ChatTurn, QuickAction } from '../types/ai.types';
 import ResultRenderer from './ResultRenderer';
 import ConfirmationCard from './ConfirmationCard';
-import ExamUploadReviewCard from './ExamUploadReviewCard';
 import AssignmentReviewCard from './AssignmentReviewCard';
 import { Button } from '@/components/ui/button';
 
@@ -19,7 +18,7 @@ function TypingDots() {
       {[0, 150, 300].map((delay) => (
         <span
           key={delay}
-          className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-300 motion-reduce:animate-none"
+          className="h-1.5 w-1.5 animate-bounce rounded-full bg-border motion-reduce:animate-none"
           style={{ animationDelay: `${delay}ms` }}
         />
       ))}
@@ -42,13 +41,13 @@ function formatSize(bytes: number) {
  */
 function AttachmentChip({ attachment }: { attachment: NonNullable<ChatTurn['attachment']> }) {
   return (
-    <span className="flex items-center gap-2 rounded-lg bg-green-700/40 px-2 py-1.5 text-left">
-      <FileText size={15} className="shrink-0 text-white/90" aria-hidden="true" />
+    <span className="flex items-center gap-2 rounded-lg bg-primary/40 px-2 py-1.5 text-left">
+      <FileText size={15} className="shrink-0 text-primary-foreground/90" aria-hidden="true" />
       <span className="min-w-0">
-        <span className="block break-all text-xs font-medium leading-snug text-white">
+        <span className="block break-all text-xs font-medium leading-snug text-primary-foreground">
           {attachment.name}
         </span>
-        <span className="block text-[11px] text-white/70">
+        <span className="block text-[11px] text-primary-foreground/70">
           {formatSize(attachment.sizeBytes)}
         </span>
       </span>
@@ -60,9 +59,9 @@ export default function ChatMessage({ turn, onSuggestion, onConfirm, onCancel }:
   if (turn.author === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] space-y-1.5 rounded-xl rounded-br-sm bg-green-600 px-3 py-2">
+        <div className="max-w-[85%] space-y-1.5 rounded-xl rounded-br-sm bg-primary px-3 py-2">
           {turn.attachment && <AttachmentChip attachment={turn.attachment} />}
-          {turn.text && <p className="text-sm text-white">{turn.text}</p>}
+          {turn.text && <p className="text-sm text-primary-foreground">{turn.text}</p>}
         </div>
       </div>
     );
@@ -72,7 +71,7 @@ export default function ChatMessage({ turn, onSuggestion, onConfirm, onCancel }:
     <div className="flex gap-2">
       <span
         className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-          turn.error ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'
+          turn.error ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
         }`}
         aria-hidden="true"
       >
@@ -89,7 +88,7 @@ export default function ChatMessage({ turn, onSuggestion, onConfirm, onCancel }:
               // example on its own line instead of running into the question.
               <p
                 className={`whitespace-pre-line text-sm ${
-                  turn.error ? 'text-red-600' : 'text-gray-700'
+                  turn.error ? 'text-destructive' : 'text-foreground/80'
                 }`}
               >
                 {turn.text}
@@ -104,7 +103,6 @@ export default function ChatMessage({ turn, onSuggestion, onConfirm, onCancel }:
               />
             )}
 
-            {turn.upload?.kind === 'exam' && <ExamUploadReviewCard result={turn.upload.data} />}
             {turn.upload?.kind === 'assignment' && (
               <AssignmentReviewCard result={turn.upload.data} />
             )}
@@ -118,7 +116,7 @@ export default function ChatMessage({ turn, onSuggestion, onConfirm, onCancel }:
                     key={s.tool}
                     type="button"
                     onClick={() => onSuggestion(s)}
-                    className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                    className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     {s.label}
                   </Button>

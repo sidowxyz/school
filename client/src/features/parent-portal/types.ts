@@ -1,6 +1,6 @@
-export type TabId = 'dashboard' | 'profile' | 'attendance' | 'results' | 'fees' | 'notices' | 'messages';
+export type TabId = 'dashboard' | 'profile' | 'attendance' | 'fees';
 
-export const TAB_IDS: TabId[] = ['dashboard', 'profile', 'attendance', 'results', 'fees', 'notices', 'messages'];
+export const TAB_IDS: TabId[] = ['dashboard', 'profile', 'attendance', 'fees'];
 
 export interface ParentProfile {
   name: string;
@@ -46,25 +46,4 @@ export interface Payment {
   date: string;
   method: string;
   receiptNo: string;
-}
-
-export interface Notice {
-  id: string;
-  title: string;
-  body: string;
-  date: string;
-  category: 'Academic' | 'Event' | 'Fee' | 'Holiday' | 'General';
-  read: boolean;
-  urgent?: boolean;
-}
-
-export interface Message {
-  id: string;
-  from: string;
-  role: string;
-  avatarInitials: string;
-  lastMessage: string;
-  date: string;
-  unread: number;
-  thread: { id: string; sender: 'me' | 'them'; text: string; time: string }[];
 }

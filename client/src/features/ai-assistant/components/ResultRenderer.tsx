@@ -41,9 +41,9 @@ const formatValue = (v: unknown): string => {
 
 function StatTile({ label, value }: { label: string; value: unknown }) {
   return (
-    <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{label}</p>
-      <p className="mt-0.5 text-base font-semibold tabular-nums text-gray-900">{formatValue(value)}</p>
+    <div className="rounded-lg border border-border bg-muted/50 px-3 py-2">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground">{formatValue(value)}</p>
     </div>
   );
 }
@@ -85,16 +85,16 @@ function RecordTable({ rows, caption }: { rows: Record<string, unknown>[]; capti
 
   return (
     <div>
-      {caption && <p className="mb-1.5 text-xs font-medium text-gray-500">{caption}</p>}
-      <div className="overflow-x-auto rounded-lg border border-gray-100">
+      {caption && <p className="mb-1.5 text-xs font-medium text-muted-foreground">{caption}</p>}
+      <div className="overflow-x-auto rounded-lg border border-border">
         <Table className="w-full text-left text-xs">
           <TableHeader>
-            <TableRow className="bg-gray-50">
+            <TableRow className="bg-muted/50">
               {columns.map((c) => (
                 <TableHead
                   key={c}
                   scope="col"
-                  className="whitespace-nowrap px-2.5 py-2 font-medium uppercase tracking-wide text-gray-400"
+                  className="whitespace-nowrap px-2.5 py-2 font-medium uppercase tracking-wide text-muted-foreground"
                 >
                   {titleCase(c)}
                 </TableHead>
@@ -103,9 +103,9 @@ function RecordTable({ rows, caption }: { rows: Record<string, unknown>[]; capti
           </TableHeader>
           <TableBody>
             {visible.map((row, i) => (
-              <TableRow key={i} className="border-t border-gray-50">
+              <TableRow key={i} className="border-t border-border">
                 {columns.map((c) => (
-                  <TableCell key={c} className="whitespace-nowrap px-2.5 py-2 text-gray-700">
+                  <TableCell key={c} className="whitespace-nowrap px-2.5 py-2 text-foreground/80">
                     {formatValue(row[c])}
                   </TableCell>
                 ))}
@@ -118,7 +118,7 @@ function RecordTable({ rows, caption }: { rows: Record<string, unknown>[]; capti
         <Button variant="plain"
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-1.5 text-xs font-medium text-green-700 hover:text-green-800"
+          className="mt-1.5 text-xs font-medium text-primary hover:text-primary"
         >
           {expanded ? 'Show less' : `Show all ${rows.length}`}
         </Button>
@@ -151,7 +151,7 @@ function TableSections({ data }: { data: Record<string, unknown> }) {
  */
 function EmptyResult() {
   return (
-    <p className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+    <p className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
       Nothing to show — there are no records matching that yet.
     </p>
   );
@@ -165,12 +165,12 @@ export default function ResultRenderer({ data }: { data: unknown }) {
     return isRecord(data[0]) ? (
       <RecordTable rows={data as Record<string, unknown>[]} />
     ) : (
-      <p className="text-sm text-gray-600">{data.map(formatValue).join(', ')}</p>
+      <p className="text-sm text-muted-foreground">{data.map(formatValue).join(', ')}</p>
     );
   }
 
   if (!isRecord(data)) {
-    return <p className="text-sm text-gray-700">{formatValue(data)}</p>;
+    return <p className="text-sm text-foreground/80">{formatValue(data)}</p>;
   }
 
   // Nested summary objects (e.g. { summary: {...}, totals: {...} }) read better

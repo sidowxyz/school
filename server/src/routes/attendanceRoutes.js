@@ -5,7 +5,8 @@ import {
   getMonthlyReport,
   getAttendanceStatuses,
   getPeriods,
-  getEnrolledStudents
+  getEnrolledStudents,
+  getAttendanceSummary
 } from '../controllers/attendanceController.js';
 import { validate } from '../middleware/validate.js';
 import { markAttendanceSchema } from '../validators/attendanceValidator.js';
@@ -29,5 +30,7 @@ router.get('/enrolled-students', authenticate, getEnrolledStudents);
 
 router.get('/', authenticate, getAttendance);
 router.get('/report', authenticate, getMonthlyReport);
+// Overview figures for the attendance page (staff only; teachers see their own classes).
+router.get('/summary', authenticate, authorize('admin', 'principal', 'academic_officer', 'teacher'), getAttendanceSummary);
 
 export default router;

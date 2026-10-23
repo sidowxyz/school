@@ -5,8 +5,7 @@ export type Role =
   | 'teacher'
   | 'accountant'
   | 'student'
-  | 'parent'
-  | 'librarian';
+  | 'parent';
 
 export interface User {
   id: string;

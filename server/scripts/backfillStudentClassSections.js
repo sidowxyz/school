@@ -1,6 +1,6 @@
 /**
  * Backfill the `section` field on StudentClass rows that predate it
- * (added 2026-08-19 alongside promotionService/applyMove writing it).
+ * (added 2026-08-19).
  *
  * For every StudentClass row where section is null / missing, look up the
  * matching Student and copy over `Student.sectionId`. That is the best

@@ -17,10 +17,10 @@ export default function FeesTab() {
   const { data, loading, error } = useChildResource(parentPortalApi.getChildInvoices);
 
   if (loading) {
-    return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-green-600" /></div>;
+    return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-primary" /></div>;
   }
   if (error) {
-    return <div className="text-center py-24 text-red-500 text-sm">{error}</div>;
+    return <div className="text-center py-24 text-destructive text-sm">{error}</div>;
   }
 
   const totals = data?.totals ?? { invoiced: 0, paid: 0, balance: 0 };
@@ -36,9 +36,9 @@ export default function FeesTab() {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <TabStatCard title="Total Invoiced" value={formatUSD(totals.invoiced)} icon={Receipt} iconColor="text-blue-600" iconBg="bg-blue-50" />
-        <TabStatCard title="Total Paid" value={formatUSD(totals.paid)} icon={CheckCircle} iconColor="text-green-600" iconBg="bg-green-50" />
-        <TabStatCard title="Outstanding Balance" value={formatUSD(totals.balance)} icon={WarningCircle} iconColor="text-red-500" iconBg="bg-red-50" />
+        <TabStatCard title="Total Invoiced" value={formatUSD(totals.invoiced)} icon={Receipt} iconColor="text-info" iconBg="bg-info/10" />
+        <TabStatCard title="Total Paid" value={formatUSD(totals.paid)} icon={CheckCircle} iconColor="text-primary" iconBg="bg-primary/10" />
+        <TabStatCard title="Outstanding Balance" value={formatUSD(totals.balance)} icon={WarningCircle} iconColor="text-destructive" iconBg="bg-destructive/10" />
       </div>
 
       {invoices.length === 0 ? (
@@ -72,8 +72,8 @@ export default function FeesTab() {
                   <TableRow key={i._id} className="border-b border-border/40 hover:bg-muted/40 transition-colors">
                     <TableCell className="px-5 py-3 font-mono text-xs font-semibold text-primary">{i.invoice_no}</TableCell>
                     <TableCell className="px-5 py-3 font-mono text-xs text-foreground">{formatUSD(i.invoice_amount)}</TableCell>
-                    <TableCell className="px-5 py-3 font-mono text-xs font-medium text-emerald-600 dark:text-emerald-400">{formatUSD(i.paid_amount)}</TableCell>
-                    <TableCell className={`px-5 py-3 font-mono text-xs font-semibold ${i.balance > 0 ? 'text-destructive' : 'text-emerald-600'}`}>{formatUSD(i.balance)}</TableCell>
+                    <TableCell className="px-5 py-3 font-mono text-xs font-medium text-success">{formatUSD(i.paid_amount)}</TableCell>
+                    <TableCell className={`px-5 py-3 font-mono text-xs font-semibold ${i.balance > 0 ? 'text-destructive' : 'text-success'}`}>{formatUSD(i.balance)}</TableCell>
                     <TableCell className="px-5 py-3"><StatusBadge status={STATUS_LABEL[i.status] ?? i.status} /></TableCell>
                     <TableCell className="px-5 py-3 text-xs text-muted-foreground">{formatDate(i.dueDate)}</TableCell>
                   </TableRow>
