@@ -1,331 +1,87 @@
-import { useEffect, useState } from 'react';
-import { SpinnerGap, User, Globe, Lock, ShieldCheck, Sun, Moon, Laptop } from '@phosphor-icons/react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { useToast } from '../Toast';
-import { usePortal } from '../../context/PortalContext';
-import { fullName, initialsOf } from '../../utils/portalStudent';
-import { useTheme, type Theme } from '../../../../context/ThemeContext';
+import { useState, type FormEvent } from 'react';
+import { Laptop, Lock, Moon, SpinnerGap, Sun, type Icon } from '@phosphor-icons/react';
+import api from '../../../../lib/axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { Panel } from '../../../dashboard/components/DashboardKit';
+import { useToast } from '../Toast';
+import { useTheme, type Theme } from '../../../../context/ThemeContext';
 
-const PHONE_PATTERN = /^[+\d][\d\s-]{6,}$/;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type SubTab = 'profile' | 'appearance' | 'security';
-
-const SUB_TABS: { id: SubTab; label: string; icon: React.ElementType }[] = [
-  { id: 'profile', label: 'Profile', icon: User },
-  { id: 'appearance', label: 'Appearance', icon: Globe },
-  { id: 'security', label: 'Security', icon: Lock },
+const THEMES: { id: Theme; label: string; icon: Icon; fill: string }[] = [
+  { id: 'light', label: 'Light', icon: Sun, fill: 'bg-tile-yellow' },
+  { id: 'dark', label: 'Dark', icon: Moon, fill: 'bg-tile-violet' },
+  { id: 'system', label: 'Same as device', icon: Laptop, fill: 'bg-tile-blue' },
 ];
 
+/** Settings a student can really change themselves: how the portal looks, and their password. */
 export default function SettingsTab() {
-  const [sub, setSub] = useState<SubTab>('profile');
-  const { student } = usePortal();
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
+  const { showToast } = useToast();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const tooShort = next.length > 0 && next.length < 8;
+  const mismatch = confirm.length > 0 && confirm !== next;
+  const canSave = current.length > 0 && next.length >= 8 && confirm === next && !saving;
+
+  const changePassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      await api.post('/auth/change-password', { currentPassword: current, newPassword: next });
+      setCurrent(''); setNext(''); setConfirm('');
+      showToast('Your password has been changed.');
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast(msg || 'Could not change your password.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Hairline Divided Summary KPI Strip */}
-      <Card className="overflow-hidden border-border bg-border shadow-2xs">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-px">
-          <KPICell
-            icon={User}
-            iconClass="text-primary"
-            label="Account"
-            value={student ? fullName(student).split(' ')[0] : 'Student'}
-            sub={student?.admissionNumber || 'Enrolled student'}
-          />
-          <KPICell
-            icon={Globe}
-            iconClass="text-info"
-            label="Theme"
-            value={theme.charAt(0).toUpperCase() + theme.slice(1)}
-            sub="Visual interface"
-          />
-          <KPICell
-            icon={ShieldCheck}
-            iconClass="text-success"
-            label="Security"
-            value="Protected"
-            sub="Standard credential"
-          />
-        </div>
-      </Card>
-
-      {/* Sub Tabs Pill Navigation */}
-      <Card className="border-border/80 shadow-2xs p-1.5">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          {SUB_TABS.map((t) => (
-            <Button variant="plain"
-              type="button"
-              key={t.id}
-              onClick={() => setSub(t.id)}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                sub === t.id
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
-            >
-              <t.icon size={14} /> {t.label}
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Panel title="Appearance" description="How the portal looks on this device">
+        <div className="grid grid-cols-3 gap-3">
+          {THEMES.map(({ id, label, icon: ThemeIcon, fill }) => (
+            <Button key={id} variant="plain" type="button" onClick={() => setTheme(id)} aria-pressed={theme === id}
+              className={cn('flex h-auto flex-col items-center gap-2 rounded-2xl p-4 text-sm font-medium text-tile-foreground transition', fill,
+                theme === id ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : 'opacity-80 hover:opacity-100')}>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 dark:bg-white/10"><ThemeIcon size={18} /></span>
+              {label}
             </Button>
           ))}
         </div>
-      </Card>
+      </Panel>
 
-      {/* Sub Tab Panels */}
-      {sub === 'profile' && <ProfileSettings />}
-      {sub === 'appearance' && <AppearanceSettings />}
-      {sub === 'security' && <SecuritySettings />}
-    </div>
-  );
-}
-
-function ProfileSettings() {
-  const { student } = usePortal();
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
-  const [touched, setTouched] = useState({ phone: false, email: false });
-  const { showToast } = useToast();
-
-  useEffect(() => {
-    if (student) {
-      setPhone(student.phoneNumber ?? '');
-      setEmail(student.email ?? '');
-      setAddress(student.address ?? '');
-    }
-  }, [student]);
-
-  const phoneValid = PHONE_PATTERN.test(phone.trim());
-  const emailValid = EMAIL_PATTERN.test(email.trim());
-  const addressValid = address.trim().length > 0;
-  const formValid = phoneValid && emailValid && addressValid;
-
-  const save = () => {
-    setTouched({ phone: true, email: true });
-    if (!formValid) {
-      showToast('Please fix the highlighted fields before saving.', 'error');
-      return;
-    }
-    showToast('Profile settings saved', 'success');
-  };
-
-  if (!student) {
-    return (
-      <Card className="border-border/80 shadow-2xs">
-        <CardContent className="p-16 flex items-center justify-center text-muted-foreground text-sm">
-          <SpinnerGap size={20} className="animate-spin mr-2 text-primary" /> Loading profile…
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="border-border/80 shadow-2xs">
-      <CardHeader className="border-b border-border/60 pb-4">
-        <CardTitle className="text-base font-semibold text-foreground">Profile Settings</CardTitle>
-        <CardDescription className="text-xs mt-0.5">
-          Update your contact information and display preferences
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-6 space-y-6">
-        <div className="flex items-center gap-4 pb-6 border-b border-border/60">
-          <div className="w-14 h-14 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-base font-bold shrink-0 shadow-xs">
-            {initialsOf(student)}
-          </div>
-          <div>
-            <p className="text-base font-semibold text-foreground">{fullName(student)}</p>
-            <p className="text-xs text-muted-foreground">{student.admissionNumber}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <Panel title="Change password" description="Use at least 8 characters">
+        <form onSubmit={changePassword} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Phone Number
-            </label>
-            <Input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, phone: true }))}
-              className={`w-full ${
-                touched.phone && !phoneValid ? 'border-destructive focus-visible:ring-destructive' : ''
-              }`}
-            />
-            {touched.phone && !phoneValid && <p className="text-xs text-destructive mt-1">Enter a valid phone number.</p>}
+            <Label htmlFor="pw-current" className="text-xs">Current password</Label>
+            <Input id="pw-current" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Email Address
-            </label>
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, email: true }))}
-              className={`w-full ${
-                touched.email && !emailValid ? 'border-destructive focus-visible:ring-destructive' : ''
-              }`}
-            />
-            {touched.email && !emailValid && <p className="text-xs text-destructive mt-1">Enter a valid email address.</p>}
+            <Label htmlFor="pw-new" className="text-xs">New password</Label>
+            <Input id="pw-new" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)}
+              className={cn(tooShort && 'border-destructive')} />
+            {tooShort && <p className="text-xs text-destructive">At least 8 characters.</p>}
           </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">Home Address</label>
-          <Input
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="w-full"
-            placeholder="Residential address"
-          />
-        </div>
-
-        <div className="flex items-center justify-end pt-2">
-          <Button onClick={save} className="px-6 text-xs font-semibold">
-            Save Changes
+          <div className="space-y-1.5">
+            <Label htmlFor="pw-confirm" className="text-xs">Type the new password again</Label>
+            <Input id="pw-confirm" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
+              className={cn(mismatch && 'border-destructive')} />
+            {mismatch && <p className="text-xs text-destructive">The passwords don't match.</p>}
+          </div>
+          <Button type="submit" disabled={!canSave} className="gap-2">
+            {saving ? <SpinnerGap size={15} className="animate-spin" /> : <Lock size={15} />} Change password
           </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function Toggle({ label, sub, defaultOn = true }: { label: string; sub: string; defaultOn?: boolean }) {
-  const [on, setOn] = useState(defaultOn);
-  return (
-    <div className="flex items-center justify-between py-3.5 border-b border-border/40 last:border-0">
-      <div>
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
-      </div>
-      <Button variant="plain"
-        type="button"
-        onClick={() => setOn((v) => !v)}
-        className={`w-11 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer ${
-          on ? 'bg-primary' : 'bg-muted-foreground/20'
-        }`}
-        aria-pressed={on}
-      >
-        <span
-          className={`absolute top-0.5 w-5 h-5 rounded-full bg-card dark:bg-card shadow-xs transition-all ${
-            on ? 'left-[22px]' : 'left-0.5'
-          }`}
-        />
-      </Button>
-    </div>
-  );
-}
-
-const THEME_OPTIONS: { id: Theme; label: string; icon: React.ElementType }[] = [
-  { id: 'light', label: 'Light', icon: Sun },
-  { id: 'dark', label: 'Dark', icon: Moon },
-  { id: 'system', label: 'System', icon: Laptop },
-];
-
-function AppearanceSettings() {
-  const { theme, setTheme } = useTheme();
-
-  return (
-    <Card className="border-border/80 shadow-2xs">
-      <CardHeader className="border-b border-border/60 pb-4">
-        <CardTitle className="text-base font-semibold text-foreground">Appearance & Display</CardTitle>
-        <CardDescription className="text-xs mt-0.5">
-          Customize how the portal interface renders across your devices
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-6 space-y-6">
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            Theme Mode
-          </label>
-          <div className="grid grid-cols-3 gap-3 max-w-md">
-            {THEME_OPTIONS.map((t) => (
-              <Button variant="plain"
-                type="button"
-                key={t.id}
-                onClick={() => setTheme(t.id)}
-                className={`flex items-center justify-center gap-2 text-xs font-semibold rounded-lg py-2.5 px-4 border transition-all cursor-pointer ${
-                  theme === t.id
-                    ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                    : 'border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}
-              >
-                <t.icon size={14} />
-                {t.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <div className="pt-2 border-t border-border/60">
-          <Toggle label="Compact density mode" sub="Reduce spacing to display more records on screen" defaultOn={false} />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SecuritySettings() {
-  return (
-    <Card className="border-border/80 shadow-2xs">
-      <CardHeader className="border-b border-border/60 pb-4">
-        <CardTitle className="text-base font-semibold text-foreground">Account Security</CardTitle>
-        <CardDescription className="text-xs mt-0.5">Manage your portal credentials and access security</CardDescription>
-      </CardHeader>
-      <CardContent className="p-6">
-        <form className="space-y-4 max-w-lg" onSubmit={(e) => e.preventDefault()}>
-          <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Current Password
-            </label>
-            <Input type="password" placeholder="••••••••" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              New Password
-            </label>
-            <Input type="password" placeholder="••••••••" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Confirm New Password
-            </label>
-            <Input type="password" placeholder="••••••••" />
-          </div>
-          <div className="pt-2">
-            <Button type="submit" className="w-full sm:w-auto px-6 text-xs font-semibold">
-              Update Password
-            </Button>
-          </div>
         </form>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ─── KPI Strip Cell ─── */
-function KPICell({
-  icon: Icon,
-  iconClass,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ElementType;
-  iconClass: string;
-  label: string;
-  value: string;
-  sub: string;
-}) {
-  return (
-    <div className="bg-card p-5">
-      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-        <Icon size={15} className={iconClass} />
-        <span className="text-[11px] font-medium uppercase tracking-wider">{label}</span>
-      </div>
-      <div className="text-2xl font-bold text-foreground">{value}</div>
-      <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>
+      </Panel>
     </div>
   );
 }

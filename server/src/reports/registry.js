@@ -44,15 +44,19 @@ const byId = new Map(ALL_REPORTS.map((report) => [report.id, report]));
 
 export const getReport = (id) => byId.get(id) ?? null;
 
-export const canRun = (report, role) => Boolean(report) && report.roles.includes(role);
+// `role` may be one role or a list (a custom role borrows the report access of
+// built-in roles — see reportController's reportRolesFor).
+const anyOf = (allowed, role) => [].concat(role).some((r) => allowed.includes(r));
+
+export const canRun = (report, role) => Boolean(report) && anyOf(report.roles, role);
 
 /**
  * The catalogue this role may actually run, grouped for display. Reports the
  * caller can't run are omitted entirely rather than shown and refused.
  */
 export const getCatalogFor = (role) => {
-  const departments = DEPARTMENTS.filter((d) => d.roles.includes(role)).map((department) => {
-    const reports = ALL_REPORTS.filter((r) => r.department === department.id && r.roles.includes(role));
+  const departments = DEPARTMENTS.filter((d) => anyOf(d.roles, role)).map((department) => {
+    const reports = ALL_REPORTS.filter((r) => r.department === department.id && anyOf(r.roles, role));
 
     // Preserve each group's first-appearance order rather than sorting
     // alphabetically — the groups read as a workflow.

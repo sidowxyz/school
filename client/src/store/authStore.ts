@@ -9,6 +9,7 @@ interface AuthState {
   rememberMe: boolean;
   setAuth: (token: string, user: User, refreshToken: string, rememberMe: boolean) => void;
   clearAuth: () => void;
+  updateUser: (patch: Partial<User>) => void;
 }
 
 // "Remember me" decides *where* the session lives, not just whether it's saved:
@@ -44,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (token, user, refreshToken, rememberMe) =>
         set({ token, user, refreshToken, rememberMe }),
       clearAuth: () => set({ token: null, refreshToken: null, user: null }),
+      updateUser: (patch) => set((state) => (state.user ? { user: { ...state.user, ...patch } } : {})),
     }),
     { name: 'sms-auth', storage: createJSONStorage(() => rememberAwareStorage) }
   )

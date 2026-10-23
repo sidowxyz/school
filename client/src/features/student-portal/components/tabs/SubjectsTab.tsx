@@ -1,112 +1,65 @@
-import { SpinnerGap, BookOpen, UserCircle, Clock } from '@phosphor-icons/react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { BookOpen, ChalkboardTeacher, Clock } from '@phosphor-icons/react';
+import StatStrip from '@/components/shared/StatStrip';
+import { cn } from '@/lib/utils';
+import { DashboardError, DashboardLoading, Panel, PanelEmpty } from '../../../dashboard/components/DashboardKit';
+import { TILE_FILLS } from '../../../dashboard/components/dashboardUtils';
 import { portalApi, type PortalTimetableSlot } from '../../api/portalApi';
 import { usePortalResource } from '../../hooks/usePortalResource';
 
-interface SubjectRow {
-  id: string;
-  name: string;
-  teacher: string;
-  periods: number;
-}
+interface SubjectRow { id: string; name: string; teacher: string; periods: number }
 
 const teacherName = (t: PortalTimetableSlot['teacher']) =>
   t ? `${t.firstName ?? ''} ${t.lastName ?? ''}`.trim() || '—' : '—';
 
-// The student's subjects are derived from their class timetable — one row per
-// distinct subject, with the teacher and how many weekly periods it has.
+// Subjects come from the class timetable: one row per subject, with its
+// teacher and how many lessons a week it has.
 function deriveSubjects(slots: PortalTimetableSlot[]): SubjectRow[] {
   const map = new Map<string, SubjectRow>();
   for (const s of slots) {
     const id = s.subject?._id;
     if (!id) continue;
     const existing = map.get(id);
-    if (existing) {
-      existing.periods += 1;
-    } else {
-      map.set(id, { id, name: s.subject?.sub_name ?? 'Subject', teacher: teacherName(s.teacher), periods: 1 });
-    }
+    if (existing) existing.periods += 1;
+    else map.set(id, { id, name: s.subject?.sub_name ?? 'Subject', teacher: teacherName(s.teacher), periods: 1 });
   }
-  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  return [...map.values()].sort((a, b) => b.periods - a.periods || a.name.localeCompare(b.name));
 }
 
 export default function SubjectsTab() {
   const { data, loading, error } = usePortalResource(portalApi.getTimetable);
 
-  if (loading) {
-    return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-primary" /></div>;
-  }
-  if (error) {
-    return <div className="text-center py-24 text-destructive text-sm">{error}</div>;
-  }
+  if (loading) return <DashboardLoading />;
+  if (error) return <DashboardError message={error} />;
 
   const subjects = deriveSubjects(data ?? []);
+  const teachers = new Set(subjects.map((s) => s.teacher).filter((t) => t !== '—')).size;
 
   return (
     <div className="space-y-6">
-      {/* Hairline Divided Summary KPI Strip */}
-      <Card className="overflow-hidden border-border bg-border shadow-2xs">
-        <div className="grid grid-cols-2 gap-px">
-          <div className="bg-card p-5">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <BookOpen size={15} className="text-primary" />
-              <span className="text-[11px] font-medium uppercase tracking-wider">Enrolled Subjects</span>
-            </div>
-            <div className="text-2xl font-bold text-foreground">{subjects.length}</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Active curriculum courses</p>
-          </div>
+      <StatStrip items={[
+        { label: 'Subjects', value: subjects.length, icon: BookOpen, tone: 'sky', hint: 'This term' },
+        { label: 'Lessons a week', value: (data ?? []).length, icon: Clock, tone: 'amber', hint: 'Across all subjects' },
+        { label: 'Teachers', value: teachers, icon: ChalkboardTeacher, tone: 'violet', hint: 'Who teach your class' },
+      ]} />
 
-          <div className="bg-card p-5">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Clock size={15} className="text-info" />
-              <span className="text-[11px] font-medium uppercase tracking-wider">Weekly Periods</span>
-            </div>
-            <div className="text-2xl font-bold text-foreground">{(data ?? []).length}</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Total scheduled instructional slots</p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Main Subjects Card */}
-      <Card className="border-border/80 shadow-2xs">
-        <CardHeader className="border-b border-border/60 pb-4">
-          <CardTitle className="text-base font-semibold text-foreground">Class Curriculum & Subjects</CardTitle>
-          <CardDescription className="text-xs mt-0.5">
-            Subjects, instructors, and period frequency for your assigned class cohort
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          {subjects.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground space-y-2">
-              <BookOpen size={32} className="mx-auto text-muted-foreground/40" />
-              <p className="text-sm font-medium">No subjects scheduled</p>
-              <p className="text-xs text-muted-foreground/80 max-w-sm mx-auto">
-                No subjects are scheduled for your class yet. Check back once your timetable is published.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {subjects.map((s) => (
-                <div
-                  key={s.id}
-                  className="rounded-xl border border-border/70 bg-card p-5 shadow-2xs hover:border-primary/40 transition-colors"
-                >
-                  <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center">
-                    <BookOpen size={20} />
-                  </div>
-                  <h3 className="mt-3 font-semibold text-base text-foreground">{s.name}</h3>
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <UserCircle size={13} className="text-muted-foreground" /> {s.teacher}
-                  </p>
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Clock size={13} className="text-muted-foreground" /> {s.periods} period{s.periods === 1 ? '' : 's'} / week
-                  </p>
+      <Panel title="My subjects" description="Each subject, its teacher and lessons per week">
+        {subjects.length === 0 ? (
+          <PanelEmpty text="No subjects are scheduled for your class yet." />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {subjects.map((s, i) => (
+              <div key={s.id} className={cn('rounded-2xl p-4 text-tile-foreground', TILE_FILLS[i % TILE_FILLS.length])}>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold">{s.name}</p>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70 dark:bg-white/10"><BookOpen size={15} /></span>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <p className="mt-3 flex items-center gap-1.5 text-sm opacity-80"><ChalkboardTeacher size={14} /> {s.teacher}</p>
+                <p className="mt-1 flex items-center gap-1.5 text-sm opacity-80"><Clock size={14} /> {s.periods} lesson{s.periods === 1 ? '' : 's'} a week</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }

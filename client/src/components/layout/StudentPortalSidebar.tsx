@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, CurrencyDollar, Gear, SidebarSimple } from '@phosphor-icons/react';
+import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, CurrencyDollar, Gear, SidebarSimple, type Icon } from '@phosphor-icons/react';
 import { useSchoolIdentity } from '../../features/settings/hooks/useSchoolIdentity';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-type Item = { id: string; label: string; icon: React.ElementType };
+type Item = { id: string; label: string; icon: Icon };
 
+// Same look as the staff sidebar: one flat list, current page in pastel blue.
 const NAV: Item[] = [
-  { id: 'dashboard',     label: 'Dashboard',     icon: SquaresFour },
-  { id: 'profile',       label: 'My Profile',    icon: User },
-  { id: 'attendance',    label: 'Attendance',    icon: ClipboardText },
-  { id: 'timetable',     label: 'Timetable',     icon: CalendarBlank },
-  { id: 'subjects',      label: 'Subjects',      icon: BookOpen },
-  { id: 'assignments',   label: 'Assignments',   icon: ClipboardText },
-  { id: 'fees',          label: 'Fees & Invoices', icon: CurrencyDollar },
+  { id: 'dashboard', label: 'Dashboard', icon: SquaresFour },
+  { id: 'profile', label: 'My Profile', icon: User },
+  { id: 'attendance', label: 'Attendance', icon: ClipboardText },
+  { id: 'timetable', label: 'Timetable', icon: CalendarBlank },
+  { id: 'subjects', label: 'Subjects', icon: BookOpen },
+  { id: 'fees', label: 'Fees', icon: CurrencyDollar },
 ];
 const SETTINGS: Item = { id: 'settings', label: 'Settings', icon: Gear };
 
@@ -35,81 +36,62 @@ export default function StudentPortalSidebar({ onMobileClose }: Props) {
 
   const NavButton = ({ item }: { item: Item }) => {
     const isActive = active === item.id;
-    const Icon = item.icon;
+    const ItemIcon = item.icon;
     return (
       <Button
-        variant="ghost"
+        variant="plain"
         type="button"
         onClick={() => go(item.id)}
         title={collapsed ? item.label : undefined}
-        className={`w-full group flex items-center gap-3 px-3.5 py-2.5 h-auto rounded-lg text-xs font-medium transition-all mb-1 ${
-          collapsed ? 'justify-center px-2 py-2.5' : ''
-        } ${
-          isActive
-            ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-            : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-        }`}
+        aria-current={isActive ? 'page' : undefined}
+        className={cn(
+          'flex h-10 w-full items-center justify-start gap-3 rounded-xl px-3 text-sm font-medium transition-colors',
+          collapsed && 'justify-center px-0',
+          isActive ? 'bg-tile-blue text-tile-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        )}
       >
-        <Icon size={collapsed ? 18 : 16} className={`shrink-0 transition-colors ${isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'}`} />
+        <ItemIcon size={18} weight={isActive ? 'fill' : 'regular'} className="shrink-0" />
         {!collapsed && <span className="truncate">{item.label}</span>}
       </Button>
     );
   };
 
   return (
-    <aside
-      className={`bg-card text-card-foreground border-r border-border flex flex-col shrink-0 h-screen transition-all duration-300 select-none shadow-xs ${
-        collapsed ? 'w-18' : 'w-64'
-      }`}
-    >
-      {/* Brand Header — exact h-16 matching TopBar bottom border */}
-      <div className="h-16 px-4 border-b border-border flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <img
-            src={logoSrc}
-            alt={schoolName}
-            className={`object-contain rounded-md transition-all ${collapsed ? 'w-8 h-8' : 'w-9 h-9'}`}
-            onLoad={(event) => { event.currentTarget.style.display = 'block'; }}
-            onError={(event) => {
-              if (!event.currentTarget.src.endsWith('/logo.png')) event.currentTarget.src = '/logo.png';
-              else event.currentTarget.style.display = 'none';
-            }}
-          />
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xs font-bold uppercase tracking-tight text-foreground truncate leading-tight">
-                {schoolName}
-              </h2>
-              <p className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
-                Student Portal
-              </p>
+    <aside className={cn('flex h-screen shrink-0 select-none flex-col border-r border-border bg-card transition-all duration-300', collapsed ? 'w-[72px]' : 'w-64')}>
+      <div className={cn('flex h-16 shrink-0 items-center gap-3 px-4', collapsed && 'justify-center px-2')}>
+        {!collapsed && (
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <img
+              src={logoSrc}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-xl object-contain"
+              onError={(event) => {
+                if (!event.currentTarget.src.endsWith('/logo.png')) event.currentTarget.src = '/logo.png';
+                else event.currentTarget.style.display = 'none';
+              }}
+            />
+            <div className="min-w-0">
+              <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-foreground">{schoolName}</p>
+              <p className="truncate text-[11px] text-muted-foreground">Student portal</p>
             </div>
-          )}
-        </div>
-
+          </div>
+        )}
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setCollapsed(c => !c)}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0 rounded-lg hover:bg-muted"
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          onClick={() => setCollapsed((c) => !c)}
+          className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:text-foreground"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {collapsed ? <SidebarSimple size={16} weight="fill" /> : <SidebarSimple size={16} />}
+          <SidebarSimple size={18} />
         </Button>
       </div>
 
-      {/* Nav List */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-0.5 scrollbar-thin">
-        {!collapsed && (
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
-            Portal Navigation
-          </p>
-        )}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-2 scrollbar-thin">
         {NAV.map((item) => <NavButton key={item.id} item={item} />)}
       </nav>
 
-      {/* Settings Pin */}
-      <div className="p-3 border-t border-border">
+      <div className="shrink-0 border-t border-border p-3">
         <NavButton item={SETTINGS} />
       </div>
     </aside>

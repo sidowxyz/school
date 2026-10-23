@@ -2,6 +2,23 @@ import { canRun, getCatalogFor, getReport } from '../reports/registry.js';
 import { buildManagementSummary } from '../reports/managementDashboard.js';
 import { streamExcel, streamPdf } from '../reports/exporters.js';
 import ReportAccessLog from '../models/ReportAccessLog.js';
+import { getCustomPermissions, isSystemRole } from '../services/accessRoleService.js';
+
+// Pages that make a custom role's Reports page show the academic reports.
+const ACADEMIC_PAGES = ['students', 'parents', 'teachers', 'teacher-attendance', 'attendance', 'timetable', 'academic-structure'];
+
+// A custom role with Reports access sees the academic reports when it can open
+// an academic page, and the finance reports when it can open Fees — the same
+// reports the academic officer and accountant see.
+const reportRolesFor = async (role) => {
+  if (isSystemRole(role)) return role;
+  const permissions = (await getCustomPermissions(role))?.permissions ?? {};
+  if (!permissions.reports) return [];
+  const roles = [];
+  if (ACADEMIC_PAGES.some((p) => permissions[p])) roles.push('academic_officer');
+  if (permissions.fees) roles.push('accountant');
+  return roles;
+};
 
 // Roles allowed to see the Management Dashboard summary. Admin and principal
 // only — this rolls up figures across every department, which academic /
@@ -41,7 +58,7 @@ const recordAccess = (entry) => {
  */
 export const getCatalog = async (req, res, next) => {
   try {
-    res.json({ success: true, data: getCatalogFor(req.user.role) });
+    res.json({ success: true, data: getCatalogFor(await reportRolesFor(req.user.role)) });
   } catch (error) {
     next(error);
   }
@@ -60,7 +77,7 @@ export const runReport = async (req, res, next) => {
     if (!definition) {
       return res.status(404).json({ success: false, message: 'Report not found' });
     }
-    if (!canRun(definition, req.user.role)) {
+    if (!canRun(definition, await reportRolesFor(req.user.role))) {
       return res.status(403).json({
         success: false,
         message: 'Your role does not have access to this report'
@@ -118,7 +135,7 @@ export const exportReport = async (req, res, next) => {
     if (!definition) {
       return res.status(404).json({ success: false, message: 'Report not found' });
     }
-    if (!canRun(definition, req.user.role)) {
+    if (!canRun(definition, await reportRolesFor(req.user.role))) {
       return res.status(403).json({
         success: false,
         message: 'Your role does not have access to this report'

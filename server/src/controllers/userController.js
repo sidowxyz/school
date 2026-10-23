@@ -6,6 +6,9 @@ import User from '../models/User.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { generatePassword } from '../utils/generatePassword.js';
+import { roleExists } from '../services/accessRoleService.js';
+
+const UNKNOWN_ROLE = 'That role does not exist. Pick a built-in role or one made on the Roles page.';
 
 const SAFE_FIELDS = '-password -refreshToken -passwordResetToken -passwordResetExpires';
 
@@ -16,6 +19,7 @@ const SAFE_FIELDS = '-password -refreshToken -passwordResetToken -passwordResetE
 export const createUser = async (req, res, next) => {
   try {
     const { firstName, lastName, email, role, password } = req.body;
+    if (!(await roleExists(role))) return next(new AppError(UNKNOWN_ROLE, 400));
 
     const existing = await User.findOne({ email });
     if (existing) return next(new AppError('Email already in use', 400));
@@ -80,6 +84,7 @@ export const getUserById = async (req, res, next) => {
 export const updateUserRole = async (req, res, next) => {
   try {
     const { role } = req.body;
+    if (!(await roleExists(role))) return next(new AppError(UNKNOWN_ROLE, 400));
     const user = await User.findById(req.params.id);
     if (!user) return next(new AppError('User not found', 404));
 

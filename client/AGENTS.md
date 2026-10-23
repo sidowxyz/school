@@ -8,7 +8,7 @@ An earlier version of this file was a block titled "This is NOT the Next.js you
 know", telling agents to read `node_modules/next/dist/docs/` before writing any
 code. That package does not exist here, and the claim caused real damage:
 `eslint.config.mjs` was written to extend `eslint-config-next`, which is not
-installed, so `npm run lint` could not start at all. Do not reintroduce Next.js
+installed, so `pnpm lint` could not start at all. Do not reintroduce Next.js
 assumptions into this project.
 
 ## Layout
@@ -31,17 +31,17 @@ wrote the feature, not a sign the code is unreachable.
 ## Commands
 
 ```bash
-npm run dev          # Vite dev server
-npm run build        # tsc -b && vite build
-npm run lint         # ESLint (flat config in eslint.config.mjs)
-npm test             # Vitest
+pnpm dev          # Vite dev server
+pnpm build        # tsc -b && vite build
+pnpm lint         # ESLint (flat config in eslint.config.mjs)
+pnpm test         # Vitest
 ```
 
 ## State of the gates
 
-- `npm run lint` passes with 0 errors. Remaining warnings are pre-existing
+- `pnpm lint` passes with 0 errors. Remaining warnings are pre-existing
   typing debt (`no-explicit-any`) and fast-refresh hints.
-- `npm run build` has pre-existing type errors in a few older files
+- `pnpm build` has pre-existing type errors in a few older files
   (`features/library` CatalogTab and HistoryTab, `students/StudentProfilePage`),
   so `tsc -b` is not yet a clean gate. Check a failure against that baseline
   before assuming it is yours.

@@ -8,9 +8,9 @@
  *                 supertest. Connects to MONGODB_URI (db swapped to SMS_Test)
  *                 via jest.setup.js.
  *
- * Before this split every suite paid for the Atlas connection, so `npm test`
+ * Before this split every suite paid for the Atlas connection, so `pnpm test`
  * hung for minutes when the cluster was unreachable — even for suites that
- * import nothing but a util. Run `npm run test:unit` to skip the database
+ * import nothing but a util. Run `ppnpm test:unit` to skip the database
  * entirely.
  */
 export default {

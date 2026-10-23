@@ -17,7 +17,6 @@ import Period from '../../src/models/Period.js';
 import Subject from '../../src/models/Subject.js';
 import StudentAttendance from '../../src/models/StudentAttendance.js';
 import StudentInvoice from '../../src/models/StudentInvoice.js';
-import TimetableSlot from '../../src/models/TimetableSlot.js';
 
 // Verifies Task 2 (parent portal + IDOR) and Task 3 (student portal).
 const signToken = (id, role) =>
@@ -172,7 +171,7 @@ describe('Portals', () => {
 
   // These flows were silently broken before Sprint 6: profile populated the wrong
   // fields (class/section vs classId/sectionId), results queried a non-existent
-  // student_id field, and timetable read an undefined student.class. Each test
+  // student_id field. (The timetable has its own test in tests/studentPortal.test.js.) Each test
   // seeds a real linked record and asserts the endpoint returns it correctly.
   describe('Portal main flows — correct linked records', () => {
     let feeStrucId;
@@ -187,7 +186,7 @@ describe('Portals', () => {
         status: 'active', workingDays: ['Monday'],
       });
       const period = await Period.create({ termId: term._id, per_no: 'POR-P', per_name: 'P1', time_in: '08:00', time_out: '09:00' });
-      const subject = await Subject.create({ sub_no: 'POR-SUB', sub_name: 'Mathematics' });
+      await Subject.create({ sub_no: 'POR-SUB', sub_name: 'Mathematics' });
 
       const sc = await StudentClass.create({ sc_no: 'POR-SC', student: studentAId, class: fromClassId, year: yearId });
       await StudentAttendance.create({
@@ -198,10 +197,6 @@ describe('Portals', () => {
         invoice_no: 'POR-INV', student: studentAId, fee_struc_no: feeStrucId,
         invoice_amount: 200, paid_amount: 50, balance: 150
       });
-      await TimetableSlot.create({
-        day: 'Monday', timePeriod: '08:00 - 09:00', teacher: adminUserId,
-        class: fromClassId, subject: subject._id, room: 'R1'
-      });
     }, 30000);
 
     afterAll(async () => {
@@ -210,8 +205,7 @@ describe('Portals', () => {
         Period.deleteMany({ per_no: 'POR-P' }),
         Subject.deleteMany({ sub_no: 'POR-SUB' }),
         StudentAttendance.deleteMany({ studentId: studentAId }),
-        StudentInvoice.deleteMany({ invoice_no: 'POR-INV' }),
-        TimetableSlot.deleteMany({ room: 'R1', class: fromClassId })
+        StudentInvoice.deleteMany({ invoice_no: 'POR-INV' })
       ]);
     }, 30000);
 
@@ -237,13 +231,6 @@ describe('Portals', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.invoices).toHaveLength(1);
       expect(res.body.data.totals).toMatchObject({ invoiced: 200, paid: 50, balance: 150 });
-    });
-
-    it('student /timetable returns the slot with subject populated', async () => {
-      const res = await request(app).get('/api/portal/student/timetable').set('Authorization', studentAuth());
-      expect(res.status).toBe(200);
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0].subject).toMatchObject({ sub_name: 'Mathematics' });
     });
 
     it('parent child /attendance returns the linked child\'s record', async () => {

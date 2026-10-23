@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Calendar, MagnifyingGlass, Check, CaretDown, SignOut, List, User } from '@phosphor-icons/react';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import { roleLabel } from "../../hooks/usePermission";
 import { authApi } from "../../features/auth/api/authApi";
 import { academicApi } from "../../features/academic-structure/api/academicApi";
 import type { Year } from "../../features/academic-structure/types";
@@ -148,7 +149,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
                 {user?.name ?? "Admin User"}
               </p>
               <p className="text-[10px] text-muted-foreground capitalize leading-tight">
-                {user?.role?.replace("_", " ") ?? "Staff"}
+                {roleLabel(user) || "Staff"}
               </p>
             </div>
             <CaretDown size={12} className="text-muted-foreground hidden sm:block shrink-0" />
@@ -158,7 +159,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
             <div className="absolute right-0 top-full mt-2 w-48 bg-popover text-popover-foreground rounded-lg shadow-lg border border-border p-1 z-50 animate-in fade-in-50 zoom-in-95">
               <div className="px-3 py-2 border-b border-border/60 mb-1">
                 <p className="text-xs font-semibold text-foreground truncate">{user?.name ?? "User"}</p>
-                <p className="text-[10px] text-muted-foreground capitalize truncate">{user?.role?.replace('_', ' ') ?? "Portal User"}</p>
+                <p className="text-[10px] text-muted-foreground capitalize truncate">{roleLabel(user) || "Portal User"}</p>
               </div>
               <Button
                 variant="ghost"

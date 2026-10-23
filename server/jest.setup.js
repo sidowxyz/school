@@ -5,7 +5,7 @@ import path from 'path';
 // Force this regardless of what jest.globalSetup.cjs already tried — that runs
 // in a separate process whose process.env mutations don't reliably propagate
 // to the per-test-file context under --experimental-vm-modules, and .env's own
-// NODE_ENV=development (needed for `npm run dev`'s stack-trace behavior) would
+// NODE_ENV=development (needed for `pnpm dev`'s stack-trace behavior) would
 // otherwise win here, making src/server.js's `if (NODE_ENV !== 'test')` guard
 // think it's not a test run and call app.listen() on a port already in use.
 process.env.NODE_ENV = 'test';

@@ -73,22 +73,12 @@ import TeachingLogDetailPage from '../app/dashboard/teaching-log/[id]/page';
 import TeachingLogEditPage from '../app/dashboard/teaching-log/[id]/edit/page';
 
 import { useAuthStore } from '../store/authStore';
+import { homePathFor } from '../hooks/usePermission';
+import RolesPage from '../features/roles/pages/RolesPage';
 
 function HomeRedirect() {
-  const role = useAuthStore((s) => s.user?.role);
-
-  const rolePathMap: Record<string, string> = {
-    admin: '/dashboard/admin',
-    principal: '/dashboard/principal',
-    academic_officer: '/dashboard/academic-officer',
-    teacher: '/dashboard/teacher',
-    accountant: '/dashboard/accountant',
-    student: '/student-portal',
-    parent: '/parent-portal',
-  };
-
-  const targetPath = role ? (rolePathMap[role] ?? '/login') : '/login';
-  return <Navigate to={targetPath} replace />;
+  const user = useAuthStore((s) => s.user);
+  return <Navigate to={homePathFor(user)} replace />;
 }
 
 // Wraps a set of routes in a per-role module permission gate (see usePermission.ts's
@@ -163,6 +153,7 @@ export const router = createBrowserRouter([
 
           moduleGated('users', [
             { path: '/users', element: <UserListPage /> },
+            { path: '/roles', element: <RolesPage /> },
           ]),
 
           moduleGated('teacher-attendance', [

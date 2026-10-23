@@ -1,4 +1,5 @@
-export type UserRole = "admin" | "principal" | "academic_officer" | "teacher" | "accountant" | "student" | "parent";
+// A built-in role key or a custom role made on the Roles page.
+export type UserRole = string;
 
 export interface AppUser {
   _id: string;

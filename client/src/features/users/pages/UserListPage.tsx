@@ -1,15 +1,23 @@
-import { useEffect, useState, useCallback } from "react";
-import { Plus, MagnifyingGlass, ShieldCheck } from '@phosphor-icons/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowsClockwise, CaretLeft, CaretRight, MagnifyingGlass, Plus, ShieldCheck, UserCheck, UserMinus, Users,
+} from '@phosphor-icons/react';
 
 import PageHeader from "../../../components/common/PageHeader";
 import CredentialsReveal from "../../../components/common/CredentialsReveal";
+import StatStrip from "../../../components/shared/StatStrip";
+import { useAuth } from "../../../hooks/useAuth";
 import { usersApi } from "../api/usersApi";
+import { rolesApi, type AppRole } from "../../roles/api/rolesApi";
 import type { AppUser, UserRole } from "../types";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Link } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -19,19 +27,62 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const ROLES: UserRole[] = ["admin", "principal", "academic_officer", "teacher", "accountant", "student", "parent"];
+// Roles come from the Roles page (built-in ones first, then the school's own).
+type RoleOption = Pick<AppRole, "key" | "name" | "color" | "builtIn" | "userCount">;
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  admin: "Admin",
-  principal: "Principal",
-  academic_officer: "Academic Officer",
-  teacher: "Teacher",
-  accountant: "Accountant",
-  student: "Student",
-  parent: "Parent",
+// Pastel avatar fills, by the role's colour, so a role is recognisable at a glance.
+const FILL: Record<AppRole["color"], string> = {
+  pink: "bg-tile-pink", yellow: "bg-tile-yellow", blue: "bg-tile-blue", violet: "bg-tile-violet", green: "bg-tile-green",
 };
 
-function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+// Staff roles that sign in to the main app (not teachers, students or parents).
+const STAFF_ROLES = ["admin", "principal", "academic_officer", "accountant"];
+
+const roleName = (roles: RoleOption[], key: string) => roles.find((r) => r.key === key)?.name ?? key.replace(/_/g, " ");
+
+function RoleOptions({ roles }: { roles: RoleOption[] }) {
+  const custom = roles.filter((r) => !r.builtIn);
+  return (
+    <>
+      <optgroup label="Built-in roles">
+        {roles.filter((r) => r.builtIn).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
+      </optgroup>
+      {custom.length > 0 && (
+        <optgroup label="Custom roles">
+          {custom.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
+        </optgroup>
+      )}
+    </>
+  );
+}
+
+const PAGE_SIZE = 15;
+// Counts and the open page are re-read this often while the tab is visible,
+// and again whenever the window regains focus, so changes made by anyone else
+// show up without a manual refresh.
+const POLL_MS = 30_000;
+
+type StatusFilter = "" | "active" | "inactive";
+type Counts = { total: number; active: number };
+
+const initials = (name: string) => name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?";
+
+function timeAgo(value?: string): string {
+  if (!value) return "Never";
+  const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000);
+  if (Number.isNaN(seconds) || seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(value).toLocaleDateString();
+}
+
+const isRecent = (value?: string) => !!value && Date.now() - new Date(value).getTime() < 15 * 60 * 1000;
+
+function AddUserModal({ roles, onClose, onCreated }: { roles: RoleOption[]; onClose: () => void; onCreated: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
@@ -60,13 +111,13 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{created ? "User Created" : "Add New User"}</DialogTitle>
           <DialogDescription>
             {created
               ? "The account has been created and can log in now."
-              : "For staff roles without their own creation flow (principal, accountant, academic officer, admin)"}
+              : "For staff accounts, including custom roles. Teachers, students and parents get accounts from their own pages."}
           </DialogDescription>
         </DialogHeader>
 
@@ -81,45 +132,46 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="user-first-name" className="text-xs font-medium">First Name *</Label>
-                <Input id="user-first-name" name="firstName" required placeholder="First name" />
+                <Label htmlFor="user-first-name" className="text-xs font-semibold">First Name *</Label>
+                <Input id="user-first-name" name="firstName" required placeholder="First name" className="h-11 rounded-xl bg-muted/40" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="user-last-name" className="text-xs font-medium">Last Name *</Label>
-                <Input id="user-last-name" name="lastName" required placeholder="Last name" />
+                <Label htmlFor="user-last-name" className="text-xs font-semibold">Last Name *</Label>
+                <Input id="user-last-name" name="lastName" required placeholder="Last name" className="h-11 rounded-xl bg-muted/40" />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="user-email" className="text-xs font-medium">Email *</Label>
-              <Input id="user-email" name="email" type="email" required placeholder="user@school.edu" />
+              <Label htmlFor="user-email" className="text-xs font-semibold">Email *</Label>
+              <Input id="user-email" name="email" type="email" required placeholder="user@school.edu" className="h-11 rounded-xl bg-muted/40" />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="user-role" className="text-xs font-medium">System Role *</Label>
-              <NativeSelect id="user-role" name="role" required defaultValue="">
+              <Label htmlFor="user-role" className="text-xs font-semibold">Role *</Label>
+              <NativeSelect id="user-role" name="role" required defaultValue="" className="h-11 rounded-xl bg-muted/40">
                 <option value="" disabled>Select a role</option>
-                {ROLES.map((r) => (
-                  <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                ))}
+                <RoleOptions roles={roles} />
               </NativeSelect>
+              <p className="text-[11px] text-muted-foreground">
+                Need different access? <Link to="/roles" className="font-medium text-primary hover:underline">Create a role</Link> first.
+              </p>
             </div>
 
-            <p className="text-[11px] text-muted-foreground">
-              A temporary login password is generated automatically — you'll see it once, right after saving.
+            <p className="rounded-xl bg-tile-yellow px-3.5 py-2.5 text-xs text-tile-foreground">
+              A temporary login password is generated automatically. You'll see it once, right after saving.
             </p>
 
             {error && (
-              <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+              <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
                 {error}
               </div>
             )}
 
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} className="h-10 rounded-xl">
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="h-10 rounded-xl">
                 {submitting ? "Saving..." : "Create User"}
               </Button>
             </DialogFooter>
@@ -130,131 +182,335 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
   );
 }
 
+/** A small on/off switch for the account status. */
+function StatusSwitch({ on, disabled, onChange, label }: { on: boolean; disabled?: boolean; onChange: () => void; label: string }) {
+  return (
+    <Button
+      variant="plain"
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onChange}
+      className={cn(
+        "relative h-6 w-11 shrink-0 rounded-full p-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+        on ? "bg-success" : "bg-muted-foreground/30",
+      )}
+    >
+      <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all", on ? "left-[22px]" : "left-0.5")} />
+    </Button>
+  );
+}
+
 export default function UserListPage() {
+  const { user: me } = useAuth();
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<Counts | null>(null);
+  const [roles, setRoles] = useState<RoleOption[]>([]);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [roleFilter, setRoleFilter] = useState<UserRole | "">("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [showAdd, setShowAdd] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [, setTick] = useState(0);
+  const requestId = useRef(0);
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { users: list } = await usersApi.getAll({ limit: 200, search: search || undefined, role: roleFilter || undefined });
-      setUsers(list);
-      setError("");
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load users.");
-    } finally {
-      setLoading(false);
-    }
-  }, [search, roleFilter]);
-
+  // Search as you type, but only hit the server once typing pauses.
   useEffect(() => {
-    const timeout = setTimeout(load, 250);
-    return () => clearTimeout(timeout);
+    const t = setTimeout(() => { setDebounced(search.trim()); setPage(1); }, 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const loadCounts = useCallback(async () => {
+    // The Roles API also says how many people have each role.
+    const [all, active, roleList] = await Promise.all([
+      usersApi.getAll({ limit: 1 }),
+      usersApi.getAll({ limit: 1, status: true }),
+      rolesApi.list(),
+    ]);
+    setRoles(roleList.roles);
+    setCounts({ total: all.total, active: active.total });
+  }, []);
+
+  const loadPage = useCallback(async () => {
+    const result = await usersApi.getAll({
+      page,
+      limit: PAGE_SIZE,
+      search: debounced || undefined,
+      role: roleFilter || undefined,
+      status: statusFilter ? statusFilter === "active" : undefined,
+    });
+    setUsers(result.users);
+    setTotal(result.total);
+  }, [page, debounced, roleFilter, statusFilter]);
+
+  // `silent` refreshes keep the current rows on screen (poll / focus / after a change).
+  const load = useCallback(async (silent = false) => {
+    const id = ++requestId.current;
+    if (silent) setRefreshing(true); else setLoading(true);
+    try {
+      await Promise.all([loadPage(), loadCounts()]);
+      if (id !== requestId.current) return;
+      setError("");
+      setUpdatedAt(new Date());
+    } catch (err) {
+      if (id !== requestId.current) return;
+      console.error(err);
+      if (!silent) setError("Failed to load users.");
+    } finally {
+      if (id === requestId.current) { setLoading(false); setRefreshing(false); }
+    }
+  }, [loadPage, loadCounts]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  // Keep the page live: poll while visible, refresh on focus, and re-render the relative times.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible") void load(true); };
+    const poll = setInterval(refresh, POLL_MS);
+    const clock = setInterval(() => setTick((n) => n + 1), 15_000);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(poll); clearInterval(clock);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
   }, [load]);
 
-  async function handleRoleChange(user: AppUser, role: string) {
-    await usersApi.updateRole(user._id, role);
-    load();
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 3500);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  // Changes show instantly; the server answer then confirms them or rolls them back.
+  async function handleRoleChange(user: AppUser, role: UserRole) {
+    const previous = user.role;
+    setUsers((list) => list.map((u) => (u._id === user._id ? { ...u, role } : u)));
+    try {
+      await usersApi.updateRole(user._id, role);
+      setNotice(`${user.name} is now ${roleName(roles, role)}.`);
+      void load(true);
+    } catch (err: any) {
+      setUsers((list) => list.map((u) => (u._id === user._id ? { ...u, role: previous } : u)));
+      setError(err?.response?.data?.message || "Could not change the role.");
+    }
   }
 
   async function handleStatusToggle(user: AppUser) {
-    await usersApi.updateStatus(user._id, !user.status);
-    load();
+    const next = !user.status;
+    setUsers((list) => list.map((u) => (u._id === user._id ? { ...u, status: next } : u)));
+    try {
+      await usersApi.updateStatus(user._id, next);
+      setNotice(`${user.name} ${next ? "activated" : "deactivated"}.`);
+      void load(true);
+    } catch (err: any) {
+      setUsers((list) => list.map((u) => (u._id === user._id ? { ...u, status: !next } : u)));
+      setError(err?.response?.data?.message || "Could not change the status.");
+    }
   }
 
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const staffCount = useMemo(
+    () => roles.filter((r) => STAFF_ROLES.includes(r.key) || !r.builtIn).reduce((n, r) => n + r.userCount, 0),
+    [roles],
+  );
+  const filtered = !!(search || roleFilter || statusFilter);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-8">
       <PageHeader
         title="User Management"
-        subtitle="Manage all system accounts and their roles — teachers, parents, and students already get accounts through their own pages; use this for principal, accountant, academic officer, and admin accounts"
+        subtitle="Manage system accounts and roles. Teachers, parents and students get accounts from their own pages; use this for staff accounts."
         action={
-          <Button onClick={() => setShowAdd(true)} className="gap-2">
-            <Plus size={16} /> Add User
-          </Button>
+          <div className="flex items-center gap-2">
+            <span className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+              <span className={cn("h-2 w-2 rounded-full", refreshing ? "animate-pulse bg-warning" : "bg-success")} />
+              {updatedAt ? `Live · updated ${timeAgo(updatedAt.toISOString())}` : "Connecting…"}
+            </span>
+            <Button variant="outline" size="icon" onClick={() => void load(true)} disabled={refreshing || loading} aria-label="Refresh users" className="h-10 w-10 rounded-xl">
+              <ArrowsClockwise size={16} className={refreshing ? "animate-spin" : ""} />
+            </Button>
+            <Button onClick={() => setShowAdd(true)} className="h-10 gap-2 rounded-xl">
+              <Plus size={16} /> Add User
+            </Button>
+          </div>
         }
       />
 
-      <div className="bg-card rounded-xl border p-4 shadow-sm flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search by name or email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 text-xs"
-          />
+      <StatStrip
+        items={[
+          { label: "Total users", value: counts?.total ?? "—", icon: Users, tone: "sky", hint: "All accounts" },
+          { label: "Active", value: counts?.active ?? "—", icon: UserCheck, tone: "emerald", hint: "Can sign in", onClick: () => { setStatusFilter("active"); setPage(1); }, active: statusFilter === "active" },
+          { label: "Deactivated", value: counts ? counts.total - counts.active : "—", icon: UserMinus, tone: "rose", hint: "Sign-in blocked", onClick: () => { setStatusFilter("inactive"); setPage(1); }, active: statusFilter === "inactive" },
+          { label: "Admin & staff", value: counts ? staffCount : "—", icon: ShieldCheck, tone: "amber", hint: "Admin, office staff and custom roles" },
+        ]}
+      />
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <span>{error}</span>
+          <Button variant="plain" type="button" className="h-auto p-0 text-xs font-semibold underline" onClick={() => setError("")}>Dismiss</Button>
         </div>
-        <NativeSelect
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="h-10 text-xs min-w-[160px]"
-        >
-          <option value="">All Roles</option>
-          {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-        </NativeSelect>
-      </div>
+      )}
+      {notice && <div className="rounded-xl bg-tile-green px-4 py-3 text-sm font-medium text-tile-foreground">{notice}</div>}
 
-      <div className="bg-card rounded-xl border overflow-hidden">
-        <Table className="w-full text-sm min-w-[750px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="px-6 py-3">Name</TableHead>
-              <TableHead className="px-4 py-3">Email</TableHead>
-              <TableHead className="px-4 py-3">Role</TableHead>
-              <TableHead className="px-4 py-3">Status</TableHead>
-              <TableHead className="px-4 py-3">Last Login</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground text-xs">Loading users...</TableCell></TableRow>
-            ) : error ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-12 text-destructive text-xs">{error}</TableCell></TableRow>
-            ) : users.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground text-xs">No users found.</TableCell></TableRow>
-            ) : (
-              users.map((user) => (
-                <TableRow key={user._id}>
-                  <TableCell className="px-6 py-4 font-semibold text-foreground whitespace-nowrap flex items-center gap-2">
-                    <ShieldCheck size={14} className="text-muted-foreground" /> {user.name}
-                  </TableCell>
-                  <TableCell className="px-4 py-4 text-muted-foreground whitespace-nowrap">{user.email}</TableCell>
-                  <TableCell className="px-4 py-4 whitespace-nowrap">
-                    <NativeSelect
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user, e.target.value)}
-                      className="px-2 py-1 text-xs"
-                    >
-                      {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                    </NativeSelect>
-                  </TableCell>
-                  <TableCell className="px-4 py-4 whitespace-nowrap">
-                    <Button
-                      variant={user.status ? "secondary" : "outline"}
-                      size="sm"
-                      onClick={() => handleStatusToggle(user)}
-                      className="text-xs h-7 px-2.5"
-                    >
-                      {user.status ? "Active" : "Deactivated"}
-                    </Button>
-                  </TableCell>
-                  <TableCell className="px-4 py-4 text-muted-foreground text-xs whitespace-nowrap">
-                    {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Never"}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <Card className="rounded-2xl p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by name or email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 rounded-xl bg-muted/40 pl-9"
+            />
+          </div>
+          <NativeSelect
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); setPage(1); }}
+            aria-label="Filter by status"
+            className="h-10 min-w-[150px] rounded-xl bg-muted/40 px-3 text-sm"
+          >
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Deactivated</option>
+          </NativeSelect>
+          {filtered && (
+            <Button variant="ghost" className="h-10 rounded-xl text-muted-foreground" onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); setPage(1); }}>
+              Clear
+            </Button>
+          )}
+        </div>
 
-      {showAdd && <AddUserModal onClose={() => setShowAdd(false)} onCreated={load} />}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[{ id: "", label: "All", count: counts?.total }, ...roles.map((r) => ({ id: r.key, label: r.name, count: r.userCount }))].map((chip) => {
+            const selected = roleFilter === chip.id;
+            return (
+              <Button
+                variant="plain"
+                key={chip.id || "all"}
+                type="button"
+                onClick={() => { setRoleFilter(chip.id); setPage(1); }}
+                className={cn(
+                  "inline-flex h-auto items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                  selected ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                )}
+              >
+                {chip.label}
+                <span className={cn("rounded-full px-1.5 text-[10px] tabular-nums", selected ? "bg-primary/15" : "bg-muted")}>{chip.count ?? "–"}</span>
+              </Button>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card className="overflow-hidden rounded-2xl">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[760px]">
+            <TableHeader>
+              <TableRow className="bg-muted/50 text-[11px] uppercase tracking-wider hover:bg-muted/50">
+                <TableHead className="px-6 font-semibold">User</TableHead>
+                <TableHead className="px-4 font-semibold">Role</TableHead>
+                <TableHead className="px-4 font-semibold">Status</TableHead>
+                <TableHead className="px-4 font-semibold">Last login</TableHead>
+                <TableHead className="px-6 text-right font-semibold">Joined</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={5} className="py-16 text-center text-xs text-muted-foreground">Loading users...</TableCell></TableRow>
+              ) : users.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="py-16 text-center text-sm text-muted-foreground">{filtered ? "No users match your filters." : "No users found."}</TableCell></TableRow>
+              ) : (
+                users.map((user) => {
+                  const isMe = !!me && me.id === user._id;
+                  return (
+                    <TableRow key={user._id} className="hover:bg-muted/40">
+                      <TableCell className="px-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-tile-foreground", FILL[roles.find((r) => r.key === user.role)?.color ?? "blue"])}>
+                            {initials(user.name)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-foreground">
+                              {user.name}
+                              {isMe && <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">You</span>}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3.5">
+                        <NativeSelect
+                          value={user.role}
+                          disabled={isMe}
+                          aria-label={`Role for ${user.name}`}
+                          title={isMe ? "You can't change your own role" : undefined}
+                          onChange={(e) => void handleRoleChange(user, e.target.value as UserRole)}
+                          className="h-9 min-w-[150px] rounded-xl bg-muted/40 px-2.5 text-xs"
+                        >
+                          {!roles.some((r) => r.key === user.role) && <option value={user.role}>{roleName(roles, user.role)}</option>}
+                          <RoleOptions roles={roles} />
+                        </NativeSelect>
+                      </TableCell>
+                      <TableCell className="px-4 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <StatusSwitch
+                            on={user.status}
+                            disabled={isMe}
+                            label={`${user.status ? "Deactivate" : "Activate"} ${user.name}`}
+                            onChange={() => void handleStatusToggle(user)}
+                          />
+                          <span className={cn("text-xs font-medium", user.status ? "text-success" : "text-muted-foreground")}>
+                            {user.status ? "Active" : "Deactivated"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-4 py-3.5 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5" title={user.lastLogin ? new Date(user.lastLogin).toLocaleString() : undefined}>
+                          {isRecent(user.lastLogin) && <span className="h-2 w-2 rounded-full bg-success" />}
+                          {timeAgo(user.lastLogin)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-6 py-3.5 text-right text-xs text-muted-foreground">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-5 py-3 text-xs text-muted-foreground sm:flex-row">
+          <span>
+            {total === 0 ? "0 users" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total}`}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">
+              <CaretLeft size={14} />
+            </Button>
+            <span className="min-w-16 text-center font-medium text-foreground">Page {page} of {pageCount}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)} aria-label="Next page">
+              <CaretRight size={14} />
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {showAdd && <AddUserModal roles={roles} onClose={() => setShowAdd(false)} onCreated={() => void load(true)} />}
     </div>
   );
 }

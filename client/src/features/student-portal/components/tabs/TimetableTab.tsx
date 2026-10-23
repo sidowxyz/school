@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SpinnerGap, CalendarBlank, BookOpen, Clock, MapPin, User } from '@phosphor-icons/react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { BookOpen, CalendarBlank, Clock, MapPin } from '@phosphor-icons/react';
+import StatStrip from '@/components/shared/StatStrip';
+import { cn } from '@/lib/utils';
+import { DashboardError, DashboardLoading, Panel, PanelEmpty } from '../../../dashboard/components/DashboardKit';
 import { portalApi, type PortalTimetableSlot } from '../../api/portalApi';
 import { usePortal } from '../../context/PortalContext';
 
-const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+// Somali school week — Saturday first.
+const DAY_ORDER = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const FILLS = ['bg-tile-blue', 'bg-tile-green', 'bg-tile-yellow', 'bg-tile-pink', 'bg-tile-violet'];
+
+const teacherName = (t: PortalTimetableSlot['teacher']) =>
+  t ? `${t.firstName ?? ''} ${t.lastName ?? ''}`.trim() || '—' : '—';
 
 export default function TimetableTab() {
   const { studentId } = usePortal();
@@ -14,113 +22,69 @@ export default function TimetableTab() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const data = await portalApi.getTimetable(studentId);
-        if (!cancelled) { setSlots(data); setError(''); }
-      } catch (err) {
-        if (!cancelled) { console.error(err); setError('Failed to load timetable.'); }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    setLoading(true);
+    portalApi.getTimetable(studentId)
+      .then((data) => { if (!cancelled) { setSlots(data); setError(''); } })
+      .catch(() => { if (!cancelled) setError('Could not load your timetable.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [studentId]);
 
   const byDay = useMemo(() => {
     const map: Record<string, PortalTimetableSlot[]> = {};
-    for (const s of slots) {
-      (map[s.day] ??= []).push(s);
-    }
-    for (const d of Object.keys(map)) {
-      map[d].sort((a, b) => (a.timePeriod || '').localeCompare(b.timePeriod || ''));
-    }
+    for (const s of slots) (map[s.day] ??= []).push(s);
+    for (const d of Object.keys(map)) map[d].sort((a, b) => (a.timePeriod || '').localeCompare(b.timePeriod || ''));
     return map;
   }, [slots]);
 
-  const teacherName = (t: PortalTimetableSlot['teacher']) =>
-    t ? `${t.firstName ?? ''} ${t.lastName ?? ''}`.trim() || '—' : '—';
+  // Each subject keeps one colour across the whole week.
+  const fillFor = useMemo(() => {
+    const names = [...new Set(slots.map((s) => s.subject?.sub_name ?? ''))].sort();
+    const map = new Map(names.map((n, i) => [n, FILLS[i % FILLS.length]]));
+    return (name?: string) => map.get(name ?? '') ?? FILLS[0];
+  }, [slots]);
 
-  const subjectCount = useMemo(
-    () => new Set(slots.map((s) => s.subject?._id).filter(Boolean)).size,
-    [slots],
-  );
-  const activeDays = DAY_ORDER.filter((d) => byDay[d]?.length);
+  if (loading) return <DashboardLoading />;
+  if (error) return <DashboardError message={error} />;
 
-  if (loading) {
-    return <div className="py-24 flex items-center justify-center"><SpinnerGap size={32} className="animate-spin text-primary" /></div>;
-  }
-  if (error) {
-    return <div className="text-center py-24 text-destructive text-sm">{error}</div>;
-  }
+  const days = DAY_ORDER.filter((d) => byDay[d]?.length);
+  const today = DAY_NAMES[new Date().getDay()];
+  const subjectCount = new Set(slots.map((s) => s.subject?._id).filter(Boolean)).size;
 
   return (
     <div className="space-y-6">
-      {/* Hairline Divided KPI Strip */}
-      <Card className="overflow-hidden border-border bg-border shadow-2xs">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-px">
-          <KPICell icon={CalendarBlank} iconClass="text-success" label="Weekly Classes" value={String(slots.length)} sub="Total scheduled periods" />
-          <KPICell icon={BookOpen} iconClass="text-info" label="Subjects" value={String(subjectCount)} sub="Unique courses" />
-          <KPICell icon={Clock} iconClass="text-warning" label="School Days" value={String(activeDays.length)} sub="Active weekdays" />
-        </div>
-      </Card>
+      <StatStrip items={[
+        { label: 'Lessons a week', value: slots.length, icon: CalendarBlank, tone: 'sky', hint: 'All scheduled lessons' },
+        { label: 'Subjects', value: subjectCount, icon: BookOpen, tone: 'violet', hint: 'Different subjects' },
+        { label: 'Today', value: byDay[today]?.length ?? 0, icon: Clock, tone: 'emerald', hint: byDay[today]?.length ? `Lessons on ${today}` : `No lessons on ${today}` },
+      ]} />
 
-      {/* Timetable by Day */}
       {slots.length === 0 ? (
-        <Card className="border-border/80 shadow-2xs">
-          <CardContent className="p-0">
-            <div className="text-center py-16 text-muted-foreground space-y-2">
-              <CalendarBlank size={32} className="mx-auto text-muted-foreground/40" />
-              <p className="text-sm font-medium">No timetable set</p>
-              <p className="text-xs text-muted-foreground/80 max-w-sm mx-auto">
-                No timetable has been set for this class yet. Check back once your schedule is published.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <Panel title="My week"><PanelEmpty text="Your class timetable hasn't been published yet." /></Panel>
       ) : (
-        <div className="space-y-5">
-          {activeDays.map((day) => (
-            <Card key={day} className="border-border/80 shadow-2xs">
-              <CardHeader className="border-b border-border/60 pb-4">
-                <CardTitle className="text-base font-semibold text-foreground">{day}</CardTitle>
-                <CardDescription className="text-xs mt-0.5">{byDay[day].length} period{byDay[day].length === 1 ? '' : 's'} scheduled</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
-                  {byDay[day].map((s) => (
-                    <div key={s._id} className="rounded-xl border border-border/70 bg-card p-4 hover:border-primary/40 transition-colors">
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-                        <Clock size={13} /> {s.timePeriod || '—'}
-                      </div>
-                      <p className="mt-2 font-semibold text-foreground">{s.subject?.sub_name ?? 'Subject'}</p>
-                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                        <p className="flex items-center gap-1.5"><User size={12} className="text-muted-foreground" /> {teacherName(s.teacher)}</p>
-                        {s.room && <p className="flex items-center gap-1.5"><MapPin size={12} className="text-muted-foreground" /> {s.room}</p>}
-                      </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {days.map((day) => (
+            <Panel key={day} title={day} description={`${byDay[day].length} lesson${byDay[day].length === 1 ? '' : 's'}`}
+              className={cn(day === today && 'ring-2 ring-primary/40')}
+              action={day === today ? <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">Today</span> : undefined}>
+              <div className="space-y-2">
+                {byDay[day].map((s) => (
+                  <div key={s._id} className={cn('rounded-xl px-3.5 py-2.5 text-tile-foreground', fillFor(s.subject?.sub_name))}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-semibold">{s.subject?.sub_name ?? 'Subject'}</p>
+                      <span className="flex shrink-0 items-center gap-1 text-xs opacity-80"><Clock size={12} /> {s.timePeriod || '—'}</span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <p className="mt-0.5 flex items-center gap-2 truncate text-xs opacity-75">
+                      {teacherName(s.teacher)}
+                      {s.room && <span className="flex items-center gap-0.5"><MapPin size={11} /> {s.room}</span>}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Panel>
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ─── KPI Strip Cell ─── */
-function KPICell({ icon: Icon, iconClass, label, value, sub }: { icon: React.ElementType; iconClass: string; label: string; value: string; sub: string }) {
-  return (
-    <div className="bg-card p-5">
-      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-        <Icon size={15} className={iconClass} />
-        <span className="text-[11px] font-medium uppercase tracking-wider">{label}</span>
-      </div>
-      <div className="text-2xl font-bold text-foreground">{value}</div>
-      <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>
     </div>
   );
 }

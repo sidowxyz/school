@@ -9,7 +9,7 @@ import tseslint from 'typescript-eslint';
  *
  * This previously extended `eslint-config-next`, which is not installed and
  * does not apply: there is no Next.js anywhere in this project (see
- * vite.config.ts and package.json). That made `npm run lint` fail to start at
+ * vite.config.ts and package.json). That made `pnpm lint` fail to start at
  * all. Plugins below are registered explicitly rather than through each
  * plugin's own shared config, so the setup doesn't break when a plugin
  * reshuffles its exports between minor versions.

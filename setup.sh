@@ -12,8 +12,13 @@ CLIENT_DIR="client"
 echo "==> Setting up school-management workspace..."
 echo "-- Using Node $(node --version 2>/dev/null || echo 'NOT FOUND') (server repo CI pins 24, client repo CI pins 20 — see README prerequisites)"
 
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "!! pnpm is not installed. Install it with:  npm install -g pnpm@10"
+  exit 1
+fi
+
 echo "==> Installing workspace root dependencies (concurrently)..."
-npm install
+pnpm install
 
 clone_if_needed() {
   local dir="$1"
@@ -30,10 +35,10 @@ clone_if_needed "$SERVER_DIR" "$SERVER_REPO_URL"
 clone_if_needed "$CLIENT_DIR" "$CLIENT_REPO_URL"
 
 echo "==> Installing server dependencies..."
-npm --prefix "$SERVER_DIR" install
+pnpm --dir "$SERVER_DIR" install
 
 echo "==> Installing client dependencies..."
-npm --prefix "$CLIENT_DIR" install
+pnpm --dir "$CLIENT_DIR" install
 
 SERVER_ENV="$SERVER_DIR/.env"
 if [ ! -f "$SERVER_ENV" ]; then
@@ -67,7 +72,7 @@ echo "-- server/ -> $SERVER_REPO_URL"
 echo "-- client/ -> $CLIENT_REPO_URL"
 echo ""
 echo "!! ACTION NEEDED: edit $SERVER_ENV and replace the REPLACE_ME values with real"
-echo "!! secrets before 'npm run dev' will fully work (server will otherwise start but"
+echo "!! secrets before 'pnpm dev' will fully work (server will otherwise start but"
 echo "!! fail to connect to MongoDB)."
 echo ""
-echo "Next: npm run dev   (server on :5000, client on :5173)"
+echo "Next: pnpm dev   (server on :5000, client on :5173)"

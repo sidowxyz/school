@@ -13,13 +13,14 @@ import {
   Coins,
   ChartLineUp,
   ShieldCheck,
+  Key,
   GearSix,
   SidebarSimple,
   type Icon,
 } from '@phosphor-icons/react';
 import { useAuth } from '../../hooks/useAuth';
 import { useSchoolIdentity } from '../../features/settings/hooks/useSchoolIdentity';
-import { roleCanAccess } from '../../hooks/usePermission';
+import { homePathFor, userCanAccess } from '../../hooks/usePermission';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -58,22 +59,10 @@ const navSections: NavSection[] = [
       { label: 'Fees & Payments', path: '/finance', icon: Coins, module: 'fees' },
       { label: 'Reports', path: '/reports', icon: ChartLineUp, module: 'reports' },
       { label: 'User Accounts', path: '/users', icon: ShieldCheck, module: 'users' },
+      { label: 'Roles & Access', path: '/roles', icon: Key, module: 'users' },
     ],
   },
 ];
-
-const getDashboardPath = (role: string | undefined): string => {
-  const map: Record<string, string> = {
-    admin: '/dashboard/admin',
-    principal: '/dashboard/principal',
-    academic_officer: '/dashboard/academic-officer',
-    teacher: '/dashboard/teacher',
-    accountant: '/dashboard/accountant',
-    student: '/dashboard/student',
-    parent: '/parent-portal',
-  };
-  return role ? (map[role] ?? '/login') : '/login';
-};
 
 function NavItemLink({ label, path, icon: ItemIcon, collapsed, onMobileClose }: {
   label: string; path: string; icon: Icon; collapsed: boolean; onMobileClose?: () => void;
@@ -107,15 +96,15 @@ interface SidebarProps {
 
 export default function Sidebar({ onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const { role } = useAuth();
+  const { user } = useAuth();
   const { schoolName, logoSrc } = useSchoolIdentity();
 
   const sections = navSections
     .map((section) => ({
       ...section,
       items: section.items
-        .filter((item) => roleCanAccess(role, item.module))
-        .map((item) => (item.module === 'dashboard' ? { ...item, path: getDashboardPath(role) } : item)),
+        .filter((item) => userCanAccess(user, item.module))
+        .map((item) => (item.module === 'dashboard' ? { ...item, path: homePathFor(user) } : item)),
     }))
     .filter((section) => section.items.length > 0);
 
@@ -164,7 +153,7 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
         ))}
       </nav>
 
-      {roleCanAccess(role, 'settings') && (
+      {userCanAccess(user, 'settings') && (
         <div className="shrink-0 border-t border-border p-3">
           <NavItemLink label="Settings" path="/settings" icon={GearSix} collapsed={collapsed} onMobileClose={onMobileClose} />
         </div>

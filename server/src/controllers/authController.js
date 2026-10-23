@@ -7,6 +7,7 @@ import { generateAccessToken, generateRefreshToken } from '../utils/tokenService
 import jwt from 'jsonwebtoken';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import { accessFor } from '../services/accessRoleService.js';
 import crypto from 'crypto';
 
 const resolveProfile = async (user) => {
@@ -88,7 +89,8 @@ export const login = async (req, res, next) => {
         name: user.name,
         username: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        ...(await accessFor(user.role))
       },
       accessToken,
       token: accessToken,
@@ -217,7 +219,7 @@ export const getCurrentUser = async (req, res, next) => {
     const profile = await resolveProfile(user);
 
     return res.status(200).json(
-      new ApiResponse(200, { user, profile }, 'Current user retrieved successfully')
+      new ApiResponse(200, { user, profile, ...(await accessFor(user.role)) }, 'Current user retrieved successfully')
     );
   } catch (error) {
     next(error);
