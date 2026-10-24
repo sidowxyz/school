@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardText, CurrencyDollar, BookOpen, ArrowRight, Clock } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
-import { DashboardColumns, DashboardError, DashboardLoading, DonutBreakdown, KpiRow, KpiTile, MiniStat, Panel, PanelEmpty, ProgressLine } from '../../../dashboard/components/DashboardKit';
+import { DashboardError, DashboardLoading, DonutBreakdown, KpiRow, KpiTile, MiniStat, Panel, PanelEmpty, ProgressLine } from '../../../dashboard/components/DashboardKit';
 import { TILE_FILLS } from '../../../dashboard/components/dashboardUtils';
 import { usePortal } from '../../context/PortalContext';
 import { studentAttendanceApi, type MyAttendanceResponse } from '../../api/attendanceApi';
@@ -68,7 +68,6 @@ export default function DashboardTab({ onNavigate }: Props) {
   if (loading) return <DashboardLoading />;
   if (error) return <DashboardError message={error} />;
 
-
   const att = attendance?.summary;
   const invoiced = invoices?.totals?.invoiced ?? 0;
   const paid = invoices?.totals?.paid ?? 0;
@@ -77,58 +76,56 @@ export default function DashboardTab({ onNavigate }: Props) {
   const today = DAY_NAMES[new Date().getDay()];
 
   return (
-    <DashboardColumns
-      main={<>
-        <KpiRow>
-          <KpiTile label="Attendance" value={`${attendanceRate}%`} fill="bg-tile-green" icon={ClipboardText}
-            note="Overall rate" onClick={() => onNavigate('attendance')} />
-          <KpiTile label="Subjects" value={subjectCount} fill="bg-tile-blue" icon={BookOpen}
-            note="Enrolled courses" onClick={() => onNavigate('subjects')} />
-          <KpiTile label="Outstanding fees" value={formatUSD(balance)} fill="bg-tile-yellow" icon={CurrencyDollar}
-            note="Balance due" onClick={() => onNavigate('fees')} />
-        </KpiRow>
+    <div className="space-y-6">
+      <KpiRow columns={4}>
+        <KpiTile label="Attendance" value={`${attendanceRate}%`} fill="bg-tile-green" icon={ClipboardText}
+          note="Present or late, all lessons" onClick={() => onNavigate('attendance')} />
+        <KpiTile label="Subjects" value={subjectCount} fill="bg-tile-blue" icon={BookOpen}
+          note="On your timetable" onClick={() => onNavigate('subjects')} />
+        <KpiTile label="Lessons today" value={todaysClasses.length} fill="bg-tile-pink" icon={Clock}
+          note={today} onClick={() => onNavigate('timetable')} />
+        <KpiTile label="Outstanding fees" value={formatUSD(balance)} fill="bg-tile-yellow" icon={CurrencyDollar}
+          note={balance > 0 ? 'Balance due' : 'All paid up'} onClick={() => onNavigate('fees')} />
+      </KpiRow>
 
-        <Panel title="Today's classes" description={new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          action={<Button variant="ghost" size="xs" onClick={() => onNavigate('timetable')}>Timetable <ArrowRight size={13} /></Button>}>
-          {todaysClasses.length === 0 ? (
-            <PanelEmpty text={`No lessons on your timetable for ${today}.`} />
-          ) : (
-            <ol className="relative space-y-3 border-l-2 border-dashed border-border pl-5">
-              {todaysClasses.map((s, i) => (
-                <li key={s._id} className="relative">
-                  <span className={cn('absolute -left-[27px] top-3 h-3 w-3 rounded-full ring-4 ring-card', TILE_FILLS[i % TILE_FILLS.length])} />
-                  <div className={cn('flex flex-wrap items-center justify-between gap-2 rounded-xl p-3.5 text-tile-foreground', TILE_FILLS[i % TILE_FILLS.length])}>
-                    <div>
-                      <p className="font-semibold">{s.subject?.sub_name ?? 'Subject'}</p>
-                      <p className="text-xs opacity-75">
-                        {s.teacher ? `${s.teacher.firstName ?? ''} ${s.teacher.lastName ?? ''}`.trim() : '—'}
-                        {s.room ? ` · ${s.room}` : ''}
-                      </p>
-                    </div>
-                    <span className="flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 text-xs font-medium dark:bg-white/10">
-                      <Clock size={12} /> {s.timePeriod || '—'}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </Panel>
-      </>}
-      side={<>
-        <DonutBreakdown title="Attendance" description="Session-based breakdown"
+      <Panel title="Today's classes" description={new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+        action={<Button variant="ghost" size="xs" onClick={() => onNavigate('timetable')}>Timetable <ArrowRight size={13} /></Button>}>
+        {todaysClasses.length === 0 ? (
+          <PanelEmpty text={`No lessons on your timetable for ${today}.`} />
+        ) : (
+          <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {todaysClasses.map((s, i) => (
+              <li key={s._id} className={cn('flex flex-wrap items-center justify-between gap-2 rounded-xl p-3.5 text-tile-foreground', TILE_FILLS[i % TILE_FILLS.length])}>
+                <div>
+                  <p className="font-semibold">{s.subject?.sub_name ?? 'Subject'}</p>
+                  <p className="text-xs opacity-75">
+                    {s.teacher ? `${s.teacher.firstName ?? ''} ${s.teacher.lastName ?? ''}`.trim() : '—'}
+                    {s.room ? ` · ${s.room}` : ''}
+                  </p>
+                </div>
+                <span className="flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 text-xs font-medium dark:bg-white/10">
+                  <Clock size={12} /> {s.timePeriod || '—'}
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </Panel>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <DonutBreakdown title="Attendance" description="Your lessons by status"
           data={[
             { name: 'Present', value: att?.Present ?? 0, color: 'hsl(var(--tile-green))' },
             { name: 'Late', value: att?.Late ?? 0, color: 'hsl(var(--tile-yellow))' },
             { name: 'Absent', value: att?.Absent ?? 0, color: 'hsl(var(--tile-pink))' },
           ]}
-          centerLabel="Sessions" emptyText="No attendance recorded yet." />
+          centerLabel="Lessons" emptyText="No attendance recorded yet." />
 
-        <Panel title="Fee summary" description="Invoice totals and balance"
+        <Panel title="Fee summary" description="What has been billed and paid"
           action={<Button variant="ghost" size="xs" onClick={() => onNavigate('fees')}>Details <ArrowRight size={13} /></Button>}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <MiniStat label="Invoiced" value={formatUSD(invoiced)} fill="bg-tile-blue" />
+              <MiniStat label="Billed" value={formatUSD(invoiced)} fill="bg-tile-blue" />
               <MiniStat label="Paid" value={formatUSD(paid)} fill="bg-tile-green" />
             </div>
             <ProgressLine label="Paid so far" percent={paidPct} />
@@ -138,7 +135,8 @@ export default function DashboardTab({ onNavigate }: Props) {
             </div>
           </div>
         </Panel>
-      </>}
-    />
+
+      </div>
+    </div>
   );
 }

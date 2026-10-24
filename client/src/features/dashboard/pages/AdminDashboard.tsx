@@ -76,8 +76,6 @@ export default function AdminDashboard() {
         <KpiTile label="Fees collected" value={money(feesCollected)} fill="bg-tile-green" icon={Coins} note={feesTotal > 0 ? `${collectionRate}% collected · ${money(feesOutstanding)} still owed` : 'No fees billed yet'} to="/finance?tab=report" />
       </KpiRow>
 
-      <WeekCalendar items={data?.academicCalendar ?? []} />
-
       <div className="grid gap-6 lg:grid-cols-2">
         <DonutBreakdown title="Student breakdown" description="Active students by class" data={distribution}
           centerLabel="Students" emptyText="No students in classes yet." />
@@ -90,6 +88,8 @@ export default function AdminDashboard() {
           { label: 'Export summary', icon: DownloadSimple, onClick: exportCsv },
         ]} />
       </div>
+
+      <WeekCalendar items={data?.academicCalendar ?? []} />
 
       <AttendancePanel weekly={data?.attendanceOverview?.weeklyData ?? []} rate={data?.attendanceOverview?.attendanceRate} />
 

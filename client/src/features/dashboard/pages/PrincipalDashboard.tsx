@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarBlank, ChalkboardTeacher, ChartBar, ShieldCheck, Student, UsersThree } from '@phosphor-icons/react';
+import { CalendarBlank, CalendarCheck, ChalkboardTeacher, ChartBar, Exam, ShieldCheck, Student, UsersThree } from '@phosphor-icons/react';
+import { cn } from '@/lib/utils';
 import { getDashboardData } from '../../../services/dashboardService';
 import {
-  ActivityFeed, AttendancePanel, ClassSizeBars, DashboardColumns, DashboardError, DashboardHeader, DashboardLoading, DonutBreakdown, KpiRow, KpiTile, MiniStat, Panel, PanelLink, ProgressLine, QuickActions, WeekCalendar,
+  ActivityFeed, AttendancePanel, DashboardError, DashboardLoading, DonutBreakdown, KpiRow, KpiTile, MiniStat, Panel, PanelLink, ProgressLine, QuickActions, WeekCalendar,
 } from '../components/DashboardKit';
 import { money } from '../components/dashboardUtils';
 import type { SchoolKpis } from './AdminDashboard';
@@ -32,61 +33,50 @@ export default function PrincipalDashboard() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader />
       <DashboardError message={error} />
 
-      <DashboardColumns
-        main={<>
-          <KpiRow>
-            <KpiTile label="Total students" value={s.totalStudents.toLocaleString()} fill="bg-tile-pink" icon={Student}
-              note={week?.students ? `+${week.students} new this week` : 'Active students'} to="/students" />
-            <KpiTile label="Teachers" value={s.totalTeachers.toLocaleString()} fill="bg-tile-yellow" icon={ChalkboardTeacher}
-              note="Teaching staff on the roster" to="/teachers" />
-            <KpiTile label="Parents" value={s.totalParents.toLocaleString()} fill="bg-tile-blue" icon={UsersThree}
-              note={`${s.totalClasses} ${s.totalClasses === 1 ? 'class' : 'classes'} running`} to="/parents" />
-          </KpiRow>
+      <KpiRow columns={4}>
+        <KpiTile label="Total students" value={s.totalStudents.toLocaleString()} fill="bg-tile-pink" icon={Student}
+          note={week?.students ? `+${week.students} new this week` : 'Active students'} to="/students" />
+        <KpiTile label="Teachers" value={s.totalTeachers.toLocaleString()} fill="bg-tile-yellow" icon={ChalkboardTeacher}
+          note="Teaching staff on the roster" to="/teachers" />
+        <KpiTile label="Parents" value={s.totalParents.toLocaleString()} fill="bg-tile-blue" icon={UsersThree}
+          note={`${s.totalClasses} ${s.totalClasses === 1 ? 'class' : 'classes'} running`} to="/parents" />
+        <KpiTile label="Attendance" value={attendanceRate ? `${attendanceRate}%` : '—'} fill="bg-tile-green" icon={CalendarCheck}
+          note={attendanceRate ? 'Students present this week' : 'No attendance taken this week'} to="/attendance" />
+      </KpiRow>
 
-          <WeekCalendar items={data?.academicCalendar ?? []} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <DonutBreakdown title="Student breakdown" description="Active students by class" data={distribution}
+          centerLabel="Students" emptyText="No students in classes yet." />
+        <QuickActions title="Quick actions" description="Where you look most, one click away" actions={[
+          { label: 'Students', icon: Student, to: '/students' },
+          { label: 'Reports', icon: ChartBar, to: '/reports' },
+          { label: 'Timetable', icon: CalendarBlank, to: '/timetable' },
+          { label: 'Staff attendance', icon: ShieldCheck, to: '/teacher-attendance' },
+          { label: 'Exams & marks', icon: Exam, to: '/exams' },
+          { label: 'Teachers', icon: ChalkboardTeacher, to: '/teachers' },
+        ]} />
+      </div>
 
-          <Panel title="Students per class" description="Active students in each class" action={<PanelLink to="/students">Students</PanelLink>}>
-            <ClassSizeBars data={distribution} total={s.totalStudents} />
-          </Panel>
+      <WeekCalendar items={data?.academicCalendar ?? []} />
 
-          <AttendancePanel weekly={data?.attendanceOverview?.weeklyData ?? []} rate={attendanceRate} />
-        </>}
-        side={<>
-          <QuickActions actions={[
-            { label: 'Students', icon: Student, to: '/students' },
-            { label: 'Reports', icon: ChartBar, to: '/reports' },
-            { label: 'Timetable', icon: CalendarBlank, to: '/timetable' },
-            { label: 'Staff attendance', icon: ShieldCheck, to: '/teacher-attendance' },
-          ]} />
-
-          <Panel title="School health">
-            <div className="grid grid-cols-2 gap-3">
-              <MiniStat label="Classes" value={String(s.totalClasses)} fill="bg-tile-violet" />
-              <MiniStat label="Attendance" value={attendanceRate ? `${attendanceRate}%` : '—'} fill="bg-tile-green" />
+      <div className={cn('grid gap-6', fees && 'xl:grid-cols-[minmax(0,1fr)_380px]')}>
+        <AttendancePanel weekly={data?.attendanceOverview?.weeklyData ?? []} rate={attendanceRate} />
+        {fees && (
+          <Panel title="Fees" description="Collected against everything billed" action={<PanelLink to="/reports">Reports</PanelLink>}>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <MiniStat label="Collected" value={money(fees.totalCollected ?? 0)} fill="bg-tile-green" />
+                <MiniStat label="Still owed" value={money(fees.totalPending ?? 0)} fill="bg-tile-pink" />
+              </div>
+              <ProgressLine label="Collected so far" percent={feesRate} />
             </div>
           </Panel>
+        )}
+      </div>
 
-          {fees && (
-            <Panel title="Fees" action={<PanelLink to="/reports">Reports</PanelLink>}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <MiniStat label="Collected" value={money(fees.totalCollected ?? 0)} fill="bg-tile-green" />
-                  <MiniStat label="Still owed" value={money(fees.totalPending ?? 0)} fill="bg-tile-pink" />
-                </div>
-                <ProgressLine label="Collected so far" percent={feesRate} />
-              </div>
-            </Panel>
-          )}
-
-          <ActivityFeed items={data?.recentActivity ?? []} />
-
-          <DonutBreakdown title="Student breakdown" description="Active students by class" data={distribution}
-            centerLabel="Students" emptyText="No students in classes yet." />
-        </>}
-      />
+      <ActivityFeed items={data?.recentActivity ?? []} />
     </div>
   );
 }

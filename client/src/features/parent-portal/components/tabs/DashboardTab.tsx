@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SpinnerGap, ClipboardText, CurrencyDollar, ArrowRight, Receipt, CalendarCheck } from '@phosphor-icons/react';
-import { SectionCard, EmptyState } from '../shared';
+import { ClipboardText, CurrencyDollar, ArrowRight, Receipt, CalendarCheck } from '@phosphor-icons/react';
+import { DashboardError, DashboardLoading, DonutBreakdown, KpiRow, KpiTile, MiniStat, Panel, ProgressLine } from '../../../dashboard/components/DashboardKit';
 import { useParentPortal } from '../../context/ParentContext';
 import { parentPortalApi } from '../../api/parentPortalApi';
-import { fullName } from '../../../student-portal/utils/portalStudent';
 import type { PortalInvoicesResponse } from '../../../student-portal/api/portalApi';
 import type { MyAttendanceResponse } from '../../../student-portal/api/attendanceApi';
 import type { TabId } from '../../types';
 import { Button } from '@/components/ui/button';
-import StatStrip from '@/components/shared/StatStrip';
 
 interface Props {
   onNavigate: (tab: TabId) => void;
@@ -17,7 +15,7 @@ interface Props {
 const formatUSD = (n: number) => `$${(n ?? 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 
 export default function DashboardTab({ onNavigate }: Props) {
-  const { child, childId, guardianId } = useParentPortal();
+  const { childId, guardianId } = useParentPortal();
   const [attendance, setAttendance] = useState<MyAttendanceResponse | null>(null);
   const [invoices, setInvoices] = useState<PortalInvoicesResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,154 +59,54 @@ export default function DashboardTab({ onNavigate }: Props) {
     return total > 0 ? Math.round((present / total) * 100) : 0;
   }, [attendance]);
 
-  if (loading) {
-    return (
-      <div className="py-24 flex flex-col items-center justify-center gap-2">
-        <SpinnerGap size={32} className="animate-spin text-primary" />
-        <span className="text-xs text-muted-foreground">Loading student progress...</span>
-      </div>
-    );
-  }
-  if (error) {
-    return <div className="text-center py-24 text-destructive text-sm font-medium">{error}</div>;
-  }
+  if (loading) return <DashboardLoading />;
+  if (error) return <DashboardError message={error} />;
 
-  const balance = invoices?.totals?.balance ?? 0;
+  const att = attendance?.summary;
   const attendanceTotal = attendance?.total ?? 0;
-  const attendanceRows: { label: string; value: number }[] = [
-    { label: 'Present', value: attendance?.summary?.Present ?? 0 },
-    { label: 'Absent', value: attendance?.summary?.Absent ?? 0 },
-    { label: 'Late', value: attendance?.summary?.Late ?? 0 },
-    { label: 'Excused', value: attendance?.summary?.Excused ?? 0 },
-  ];
+  const invoiced = invoices?.totals?.invoiced ?? 0;
+  const paid = invoices?.totals?.paid ?? 0;
+  const balance = invoices?.totals?.balance ?? 0;
+  const paidPct = invoiced > 0 ? Math.round((paid / invoiced) * 100) : 0;
 
   return (
     <div className="space-y-6">
-      {/* Student Overview Header */}
-      {child && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground">
-            Overview for <span className="font-semibold text-foreground">{fullName(child)}</span>
-          </p>
+      <KpiRow columns={4}>
+        <KpiTile label="Attendance" value={`${attendanceRate}%`} fill="bg-tile-green" icon={ClipboardText}
+          note="Present or late, all lessons" onClick={() => onNavigate('attendance')} />
+        <KpiTile label="Lessons recorded" value={attendanceTotal} fill="bg-tile-blue" icon={CalendarCheck}
+          note={`${att?.Absent ?? 0} absent · ${att?.Late ?? 0} late`} onClick={() => onNavigate('attendance')} />
+        <KpiTile label="Fees paid" value={formatUSD(paid)} fill="bg-tile-pink" icon={Receipt}
+          note={`of ${formatUSD(invoiced)} billed`} onClick={() => onNavigate('fees')} />
+        <KpiTile label="Outstanding fees" value={formatUSD(balance)} fill="bg-tile-yellow" icon={CurrencyDollar}
+          note={balance > 0 ? 'Payment due' : 'All paid up'} onClick={() => onNavigate('fees')} />
+      </KpiRow>
 
-        </div>
-      )}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <DonutBreakdown title="Attendance" description="Recorded lessons by status"
+          data={[
+            { name: 'Present', value: att?.Present ?? 0, color: 'hsl(var(--tile-green))' },
+            { name: 'Late', value: att?.Late ?? 0, color: 'hsl(var(--tile-yellow))' },
+            { name: 'Absent', value: att?.Absent ?? 0, color: 'hsl(var(--tile-pink))' },
+            { name: 'Excused', value: att?.Excused ?? 0, color: 'hsl(var(--tile-blue))' },
+          ]}
+          centerLabel="Lessons" emptyText="No attendance has been recorded yet." />
 
-      {/* KPI Stats Strip */}
-      <StatStrip
-        items={[
-          {
-            label: 'Attendance',
-            value: `${attendanceRate}%`,
-            tone: 'emerald',
-            icon: ClipboardText,
-            hint: 'Present or late, all recorded lessons',
-          },
-          {
-            label: 'Outstanding Fees',
-            value: formatUSD(balance),
-            tone: balance > 0 ? 'rose' : 'emerald',
-            icon: CurrencyDollar,
-            hint: balance > 0 ? 'Payment due' : 'All accounts settled',
-          },
-        ]}
-      />
-
-      {/* Two Column Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Attendance Summary */}
-        <div className="lg:col-span-2">
-          <SectionCard
-            title="Attendance Summary"
-            subtitle="Recorded sessions by status"
-            action={
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => onNavigate('attendance')}
-                className="text-primary hover:text-primary px-2"
-              >
-                View all <ArrowRight size={13} />
-              </Button>
-            }
-          >
-            {attendanceTotal === 0 ? (
-              <EmptyState
-                text="No attendance has been recorded for this student yet."
-                icon={CalendarCheck}
-              />
-            ) : (
-              <div className="divide-y divide-border/60">
-                {attendanceRows.map((row) => (
-                  <div
-                    key={row.label}
-                    className="flex items-center justify-between py-3 first:pt-0 last:pb-0 px-1"
-                  >
-                    <span className="text-xs font-semibold text-foreground">{row.label}</span>
-                    <span className="font-mono text-xs font-semibold text-foreground">{row.value}</span>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between py-3 last:pb-0 px-1">
-                  <span className="text-xs text-muted-foreground">Total sessions</span>
-                  <span className="font-mono text-xs font-semibold text-foreground">{attendanceTotal}</span>
-                </div>
-              </div>
-            )}
-          </SectionCard>
-        </div>
-
-        {/* Fee Summary */}
-        <SectionCard
-          title="Fee Summary"
-          subtitle="Account balances and billing status"
-          action={
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => onNavigate('fees')}
-              className="text-primary hover:text-primary px-2"
-            >
-              Details <ArrowRight size={13} />
-            </Button>
-          }
-        >
-          <div className="space-y-3 text-xs">
-            <div className="flex items-center justify-between py-2 border-b border-border/50">
-              <span className="text-muted-foreground">Invoiced</span>
-              <span className="font-mono font-medium text-foreground">
-                {formatUSD(invoices?.totals?.invoiced ?? 0)}
-              </span>
+        <Panel title="Fee summary" description="What has been billed and paid"
+          action={<Button variant="ghost" size="xs" onClick={() => onNavigate('fees')}>Details <ArrowRight size={13} /></Button>}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <MiniStat label="Billed" value={formatUSD(invoiced)} fill="bg-tile-blue" />
+              <MiniStat label="Paid" value={formatUSD(paid)} fill="bg-tile-green" />
             </div>
-
-            <div className="flex items-center justify-between py-2 border-b border-border/50">
-              <span className="text-muted-foreground">Paid</span>
-              <span className="font-mono font-semibold text-success">
-                {formatUSD(invoices?.totals?.paid ?? 0)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between py-2 border-b border-border/50">
-              <span className="text-muted-foreground font-medium">Balance</span>
-              <span
-                className={`font-mono font-bold text-sm ${
-                  balance > 0 ? 'text-destructive' : 'text-success'
-                }`}
-              >
-                {formatUSD(balance)}
-              </span>
+            <ProgressLine label="Paid so far" percent={paidPct} />
+            <div className="flex items-center justify-between rounded-xl bg-tile-yellow px-3.5 py-3 text-tile-foreground">
+              <span className="text-sm font-medium">Balance due</span>
+              <span className="text-lg font-semibold tabular-nums">{formatUSD(balance)}</span>
             </div>
           </div>
+        </Panel>
 
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => onNavigate('fees')}
-            className="w-full mt-4 font-medium"
-          >
-            <Receipt size={13} />
-            View Complete Fee Statement
-          </Button>
-        </SectionCard>
       </div>
     </div>
   );

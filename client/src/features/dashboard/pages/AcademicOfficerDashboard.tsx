@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Buildings, CalendarBlank, ChalkboardTeacher, ChartBar } from '@phosphor-icons/react';
+import { BookOpen, Buildings, CalendarBlank, CalendarCheck, ChalkboardTeacher, ChartBar, Exam } from '@phosphor-icons/react';
 import { getDashboardData } from '../../../services/dashboardService';
 import { academicApi } from '../../academic-structure/api/academicApi';
 import type { Term } from '../../academic-structure/types';
 import {
-  ClassSizeBars, DashboardColumns, DashboardError, DashboardHeader, DashboardLoading, DonutBreakdown, KpiRow, KpiTile, Panel, PanelLink, ProgressLine, QuickActions, WeekCalendar,
+  ClassSizeBars, DashboardError, DashboardLoading, DonutBreakdown, KpiRow, KpiTile, Panel, PanelLink, QuickActions, WeekCalendar,
 } from '../components/DashboardKit';
 import type { SchoolKpis } from './AdminDashboard';
 
@@ -46,54 +46,38 @@ export default function AcademicOfficerDashboard() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader />
       <DashboardError message={error} />
 
-      <DashboardColumns
-        main={<>
-          <KpiRow>
-            <KpiTile label="Classes" value={s.totalClasses} fill="bg-tile-pink" icon={Buildings}
-              note={`${s.totalStudents.toLocaleString()} students in school`} to="/academic-structure" />
-            <KpiTile label="Subjects" value={subjectCount ?? '—'} fill="bg-tile-yellow" icon={BookOpen}
-              note="Taught across the school" to="/academic-structure" />
-            <KpiTile label="Teachers" value={s.totalTeachers} fill="bg-tile-blue" icon={ChalkboardTeacher}
-              note="Teaching staff on the roster" to="/timetable" />
-          </KpiRow>
+      <KpiRow columns={4}>
+        <KpiTile label="Classes" value={s.totalClasses} fill="bg-tile-pink" icon={Buildings}
+          note={`${s.totalStudents.toLocaleString()} students in school`} to="/academic-structure" />
+        <KpiTile label="Subjects" value={subjectCount ?? '—'} fill="bg-tile-yellow" icon={BookOpen}
+          note="Taught across the school" to="/academic-structure?step=Subjects" />
+        <KpiTile label="Teachers" value={s.totalTeachers} fill="bg-tile-blue" icon={ChalkboardTeacher}
+          note="Teaching staff on the roster" to="/timetable" />
+        <KpiTile label="Current term" value={term?.name ?? 'None'} fill="bg-tile-violet" icon={CalendarCheck}
+          note={term ? `${progress !== null ? `${progress}% done · ` : ''}ends ${fmtDate(term.endDate)}` : 'No term is marked active'}
+          to="/academic-structure?step=Terms" />
+      </KpiRow>
 
-          <WeekCalendar items={data?.academicCalendar ?? []} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <DonutBreakdown title="Student breakdown" description="Active students by class" data={distribution}
+          centerLabel="Students" emptyText="No students in classes yet." />
+        <QuickActions title="Quick actions" description="The jobs you do most, one click away" actions={[
+          { label: 'Timetable', icon: CalendarBlank, to: '/timetable' },
+          { label: 'Structure', icon: Buildings, to: '/academic-structure' },
+          { label: 'Subjects', icon: BookOpen, to: '/academic-structure?step=Subjects' },
+          { label: 'Exams & marks', icon: Exam, to: '/exams' },
+          { label: 'Terms', icon: CalendarCheck, to: '/academic-structure?step=Terms' },
+          { label: 'Reports', icon: ChartBar, to: '/reports' },
+        ]} />
+      </div>
 
-          <Panel title="Students per class" description="Active students in each class">
-            <ClassSizeBars data={distribution} total={s.totalStudents} />
-          </Panel>
-        </>}
-        side={<>
-          <QuickActions actions={[
-            { label: 'Timetable', icon: CalendarBlank, to: '/timetable' },
-            { label: 'Structure', icon: Buildings, to: '/academic-structure' },
-            { label: 'Subjects', icon: BookOpen, to: '/academic-structure' },
-            { label: 'Reports', icon: ChartBar, to: '/reports' },
-          ]} />
+      <WeekCalendar items={data?.academicCalendar ?? []} />
 
-          <Panel title="Current term" action={<PanelLink to="/academic-structure">Terms</PanelLink>}>
-            {term ? (
-              <div className="space-y-4">
-                <div className="rounded-xl bg-tile-violet p-4 text-tile-foreground">
-                  <p className="text-lg font-semibold">{term.name}</p>
-                  <p className="mt-0.5 text-xs opacity-75">
-                    {typeof term.academicYearId === 'object' ? `${term.academicYearId.y_name} · ` : ''}{fmtDate(term.startDate)} – {fmtDate(term.endDate)}
-                  </p>
-                </div>
-                {progress !== null && <ProgressLine label="Term completed" percent={progress} />}
-              </div>
-            ) : (
-              <p className="py-4 text-center text-sm text-muted-foreground">No term is marked active.</p>
-            )}
-          </Panel>
-
-          <DonutBreakdown title="Student breakdown" description="Active students by class" data={distribution}
-            centerLabel="Students" emptyText="No students in classes yet." />
-        </>}
-      />
+      <Panel title="Students per class" description="Active students in each class" action={<PanelLink to="/academic-structure">Classes</PanelLink>}>
+        <ClassSizeBars data={distribution} total={s.totalStudents} />
+      </Panel>
     </div>
   );
 }

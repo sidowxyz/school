@@ -12,14 +12,6 @@ import { EmptyState } from '@/components/common/EmptyState';
 // Shared pieces for every role's dashboard: pastel number tiles, white panels,
 // a week calendar, quick actions, an activity feed and a donut breakdown.
 
-/** Optional right-aligned actions above a dashboard; the page opens straight on its tiles. */
-export function DashboardHeader({ actions }: { actions?: ReactNode }) {
-  if (!actions) return null;
-  return (
-    <div className="flex items-center justify-end gap-2">{actions}</div>
-  );
-}
-
 export function DashboardLoading() {
   return <div className="flex items-center justify-center py-24"><SpinnerGap size={32} className="animate-spin text-primary" /></div>;
 }
@@ -29,16 +21,6 @@ export function DashboardError({ message }: { message: string | null }) {
   return (
     <div className="flex items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
       <WarningCircle size={16} /> {message}
-    </div>
-  );
-}
-
-/** Main column and a 340px side column on wide screens. */
-export function DashboardColumns({ main, side }: { main: ReactNode; side: ReactNode }) {
-  return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="min-w-0 space-y-6">{main}</div>
-      <div className="space-y-6">{side}</div>
     </div>
   );
 }
@@ -118,25 +100,25 @@ export function PanelEmpty({ text, action, icon }: { text: string; action?: Reac
 
 export interface QuickAction { label: string; icon: Icon; to?: string; state?: unknown; onClick?: () => void }
 
-/** Two-column action buttons; the first is the pastel "main" action. With a title it sits in a panel. */
-export function QuickActions({ actions, title, description }: { actions: QuickAction[]; title?: string; description?: string }) {
+/** A panel of two-column action buttons that fills its height; the first is the pastel "main" action. */
+export function QuickActions({ actions, title = 'Quick actions', description }: { actions: QuickAction[]; title?: string; description?: string }) {
   const navigate = useNavigate();
-  const grid = (
-    <div className={cn('grid grid-cols-2 gap-3', title && 'h-full auto-rows-fr')}>
-      {actions.map(({ label, icon: ActionIcon, to, state, onClick }, i) => (
-        <Button
-          key={label}
-          variant={i === 0 ? 'default' : 'outline'}
-          onClick={onClick ?? (() => to && navigate(to, { state }))}
-          className={cn('justify-between rounded-xl px-4', title ? 'h-full min-h-12' : 'h-12', i === 0 && 'bg-tile-pink text-tile-foreground shadow-none hover:bg-tile-pink/80')}
-        >
-          <span className="truncate">{label}</span> <ActionIcon size={16} weight="bold" className="shrink-0" />
-        </Button>
-      ))}
-    </div>
+  return (
+    <Panel title={title} description={description} fill>
+      <div className="grid h-full auto-rows-[minmax(3rem,4.5rem)] content-center grid-cols-2 gap-3">
+        {actions.map(({ label, icon: ActionIcon, to, state, onClick }, i) => (
+          <Button
+            key={label}
+            variant={i === 0 ? 'default' : 'outline'}
+            onClick={onClick ?? (() => to && navigate(to, { state }))}
+            className={cn('h-full min-h-12 justify-between rounded-xl px-4', i === 0 && 'bg-tile-pink text-tile-foreground shadow-none hover:bg-tile-pink/80')}
+          >
+            <span className="truncate">{label}</span> <ActionIcon size={16} weight="bold" className="shrink-0" />
+          </Button>
+        ))}
+      </div>
+    </Panel>
   );
-  if (title) return <Panel title={title} description={description} fill>{grid}</Panel>;
-  return <Card className="rounded-2xl border-border/70 shadow-none"><CardContent className="p-4">{grid}</CardContent></Card>;
 }
 
 // ─── Calendar ──────────────────────────────────────────────────────────────────
