@@ -451,11 +451,13 @@ const ALL_WEEKDAYS: Weekday[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "
 const DEFAULT_WORKING_DAYS: Weekday[] = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
 
 function TermFormModal({
-  mode, initial, years, onClose, onSave,
+  mode, initial, years, currentTerm, onClose, onSave,
 }: {
   mode: "add" | "edit";
   initial?: Term;
   years: Year[];
+  /** The term that is current now (if another one), which an active term replaces. */
+  currentTerm?: Term;
   onClose: () => void;
   onSave: (data: { name: string; academicYearId: string; startDate: string; endDate: string; status: "active" | "inactive"; workingDays: Weekday[] }) => Promise<void>;
 }) {
@@ -464,7 +466,7 @@ function TermFormModal({
   const [academicYearId, setAcademicYearId] = useState(initialYearId);
   const [startDate, setStartDate] = useState(initial?.startDate?.slice(0, 10) ?? "");
   const [endDate, setEndDate] = useState(initial?.endDate?.slice(0, 10) ?? "");
-  const [status, setStatus] = useState<"active" | "inactive">(initial?.status ?? "active");
+  const [status, setStatus] = useState<"active" | "inactive">(initial?.status ?? (currentTerm ? "inactive" : "active"));
   const [workingDays, setWorkingDays] = useState<Weekday[]>(initial?.workingDays?.length ? initial.workingDays : DEFAULT_WORKING_DAYS);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -512,9 +514,14 @@ function TermFormModal({
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">Status</label>
           <SelectField value={status} onChange={(v) => setStatus(v as "active" | "inactive")}>
-            <option value="active">Active</option>
+            <option value="active">Active (the current term)</option>
             <option value="inactive">Inactive</option>
           </SelectField>
+          {status === "active" && currentTerm && (
+            <p className="mt-1.5 rounded-lg bg-tile-yellow px-3 py-2 text-xs text-tile-foreground">
+              Only one term is current at a time. Saving this as active ends {currentTerm.name}, and attendance, the timetable and new enrolments move to this term.
+            </p>
+          )}
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">Teaching Days</label>
@@ -573,6 +580,7 @@ function TermsTab() {
         <TermFormModal
           mode="add"
           years={years}
+          currentTerm={terms.find((t) => t.status === "active")}
           onClose={() => setShowAdd(false)}
           onSave={async (data) => { await academicApi.createTerm(data); await reload(); setShowAdd(false); }}
         />
@@ -582,6 +590,7 @@ function TermsTab() {
           mode="edit"
           initial={editTarget}
           years={years}
+          currentTerm={terms.find((t) => t.status === "active" && t._id !== editTarget._id)}
           onClose={() => setEditTarget(null)}
           onSave={async (data) => { await academicApi.updateTerm(editTarget._id, data); await reload(); setEditTarget(null); }}
         />
@@ -752,7 +761,7 @@ function PeriodsTab() {
   const [deleteTarget, setDeleteTarget] = useState<Period | null>(null);
 
   useEffect(() => {
-    if (!termId && terms.length > 0) setTermId(terms[0]._id);
+    if (!termId && terms.length > 0) setTermId((terms.find((t) => t.status === "active") ?? terms[0])._id);
   }, [terms, termId]);
 
   const reload = useCallback(async () => {

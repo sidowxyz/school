@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TableEmptyRow, TableLoadingRows } from "@/components/common/EmptyState";
+import { confirmAction } from '@/components/common/ConfirmDialog';
 
 // Roles come from the Roles page (built-in ones first, then the school's own).
 type RoleOption = Pick<AppRole, "key" | "name" | "color" | "builtIn" | "userCount">;
@@ -316,7 +317,7 @@ export default function UserListPage() {
 
   // There is no email delivery: an admin sets a temporary password and hands it over.
   async function handleResetPassword(user: AppUser) {
-    if (!window.confirm(`Reset the password for ${user.name}? They will be signed out everywhere and get a new temporary password.`)) return;
+    if (!(await confirmAction({ title: `Reset the password for ${user.name}?`, text: "They are signed out everywhere and get a new temporary password to sign in with.", confirmLabel: "Reset password" }))) return;
     setResettingId(user._id);
     try {
       const result = await usersApi.resetPassword(user._id);

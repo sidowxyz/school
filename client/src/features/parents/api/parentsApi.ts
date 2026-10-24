@@ -16,6 +16,7 @@ export const parentsApi = {
   create:  async (data: CreateParentPayload): Promise<CreateParentResult> =>
     (await api.post('/parents', data)).data.data,
   update:  (id: string, data: Partial<CreateParentPayload>) => api.put(`/parents/${id}`, data),
+  remove:  (id: string) => api.delete(`/parents/${id}`),
 
   assignStudent:   (parentId: string, studentId: string) =>
     api.post(`/parents/${parentId}/students/${studentId}`),

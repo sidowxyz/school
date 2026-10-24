@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useCan } from "../../../hooks/usePermission";
 import {
@@ -26,6 +26,8 @@ import { studentsApi } from "../api/studentsApi";
 import type { Student, CreateStudentPayload, RefClass, RefGuardian, RefSection, StudentStatus } from "../types";
 import CredentialsReveal from "../../../components/common/CredentialsReveal";
 import { useAcademicYearStore } from "../../../store/academicYearStore";
+import { academicApi } from "../../academic-structure/api/academicApi";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -78,7 +80,8 @@ function StudentFormModal({
   sections: RefSection[];
   guardians: RefGuardian[];
   onClose: () => void;
-  onSaved: () => void;
+  /** Gets the new student after a registration. */
+  onSaved: (created?: Student) => void;
 }) {
   const initialClassId = initial ? refId(initial.classId) : "";
   const initialSectionId = initial ? refId(initial.sectionId) : "";
@@ -101,10 +104,14 @@ function StudentFormModal({
   const [createParentAccount, setCreateParentAccount] = useState(false);
   const [status, setStatus] = useState<StudentStatus>(initial?.status ?? "Active");
   const [email, setEmail] = useState(initial?.email ?? "");
-  const [createAccount, setCreateAccount] = useState(mode === "add" && !initial?.userId);
+  const { showToast } = useToast();
+  const [createAccount, setCreateAccount] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const errorRef = useRef<HTMLDivElement>(null);
+  // Bring a server error into view: the form is long and the button sits in the sticky footer.
+  useEffect(() => { if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [error]);
   const [credentials, setCredentials] = useState<Array<{ title: string; email: string; password: string }>>([]);
   const [credentialIndex, setCredentialIndex] = useState(0);
 
@@ -146,11 +153,19 @@ function StudentFormModal({
             password: student.parentPortalCredentials.temporaryPassword,
           });
         }
+        let accountProblem = "";
         if (createAccount) {
-          const result = await studentsApi.createAccount(student._id, { email });
-          issuedCredentials.push({ title: "Student portal account created", email: result.account.email, password: result.temporaryPassword });
+          try {
+            const result = await studentsApi.createAccount(student._id, { email });
+            issuedCredentials.push({ title: "Student portal account created", email: result.account.email, password: result.temporaryPassword });
+          } catch (accountErr: any) {
+            accountProblem = accountErr?.response?.data?.message || "The portal login could not be created.";
+          }
         }
-        onSaved();
+        onSaved(mode === "add" ? student : undefined);
+        if (accountProblem) {
+          showToast(`${firstName} was registered, but their portal login wasn't created: ${accountProblem.replace(/\.?$/, ".")} You can add it later from their profile.`, "error");
+        }
         if (issuedCredentials.length) {
           setCredentials(issuedCredentials);
           setCredentialIndex(0);
@@ -371,7 +386,7 @@ function StudentFormModal({
               )}
 
               {error && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex items-center gap-2">
+                <div ref={errorRef} role="alert" className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                   <Warning size={14} />
                   <span>{error}</span>
                 </div>
@@ -439,6 +454,12 @@ export default function StudentListPage() {
   const canDelete = useCan("students", "delete");
   const location = useLocation();
   const selectedYearId = useAcademicYearStore((s) => s.selectedYearId);
+  const setSelectedYearId = useAcademicYearStore((s) => s.setSelectedYearId);
+  const { showToast } = useToast();
+  // The year a new student is enrolled in (the year of the active term).
+  const [currentYear, setCurrentYear] = useState<{ _id: string; y_name: string } | null>(null);
+  useEffect(() => { academicApi.getCurrentYear().then(setCurrentYear).catch(() => setCurrentYear(null)); }, []);
+  const viewingOtherYear = !!currentYear && !!selectedYearId && selectedYearId !== currentYear._id;
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<RefClass[]>([]);
   const [sections, setSections] = useState<RefSection[]>([]);
@@ -472,6 +493,17 @@ export default function StudentListPage() {
   }, [selectedYearId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // A new student is enrolled in the current school year. If another year is
+  // being viewed they would be saved but not listed, so switch to that year.
+  const afterRegister = (created?: Student) => {
+    if (viewingOtherYear && currentYear) {
+      setSelectedYearId(currentYear._id);
+      showToast(`${created?.firstName ?? "The student"} was registered into ${currentYear.y_name}, the current school year, so that year is now showing.`, "info");
+    } else {
+      void load();
+    }
+  };
 
   useEffect(() => {
     if ((location.state as { openCreate?: boolean } | null)?.openCreate) {
@@ -619,6 +651,16 @@ export default function StudentListPage() {
                     action={<Button variant="outline" size="sm" onClick={() => { setSearch(""); setClassFilter(""); }}>Clear filters</Button>}
                   />
                 ) : (
+                  viewingOtherYear ? (
+                    <TableEmptyRow
+                      colSpan={8}
+                      icon={StudentIcon}
+                      tint="yellow"
+                      title="Nobody enrolled in this year"
+                      text={`New students are registered into ${currentYear!.y_name}, the current school year. Students move into other years with Settings › New school year.`}
+                      action={<Button onClick={() => setSelectedYearId(currentYear!._id)}>Show {currentYear!.y_name}</Button>}
+                    />
+                  ) : (
                   <TableEmptyRow
                     colSpan={8}
                     icon={StudentIcon}
@@ -627,6 +669,7 @@ export default function StudentListPage() {
                     text="Register your first student to see them here with their class, guardian and status."
                     action={canCreate && <Button onClick={() => setShowAdd(true)}><Plus size={16} /> Register Student</Button>}
                   />
+                  )
                 )
               ) : (
                 filtered.map((student) => (
@@ -718,7 +761,7 @@ export default function StudentListPage() {
           sections={sections}
           guardians={guardians}
           onClose={() => setShowAdd(false)}
-          onSaved={load}
+          onSaved={afterRegister}
         />
       )}
       {editTarget && (

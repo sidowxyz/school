@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { confirmAction } from '@/components/common/ConfirmDialog';
 
 const DAYS: Weekday[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -178,7 +179,7 @@ export default function AssignmentFormModal({
     if (!initial) return;
     const effectiveTeacherId = teacherId || selectedTeacherId;
     if (!effectiveTeacherId) return;
-    if (!window.confirm("Remove this timetable entry? This cannot be undone.")) return;
+    if (!(await confirmAction({ title: "Remove this class from the teacher?", text: "Its lessons are taken off the timetable.", confirmLabel: "Remove", tone: "danger" }))) return;
     setSubmitting(true);
     setError("");
     try {

@@ -81,8 +81,12 @@ const PickerTrigger = React.forwardRef<HTMLButtonElement, {
 );
 PickerTrigger.displayName = 'PickerTrigger';
 
-/** Keeps native "required" form validation working without a visible input. */
-function RequiredShadow({ value, required }: { value: string; required?: boolean }) {
+/**
+ * Keeps native "required" form validation working without a visible input.
+ * The browser's own popup is easy to miss next to a custom button, so a failed
+ * submit also marks the picker red with a short message (see useMissing).
+ */
+function RequiredShadow({ value, required, onInvalid }: { value: string; required?: boolean; onInvalid?: () => void }) {
   if (!required) return null;
   return (
     <input
@@ -91,10 +95,21 @@ function RequiredShadow({ value, required }: { value: string; required?: boolean
       required
       value={value}
       onChange={() => undefined}
+      onInvalid={onInvalid}
       className="pointer-events-none absolute bottom-0 left-1/2 h-px w-px opacity-0"
     />
   );
 }
+
+/** True after a submit was blocked because this required picker was empty, until it gets a value. */
+function useMissing(value: string) {
+  const [missing, setMissing] = React.useState(false);
+  React.useEffect(() => { if (value) setMissing(false); }, [value]);
+  return [missing && !value, () => setMissing(true)] as const;
+}
+
+const MissingNote = ({ show, text }: { show: boolean; text: string }) =>
+  show ? <p className="mt-1 text-xs text-destructive">{text}</p> : null;
 
 const NavButton = ({ onClick, label, children, disabled }: { onClick: () => void; label: string; children: React.ReactNode; disabled?: boolean }) => (
   <Button type="button" variant="ghost" size="icon" onClick={onClick} disabled={disabled} aria-label={label} className="h-8 w-8 rounded-full">
@@ -126,6 +141,7 @@ export function DatePicker({
   value, onChange, min, max, placeholder = 'Pick a date', disabled, required, clearable, invalid, id, className, ...rest
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
+  const [missing, flagMissing] = useMissing(value);
   const selected = parseIso(value);
   const start = selected ?? parseIso(max && todayIso() > max ? max : min && todayIso() < min ? min : todayIso())!;
   const [view, setView] = React.useState<'days' | 'months' | 'years'>('days');
@@ -193,7 +209,7 @@ export function DatePicker({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <PickerTrigger id={id} icon={CalendarBlank} text={formatDate(value)} placeholder={placeholder} disabled={disabled}
-            invalid={invalid} aria-label={rest['aria-label']} onClear={clearable ? () => onChange('') : undefined} />
+            invalid={invalid || missing} aria-label={rest['aria-label']} onClear={clearable ? () => onChange('') : undefined} />
         </PopoverTrigger>
         <PopoverContent className="w-[296px]">
           <div className="mb-2 flex items-center justify-between">
@@ -288,7 +304,8 @@ export function DatePicker({
           </div>
         </PopoverContent>
       </Popover>
-      <RequiredShadow value={value} required={required} />
+      <RequiredShadow value={value} required={required} onInvalid={flagMissing} />
+      <MissingNote show={missing} text="Pick a date." />
     </div>
   );
 }
@@ -385,6 +402,7 @@ export interface TimePickerProps {
 export function TimePicker({ value, onChange, step = 5, placeholder = 'Pick a time', disabled, required, id, className, ...rest }: TimePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [hh, mm] = /^\d{2}:\d{2}$/.test(value) ? value.split(':') : ['', ''];
+  const [missing, flagMissing] = useMissing(value);
   const hours = Array.from({ length: 24 }, (_, h) => pad(h));
   const stepped = Array.from({ length: Math.ceil(60 / step) }, (_, i) => pad(i * step));
   // An existing time that isn't on the step (e.g. 07:32) still shows as chosen.
@@ -420,7 +438,7 @@ export function TimePicker({ value, onChange, step = 5, placeholder = 'Pick a ti
     <div className={cn('relative', className)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <PickerTrigger id={id} icon={Clock} text={value} placeholder={placeholder} disabled={disabled} aria-label={rest['aria-label']} />
+          <PickerTrigger id={id} icon={Clock} text={value} placeholder={placeholder} disabled={disabled} invalid={missing} aria-label={rest['aria-label']} />
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2">
           <div ref={listRef} className="flex gap-2">
@@ -435,7 +453,8 @@ export function TimePicker({ value, onChange, step = 5, placeholder = 'Pick a ti
           </div>
         </PopoverContent>
       </Popover>
-      <RequiredShadow value={value} required={required} />
+      <RequiredShadow value={value} required={required} onInvalid={flagMissing} />
+      <MissingNote show={missing} text="Pick a time." />
     </div>
   );
 }

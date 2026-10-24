@@ -413,6 +413,29 @@ export const addAssignment = async (req, res, next) => {
     if (!teacher) return next(new AppError('Teacher not found', 404));
 
     await validateSlots(timetableSlots, termId);
+
+    // The teacher already teaches this subject to this class this term (e.g. a
+    // second Maths lesson added from the timetable grid): add the new lessons
+    // to that assignment instead of refusing a "duplicate".
+    const existing = await TeacherAssignment.findOne({ teacherId: teacher._id, subjectId, classId, sectionId, termId });
+    if (existing) {
+      const key = (s) => `${s.day}|${s.periodId}`;
+      const known = new Set(existing.timetableSlots.map(key));
+      const merged = [
+        ...existing.timetableSlots.map((s) => ({ day: s.day, periodId: s.periodId })),
+        ...(timetableSlots ?? []).filter((s) => !known.has(key(s))),
+      ];
+      await assertNoAssignmentConflict(
+        { teacherId: teacher._id, classId, sectionId, subjectId, termId },
+        merged,
+        existing._id
+      );
+      existing.timetableSlots = merged;
+      await existing.save();
+      const populated = await populateAssignment(TeacherAssignment.findById(existing._id));
+      return res.status(200).json(new ApiResponse(200, populated, 'Lessons added to this teacher\'s existing class'));
+    }
+
     await assertNoAssignmentConflict(
       { teacherId: teacher._id, classId, sectionId, subjectId, termId },
       timetableSlots

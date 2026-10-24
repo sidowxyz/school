@@ -30,8 +30,8 @@ describe('StudentProfilePage', () => {
 
     render(<MemoryRouter initialEntries={['/students/student-1']}><Routes><Route path="/students/:id" element={<StudentProfilePage />} /></Routes></MemoryRouter>);
 
-    expect(await screen.findByRole('heading', { name: 'Student Profile' })).toBeInTheDocument();
-    expect(screen.getByText('Ayaan Ali')).toBeInTheDocument();
+    // The page is headed by the student's name.
+    expect(await screen.findByRole('heading', { name: 'Ayaan Ali' })).toBeInTheDocument();
     expect(screen.queryByText('Failed to load student.')).not.toBeInTheDocument();
   });
 });

@@ -80,6 +80,12 @@ const EXPIRY_BUFFER_MS = 5000;
 
 api.interceptors.request.use(async (config) => {
   const url = config.url ?? '';
+  // File uploads: with the instance's JSON Content-Type axios would turn the
+  // FormData into JSON and drop the file. Clearing it lets the browser send
+  // multipart/form-data with the right boundary.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    config.headers.delete('Content-Type');
+  }
   let token = useAuthStore.getState().token;
 
   if (token && !isAuthPath(url)) {

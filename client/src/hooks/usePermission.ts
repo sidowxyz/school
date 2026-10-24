@@ -16,7 +16,7 @@ const rolePermissions: Record<string, string[]> = {
   // Teachers manage their assigned teaching activities only. Timetable access is
   // limited to their own assigned schedule; timetable administration stays with
   // academic officers and admins.
-  teacher:          ['dashboard', 'timetable', 'exams', 'teaching-log', 'attendance', 'reports', 'ai-assistant'],
+  teacher:          ['dashboard', 'timetable', 'exams', 'teaching-log', 'teacher-portal', 'attendance', 'reports', 'ai-assistant'],
   accountant:       ['dashboard', 'fees', 'discounts', 'reports', 'ai-assistant'],
   // 'attendance' (the taking/marking interface) is teacher/principal/admin-only —
   // students and parents see their own records inside their portal instead.
@@ -30,6 +30,7 @@ export const isBuiltInRole = (role?: string) => !!role && role in rolePermission
 export type Action = 'view' | 'create' | 'edit' | 'delete';
 
 // Modules that exist only for a specific role and are hidden even from '*' roles.
+// (Admins read teachers' logs through 'teacher-portal' instead.)
 const teacherOnlyModules = ['teaching-log'];
 
 // What each built-in role may change (beyond viewing) on the pages it can open.

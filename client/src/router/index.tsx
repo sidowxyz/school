@@ -212,11 +212,15 @@ export const router = createBrowserRouter([
             { path: '/student-portal', element: <StudentPortalPage /> },
           ]),
 
-          moduleGated('teaching-log', [
+          // Teachers see their own logs; admins open any teacher's, read-only.
+          moduleGated('teacher-portal', [
             { path: '/teacher-portal', element: <TeacherPortalPage /> },
+            { path: '/teaching-log/:id', element: <TeachingLogDetailPage /> },
+          ]),
+
+          moduleGated('teaching-log', [
             { path: '/teaching-log', element: <TeachingLogPage /> },
             { path: '/teaching-log/create', element: <TeachingLogCreatePage /> },
-            { path: '/teaching-log/:id', element: <TeachingLogDetailPage /> },
             { path: '/teaching-log/:id/edit', element: <TeachingLogEditPage /> },
             // Backward-compatible aliases
             { path: '/dashboard/teaching-log', element: <TeachingLogPage /> },

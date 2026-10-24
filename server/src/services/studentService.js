@@ -18,7 +18,7 @@ import AppError from '../utils/AppError.js';
 import { sectionHeadcount } from '../utils/classCounts.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { recomputeFamilyDiscount } from './familyService.js';
-import { abortTransaction, commitTransaction, startTransaction, withTransaction } from '../utils/transaction.js';
+import { abortTransaction, commitTransaction, startTransaction, transactionsSupported, withTransaction } from '../utils/transaction.js';
 import { pageParams, searchRegex } from '../utils/query.js';
 
 // The academic year a newly-enrolled student belongs to, absent an explicit
@@ -74,11 +74,23 @@ export const createStudentService = async (bodyData) => {
   let student;
   let parentPortalCredentials = null;
   let familyId = null;
+  // Records written by this attempt. On a database without transactions (a
+  // standalone local MongoDB) a failure halfway would otherwise leave e.g. the
+  // new guardian behind, and every retry would then fail with "this parent or
+  // guardian already exists". So they are removed again on failure.
+  let created = [];
+  const track = (Model, docs) => { for (const d of docs) created.push([Model, d._id]); return docs; };
 
   try {
     await withTransaction(session, async () => {
-      const admissionNumber = await generateAdmissionNumber(session);
+      created = [];
+      // Everything that can refuse the registration is checked before anything is written.
       const sectionId = await validateClassAndSection(bodyData.classId, bodyData.sectionId, session, { joining: true });
+      if (bodyData.email) {
+        const existingStudent = await Student.findOne({ email: bodyData.email, isDeleted: false }).session(session);
+        if (existingStudent) throw new AppError('A student with this email address already exists.', 409);
+      }
+      const admissionNumber = await generateAdmissionNumber(session);
       const guardianInput = bodyData.guardian || {
         mode: 'new',
         name: bodyData.parentName,
@@ -99,31 +111,34 @@ export const createStudentService = async (bodyData) => {
         if (existingGuardian) {
           throw new AppError('This parent or guardian already exists. Choose “Existing parent/guardian” and assign the student to that family.', 409);
         }
+        if (guardianInput.createPortalUser) {
+          if (!email) throw new AppError('Enter the parent\'s email to give them a portal login.', 400);
+          const existingUser = await User.findOne({ email }).session(session);
+          if (existingUser) throw new AppError('The parent portal email is already in use.', 409);
+        }
 
-        const [family] = await Family.create([{
+        const [family] = track(Family, await Family.create([{
           familyName: `${guardianInput.name} Family`,
           primaryContactPhone: phone,
           primaryContactEmail: email,
-        }], { session });
+        }], { session }));
 
         let userId = null;
         if (guardianInput.createPortalUser) {
-          const existingUser = await User.findOne({ email }).session(session);
-          if (existingUser) throw new AppError('The parent portal email is already in use.', 409);
           const temporaryPassword = generatePassword();
           const nameParts = String(guardianInput.name).trim().split(/\s+/);
-          const [user] = await User.create([{
+          const [user] = track(User, await User.create([{
             firstName: nameParts[0] || 'Parent',
             lastName: nameParts.slice(1).join(' ') || 'Guardian',
             email,
             password: temporaryPassword,
             role: 'parent',
-          }], { session });
+          }], { session }));
           userId = user._id;
           parentPortalCredentials = { email, temporaryPassword };
         }
 
-        [guardian] = await Guardian.create([{
+        [guardian] = track(Guardian, await Guardian.create([{
           familyId: family._id,
           userId,
           name: guardianInput.name,
@@ -131,7 +146,7 @@ export const createStudentService = async (bodyData) => {
           phone,
           email,
           isPrimary: true,
-        }], { session });
+        }], { session }));
       }
 
       familyId = guardian.familyId;
@@ -147,22 +162,22 @@ export const createStudentService = async (bodyData) => {
         guardians: [{ guardianId: guardian._id, isPrimary: true }],
       });
 
-      if (studentData.email) {
-        const existingStudent = await Student.findOne({ email: studentData.email, isDeleted: false }).session(session);
-        if (existingStudent) throw new AppError('A student with this email address already exists.', 409);
-      }
-
-      [student] = await Student.create([studentData], { session });
+      [student] = track(Student, await Student.create([studentData], { session }));
       const yearId = bodyData.yearId || (await resolveCurrentYearId());
       if (yearId) {
-        await StudentClass.create([{
+        track(StudentClass, await StudentClass.create([{
           sc_no: `SC-${student._id}-${yearId}`,
           student: student._id,
           class: student.classId,
           section: student.sectionId ?? null,
           year: yearId,
-        }], { session });
+        }], { session }));
       }
+    }).catch(async (error) => {
+      if (!(await transactionsSupported())) {
+        await Promise.all(created.reverse().map(([Model, id]) => Model.deleteOne({ _id: id }).catch(() => {})));
+      }
+      throw error;
     });
 
     await recomputeFamilyDiscount(familyId);

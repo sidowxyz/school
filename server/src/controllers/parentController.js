@@ -204,3 +204,36 @@ export const unassignStudent = async (req, res, next) => {
     next(error);
   }
 };
+
+// DELETE /api/parents/:id
+// Only a parent with no children in school can be deleted, so no student is
+// left without a family by accident. Their portal login is switched off and
+// their family record goes too once nobody else uses it. Past students who
+// left keep their record; only the link to this parent is cleared.
+export const deleteParent = async (req, res, next) => {
+  try {
+    const guardian = await Guardian.findById(req.params.id);
+    if (!guardian) return next(new AppError('Parent not found', 404));
+
+    const linked = await Student.countDocuments({ isDeleted: false, 'guardians.guardianId': guardian._id });
+    if (linked) {
+      return next(new AppError(`${guardian.name} still has ${linked} ${linked === 1 ? 'child' : 'children'} linked. Remove or move them to another parent first.`, 409));
+    }
+
+    await Student.updateMany({ 'guardians.guardianId': guardian._id }, { $pull: { guardians: { guardianId: guardian._id } } });
+    if (guardian.userId) await User.updateOne({ _id: guardian.userId }, { status: false, refreshTokens: [] });
+    await guardian.deleteOne();
+
+    if (guardian.familyId) {
+      const stillUsed = await Promise.all([
+        Guardian.exists({ familyId: guardian.familyId }),
+        Student.exists({ familyId: guardian.familyId }),
+      ]);
+      if (!stillUsed.some(Boolean)) await Family.deleteOne({ _id: guardian.familyId });
+    }
+
+    res.status(200).json(new ApiResponse(200, null, 'Parent deleted'));
+  } catch (error) {
+    next(error);
+  }
+};
