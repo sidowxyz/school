@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { auditLogsApi, type AuditLogPage } from '../api/auditLogsApi';
 import type { AuditLog } from '../types';
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 500;
 
 /**
  * Loads audit logs from the API.

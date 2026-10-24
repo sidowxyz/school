@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SpinnerGap,
+import { useCan } from "../../../hooks/usePermission";
+import {
   Plus,
   MagnifyingGlass,
   DownloadSimple,
@@ -12,7 +13,7 @@ import { SpinnerGap,
   Envelope,
   Buildings,
   ArrowSquareOut,
-  Users,
+  ChalkboardTeacher,
 } from '@phosphor-icons/react';
 
 import PageHeader from "@/components/common/PageHeader";
@@ -28,9 +29,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { downloadCSV } from "../../reports/utils/csv";
+import { EmptyState, ErrorState, ListLoading } from "@/components/common/EmptyState";
 
 export default function TeacherListPage() {
   const navigate = useNavigate();
+  const canCreate = useCan("teachers", "create");
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All");
@@ -60,7 +63,7 @@ export default function TeacherListPage() {
   }, [loadTeachers]);
 
   useEffect(() => {
-    if ((location.state as { openCreate?: boolean } | null)?.openCreate) {
+    if (canCreate && (location.state as { openCreate?: boolean } | null)?.openCreate) {
       setOpenModal(true);
     }
   }, [location.state]);
@@ -114,10 +117,10 @@ export default function TeacherListPage() {
   const exportTeachers = () => {
     const rows = filteredTeachers.map((t) => ({
       StaffID: t.staffId,
-      Name: t.userId?.name || "â€”",
-      Email: t.userId?.email || "â€”",
-      Department: t.department || "â€”",
-      Qualifications: t.qualifications || "â€”",
+      Name: t.userId?.name || "—",
+      Email: t.userId?.email || "—",
+      Department: t.department || "—",
+      Qualifications: t.qualifications || "—",
       Status: t.status,
     }));
     downloadCSV(`teachers-list-${new Date().toISOString().slice(0, 10)}`, rows);
@@ -152,24 +155,24 @@ export default function TeacherListPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Teacher Management"
-        subtitle="Manage teaching staff, instructional departments, and classroom assignments."
+        title="Teachers"
+        subtitle="Your teaching staff and what they teach."
         action={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
               onClick={exportTeachers}
               disabled={loading || filteredTeachers.length === 0}
-              className="gap-2 shadow-xs"
             >
               <DownloadSimple size={14} />
               <span className="hidden sm:inline">Export CSV</span>
             </Button>
-            <Button size="sm" onClick={() => setOpenModal(true)} className="gap-2 shadow-xs">
-              <Plus size={15} />
-              Add Teacher
-            </Button>
+            {canCreate && (
+              <Button onClick={() => setOpenModal(true)}>
+                <Plus size={15} />
+                Add Teacher
+              </Button>
+            )}
           </div>
         }
       />
@@ -179,19 +182,9 @@ export default function TeacherListPage() {
 
       {/* Main Unified Card: search, Filters & Faculty Records */}
       {loading ? (
-        <Card className="p-12 text-center border-border">
-          <div className="flex flex-col items-center justify-center space-y-3">
-            <SpinnerGap size={32} className="animate-spin text-primary" />
-            <p className="text-xs text-muted-foreground">Loading teacher records...</p>
-          </div>
-        </Card>
+        <Card className="overflow-hidden border-border"><ListLoading rows={6} /></Card>
       ) : error ? (
-        <Card className="p-8 text-center border-destructive/20 bg-destructive/5">
-          <p className="text-xs font-medium text-destructive mb-3">{error}</p>
-          <Button variant="outline" size="sm" onClick={loadTeachers} className="text-xs">
-            Try Again
-          </Button>
-        </Card>
+        <Card className="border-border"><ErrorState text={error} onRetry={loadTeachers} /></Card>
       ) : (
         <Card className="overflow-hidden border border-border shadow-xs">
           {/* Combined Header with Title, Badge, search, Filters & View Switcher */}
@@ -262,7 +255,7 @@ export default function TeacherListPage() {
                     variant="ghost"
                     size="sm"
                     onClick={clearFilters}
-                    className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+                    className="px-2.5 text-muted-foreground hover:text-foreground gap-1.5"
                   >
                     <ArrowCounterClockwise size={12} />
                     Reset
@@ -301,36 +294,31 @@ export default function TeacherListPage() {
           </CardHeader>
 
           {filteredTeachers.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="max-w-sm mx-auto space-y-3">
-                <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
-                  <Users size={22} />
-                </div>
-                <h3 className="font-semibold text-sm text-foreground">No faculty members found</h3>
-                <p className="text-xs text-muted-foreground">
-                  {hasActiveFilters
-                    ? "No teachers matched your search or filter criteria. Try adjusting your search query."
-                    : "No teachers registered yet. Click 'Add Teacher' to create the first faculty member."}
-                </p>
-                {hasActiveFilters ? (
-                  <Button variant="outline" size="sm" onClick={clearFilters} className="text-xs mt-2">
-                    Clear Filters
-                  </Button>
-                ) : (
-                  <Button size="sm" onClick={() => setOpenModal(true)} className="text-xs mt-2 gap-1.5">
-                    <Plus size={14} /> Add First Teacher
-                  </Button>
-                )}
-              </div>
-            </div>
+            hasActiveFilters ? (
+              <EmptyState
+                icon={MagnifyingGlass}
+                tint="violet"
+                title="No teachers match"
+                text="Try another name, department or status."
+                action={<Button variant="outline" size="sm" onClick={clearFilters}>Clear filters</Button>}
+              />
+            ) : (
+              <EmptyState
+                icon={ChalkboardTeacher}
+                tint="green"
+                title="No teachers yet"
+                text="Add your first teacher, then assign them classes and subjects."
+                action={<Button onClick={() => setOpenModal(true)}><Plus size={16} /> Add First Teacher</Button>}
+              />
+            )
           ) : viewMode === "grid" ? (
             <div className="p-4 bg-muted/10 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredTeachers.map((teacher) => (
                 <TeacherCard
                   key={teacher._id}
-                  name={teacher.userId?.name || "â€”"}
+                  name={teacher.userId?.name || "—"}
                   staffId={teacher.staffId}
-                  email={teacher.userId?.email || "â€”"}
+                  email={teacher.userId?.email || "—"}
                   department={teacher.department}
                   qualifications={teacher.qualifications}
                   status={teacher.status}
@@ -354,7 +342,7 @@ export default function TeacherListPage() {
               </TableHeader>
               <TableBody>
                 {filteredTeachers.map((teacher) => {
-                  const name = teacher.userId?.name || "â€”";
+                  const name = teacher.userId?.name || "—";
                   const initials = name
                     .split(" ")
                     .map((n) => n[0])
@@ -396,14 +384,14 @@ export default function TeacherListPage() {
                       <TableCell className="text-xs">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                           <Envelope size={13} className="shrink-0 opacity-70" />
-                          <span className="truncate max-w-[180px]">{teacher.userId?.email || "â€”"}</span>
+                          <span className="truncate max-w-[180px]">{teacher.userId?.email || "—"}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         <div className="flex items-center gap-1.5">
                           <GraduationCap size={13} className="shrink-0 opacity-70" />
                           <span className="truncate max-w-[160px]">
-                            {teacher.qualifications || "â€”"}
+                            {teacher.qualifications || "—"}
                           </span>
                         </div>
                       </TableCell>
@@ -413,12 +401,12 @@ export default function TeacherListPage() {
                       <TableCell className="text-right pr-6">
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="xs"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/teachers/${teacher._id}`);
                           }}
-                          className="h-7 px-2 text-xs text-primary gap-1"
+                          className="px-2 text-primary"
                         >
                           View <ArrowSquareOut size={12} />
                         </Button>

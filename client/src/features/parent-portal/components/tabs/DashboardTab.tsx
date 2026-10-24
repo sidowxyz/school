@@ -9,7 +9,6 @@ import type { MyAttendanceResponse } from '../../../student-portal/api/attendanc
 import type { TabId } from '../../types';
 import { Button } from '@/components/ui/button';
 import StatStrip from '@/components/shared/StatStrip';
-import { Badge } from '@/components/ui/badge';
 
 interface Props {
   onNavigate: (tab: TabId) => void;
@@ -57,7 +56,8 @@ export default function DashboardTab({ onNavigate }: Props) {
 
   const attendanceRate = useMemo(() => {
     const total = attendance?.total ?? 0;
-    const present = attendance?.summary?.Present ?? 0;
+    // Late counts as attended, as on the Attendance tab.
+    const present = (attendance?.summary?.Present ?? 0) + (attendance?.summary?.Late ?? 0);
     return total > 0 ? Math.round((present / total) * 100) : 0;
   }, [attendance]);
 
@@ -90,9 +90,7 @@ export default function DashboardTab({ onNavigate }: Props) {
           <p className="text-xs font-medium text-muted-foreground">
             Overview for <span className="font-semibold text-foreground">{fullName(child)}</span>
           </p>
-          <Badge variant="outline" className="text-[11px]">
-            Term Progress Active
-          </Badge>
+
         </div>
       )}
 
@@ -104,7 +102,7 @@ export default function DashboardTab({ onNavigate }: Props) {
             value: `${attendanceRate}%`,
             tone: 'emerald',
             icon: ClipboardText,
-            hint: 'Term attendance present rate',
+            hint: 'Present or late, all recorded lessons',
           },
           {
             label: 'Outstanding Fees',
@@ -126,9 +124,9 @@ export default function DashboardTab({ onNavigate }: Props) {
             action={
               <Button
                 variant="ghost"
-                size="sm"
+                size="xs"
                 onClick={() => onNavigate('attendance')}
-                className="text-xs font-semibold text-primary hover:text-primary gap-1 h-7 px-2"
+                className="text-primary hover:text-primary px-2"
               >
                 View all <ArrowRight size={13} />
               </Button>
@@ -166,9 +164,9 @@ export default function DashboardTab({ onNavigate }: Props) {
           action={
             <Button
               variant="ghost"
-              size="sm"
+              size="xs"
               onClick={() => onNavigate('fees')}
-              className="text-xs font-semibold text-primary hover:text-primary gap-1 h-7 px-2"
+              className="text-primary hover:text-primary px-2"
             >
               Details <ArrowRight size={13} />
             </Button>
@@ -203,9 +201,9 @@ export default function DashboardTab({ onNavigate }: Props) {
 
           <Button
             variant="outline"
-            size="sm"
+            size="xs"
             onClick={() => onNavigate('fees')}
-            className="w-full mt-4 text-xs h-8 font-medium gap-1.5 shadow-2xs"
+            className="w-full mt-4 font-medium"
           >
             <Receipt size={13} />
             View Complete Fee Statement

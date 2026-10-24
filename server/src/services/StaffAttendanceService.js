@@ -1,5 +1,7 @@
 import StaffAttendance from '../models/StaffAttendance.js';
 import Teacher from '../models/Teacher.js';
+import { schoolTodayUTC } from '../utils/schoolTime.js';
+import AppError from '../utils/AppError.js';
 
 const populateTeacher = {
   path: 'teacherId',
@@ -12,6 +14,8 @@ export const recordAttendance = async (data, userId) => {
 
   const formattedDate = new Date(att_date);
   formattedDate.setUTCHours(0, 0, 0, 0);
+  if (Number.isNaN(formattedDate.getTime())) throw new AppError('Pick a valid date.', 400);
+  if (formattedDate > schoolTodayUTC()) throw new AppError("Attendance can't be recorded for a future date.", 400);
 
   // One round trip for the whole staff list. Fields left out of a record
   // (time in/out, remarks) keep whatever was saved before.
@@ -186,8 +190,7 @@ const teacherName = (t) => (t?.userId ? `${t.userId.firstName ?? ''} ${t.userId.
 
 export const getSummary = async ({ days = 30 } = {}) => {
   const span = Math.min(Math.max(parseInt(days, 10) || 30, 7), 120);
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = schoolTodayUTC();
   const from = new Date(today.getTime() - (span - 1) * DAY_MS);
 
   const teachers = await Teacher.find({ status: { $ne: 'Inactive' } })

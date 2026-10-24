@@ -131,7 +131,7 @@ export default function AccountantDashboard() {
                         <TableCell className="text-right tabular-nums">{st.invoiceCount}</TableCell>
                         <TableCell className="text-right font-semibold tabular-nums text-destructive">{money(st.balance)}</TableCell>
                         <TableCell className="pr-6 text-right">
-                          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/finance?student=${st.studentId}`)}>Collect</Button>
+                          <Button size="xs" variant="outline" onClick={() => navigate(`/finance?student=${st.studentId}`)}>Collect</Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -155,7 +155,7 @@ export default function AccountantDashboard() {
 
           <Panel title="Recent receipts" action={<PanelLink to="/finance?tab=report">All</PanelLink>}>
             {receipts.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">No payments taken yet.</p>
+              <PanelEmpty text="No payments taken yet." />
             ) : (
               <div className="-mt-2 space-y-1">
                 {receipts.map((r, i) => (

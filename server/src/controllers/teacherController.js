@@ -12,6 +12,7 @@ import ApiFeatures from '../utils/ApiFeatures.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { CONFLICT, findConflict, slotsOverlap } from '../utils/assignmentConflict.js';
 import { withTransaction } from '../utils/transaction.js';
+import { escapeRegex } from '../utils/query.js';
 
 const generateStaffId = async () => {
   const count = await Teacher.countDocuments();
@@ -242,9 +243,9 @@ export const createTeacher = async (req, res, next) => {
 
       // Auto-create teacher assignment if subject & class are passed
       if (subject && assignedClass) {
-        const foundSub = await Subject.findOne({ sub_name: { $regex: new RegExp(subject.trim(), 'i') } }).session(session);
+        const foundSub = await Subject.findOne({ sub_name: { $regex: new RegExp(`^${escapeRegex(subject.trim())}$`, 'i') } }).session(session);
         const classQuery = assignedClass.split('-')[0].trim();
-        const foundClass = await Class.findOne({ cl_name: { $regex: new RegExp(classQuery, 'i') } }).session(session);
+        const foundClass = await Class.findOne({ cl_name: { $regex: new RegExp(escapeRegex(classQuery), 'i') } }).session(session);
 
         if (foundSub && foundClass) {
           await TeacherAssignment.create([{
@@ -275,7 +276,7 @@ export const createTeacher = async (req, res, next) => {
 
 export const getTeachers = async (req, res, next) => {
   try {
-    const features = new ApiFeatures(Teacher.find().populate('userId', 'firstName lastName email role'), req.query)
+    const features = new ApiFeatures(Teacher.find().populate('userId', 'firstName lastName email role'), req.query, { filters: ['status', 'department'], defaultLimit: 1000 })
       .filter()
       .sort()
       .search(['staffId', 'department'])
@@ -392,6 +393,10 @@ export const deleteTeacher = async (req, res, next) => {
   try {
     const teacher = await Teacher.findByIdAndUpdate(req.params.id, { isDeleted: true }, { new: true });
     if (!teacher) return next(new AppError('Teacher not found', 404));
+    // A removed teacher can no longer sign in, and their lessons leave the
+    // timetable so the slots are free for whoever takes over.
+    if (teacher.userId) await User.updateOne({ _id: teacher.userId }, { status: false, refreshTokens: [] });
+    await TeacherAssignment.deleteMany({ teacherId: teacher._id });
 
     res.status(200).json(new ApiResponse(200, null, 'Teacher soft deleted successfully'));
   } catch (error) {
@@ -408,6 +413,29 @@ export const addAssignment = async (req, res, next) => {
     if (!teacher) return next(new AppError('Teacher not found', 404));
 
     await validateSlots(timetableSlots, termId);
+
+    // The teacher already teaches this subject to this class this term (e.g. a
+    // second Maths lesson added from the timetable grid): add the new lessons
+    // to that assignment instead of refusing a "duplicate".
+    const existing = await TeacherAssignment.findOne({ teacherId: teacher._id, subjectId, classId, sectionId, termId });
+    if (existing) {
+      const key = (s) => `${s.day}|${s.periodId}`;
+      const known = new Set(existing.timetableSlots.map(key));
+      const merged = [
+        ...existing.timetableSlots.map((s) => ({ day: s.day, periodId: s.periodId })),
+        ...(timetableSlots ?? []).filter((s) => !known.has(key(s))),
+      ];
+      await assertNoAssignmentConflict(
+        { teacherId: teacher._id, classId, sectionId, subjectId, termId },
+        merged,
+        existing._id
+      );
+      existing.timetableSlots = merged;
+      await existing.save();
+      const populated = await populateAssignment(TeacherAssignment.findById(existing._id));
+      return res.status(200).json(new ApiResponse(200, populated, 'Lessons added to this teacher\'s existing class'));
+    }
+
     await assertNoAssignmentConflict(
       { teacherId: teacher._id, classId, sectionId, subjectId, termId },
       timetableSlots

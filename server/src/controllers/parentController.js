@@ -8,6 +8,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { assignGuardianToStudent, unassignGuardianFromStudent, getSiblingDiscountPercent } from '../services/familyService.js';
 import { withTransaction } from '../utils/transaction.js';
+import { pageParams, searchRegex } from '../utils/query.js';
 
 // @desc   Create a new parent (Guardian). Auto-creates a hidden 1:1 Family
 //         "household" record so admins manage a single "Parent" concept —
@@ -90,16 +91,15 @@ export const getParents = async (req, res, next) => {
   try {
     const { search, page = 1, limit = 20 } = req.query;
     const filter = {};
-    if (search) {
+    if (searchRegex(search)) {
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { name: searchRegex(search) },
+        { phone: searchRegex(search) },
+        { email: searchRegex(search) },
       ];
     }
 
-    const currentPage = Number(page);
-    const pageSize = Number(limit);
+    const { page: currentPage, limit: pageSize } = pageParams({ page, limit }, { defaultLimit: 20, maxLimit: 1000 });
 
     const [total, guardians] = await Promise.all([
       Guardian.countDocuments(filter),
@@ -200,6 +200,39 @@ export const unassignStudent = async (req, res, next) => {
 
     const updated = await unassignGuardianFromStudent(studentId);
     res.status(200).json(new ApiResponse(200, updated, 'Student unassigned from parent'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/parents/:id
+// Only a parent with no children in school can be deleted, so no student is
+// left without a family by accident. Their portal login is switched off and
+// their family record goes too once nobody else uses it. Past students who
+// left keep their record; only the link to this parent is cleared.
+export const deleteParent = async (req, res, next) => {
+  try {
+    const guardian = await Guardian.findById(req.params.id);
+    if (!guardian) return next(new AppError('Parent not found', 404));
+
+    const linked = await Student.countDocuments({ isDeleted: false, 'guardians.guardianId': guardian._id });
+    if (linked) {
+      return next(new AppError(`${guardian.name} still has ${linked} ${linked === 1 ? 'child' : 'children'} linked. Remove or move them to another parent first.`, 409));
+    }
+
+    await Student.updateMany({ 'guardians.guardianId': guardian._id }, { $pull: { guardians: { guardianId: guardian._id } } });
+    if (guardian.userId) await User.updateOne({ _id: guardian.userId }, { status: false, refreshTokens: [] });
+    await guardian.deleteOne();
+
+    if (guardian.familyId) {
+      const stillUsed = await Promise.all([
+        Guardian.exists({ familyId: guardian.familyId }),
+        Student.exists({ familyId: guardian.familyId }),
+      ]);
+      if (!stillUsed.some(Boolean)) await Family.deleteOne({ _id: guardian.familyId });
+    }
+
+    res.status(200).json(new ApiResponse(200, null, 'Parent deleted'));
   } catch (error) {
     next(error);
   }

@@ -50,10 +50,12 @@ export default function ProfileContextBanner({ student }: Props) {
           </div>
         </div>
 
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-xs font-semibold dark:bg-white/10">
-          <ShieldCheck size={14} weight="bold" />
-          Verified student
-        </span>
+        {student.status && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-xs font-semibold dark:bg-white/10">
+            <ShieldCheck size={14} weight="bold" />
+            {student.status} student
+          </span>
+        )}
       </div>
     </div>
   );

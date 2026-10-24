@@ -127,7 +127,7 @@ export default function AttendanceTab() {
           </Panel>
 
           <Panel title="Lessons" description={`${monthRecords.length} marked in ${monthLabel(month)}`} flush
-            action={<Button variant="outline" size="sm" onClick={exportCsv} disabled={!monthRecords.length} className="h-8 gap-1.5"><DownloadSimple size={13} /> CSV</Button>}>
+            action={<Button variant="outline" size="xs" onClick={exportCsv} disabled={!monthRecords.length}><DownloadSimple size={13} /> CSV</Button>}>
             {monthRecords.length === 0 ? (
               <PanelEmpty text="Nothing recorded this month." />
             ) : (

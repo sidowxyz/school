@@ -2,6 +2,9 @@ import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api';
+if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL) {
+  console.warn('VITE_API_BASE_URL is not set; this build calls http://localhost:5000/api. See docs/DEPLOYMENT.md.');
+}
 
 // The API base URL with the trailing /api stripped, for resolving statically
 // served file URLs (e.g. an uploaded document's fileUrl: "/uploads/...").
@@ -22,18 +25,36 @@ const isAuthPath = (url: string) =>
 // and replay the original request; only fall back to a redirect if that fails.
 let refreshPromise: Promise<string | null> | null = null;
 
-async function refreshAccessToken(): Promise<string | null> {
-  const { refreshToken, user, rememberMe, setAuth } = useAuthStore.getState();
-  if (!refreshToken) return null;
+// The server swaps the refresh token on every use, so open tabs (which share
+// the stored session) must take turns: one refresh at a time across tabs, and
+// each tab first re-reads the session in case another tab already refreshed.
+async function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+  return locks ? locks.request('sms-auth-refresh', fn) : fn();
+}
 
-  try {
-    const { data } = await axios.post(`${baseURL}/auth/refresh`, { token: refreshToken });
-    const newAccessToken: string = data.data.accessToken;
-    setAuth(newAccessToken, user!, refreshToken, rememberMe);
-    return newAccessToken;
-  } catch {
-    return null;
-  }
+async function refreshAccessToken(): Promise<string | null> {
+  return withRefreshLock(async () => {
+    const before = useAuthStore.getState().refreshToken;
+    await useAuthStore.persist.rehydrate();
+    const { token, refreshToken, user, rememberMe, setAuth } = useAuthStore.getState();
+    if (!refreshToken || !user) return null;
+
+    // Another tab refreshed while we waited: use its fresh access token.
+    const expiresAt = token ? getTokenExpiryMs(token) : null;
+    if (refreshToken !== before && token && expiresAt !== null && Date.now() < expiresAt - EXPIRY_BUFFER_MS) {
+      return token;
+    }
+
+    try {
+      const { data } = await axios.post(`${baseURL}/auth/refresh`, { token: refreshToken });
+      const newAccessToken: string = data.data.accessToken;
+      setAuth(newAccessToken, user, data.data.refreshToken ?? refreshToken, rememberMe);
+      return newAccessToken;
+    } catch {
+      return null;
+    }
+  });
 }
 
 // Reads the `exp` claim (seconds since epoch) out of a JWT without verifying
@@ -59,6 +80,12 @@ const EXPIRY_BUFFER_MS = 5000;
 
 api.interceptors.request.use(async (config) => {
   const url = config.url ?? '';
+  // File uploads: with the instance's JSON Content-Type axios would turn the
+  // FormData into JSON and drop the file. Clearing it lets the browser send
+  // multipart/form-data with the right boundary.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    config.headers.delete('Content-Type');
+  }
   let token = useAuthStore.getState().token;
 
   if (token && !isAuthPath(url)) {
@@ -78,6 +105,8 @@ api.interceptors.request.use(async (config) => {
 interface RetryableConfig extends InternalAxiosRequestConfig {
   _retried?: boolean;
 }
+
+let redirectingToLogin = false;
 
 api.interceptors.response.use(
   (res) => res,
@@ -105,8 +134,12 @@ api.interceptors.response.use(
         }
       }
 
-      useAuthStore.getState().clearAuth();
-      window.location.href = '/login';
+      // Several requests can fail together; send the user to sign in once.
+      if (!redirectingToLogin) {
+        redirectingToLogin = true;
+        useAuthStore.getState().clearAuth();
+        window.location.href = '/login';
+      }
     }
 
     return Promise.reject(err);

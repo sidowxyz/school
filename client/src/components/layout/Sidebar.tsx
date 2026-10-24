@@ -4,7 +4,6 @@ import {
   SquaresFour,
   CalendarCheck,
   CalendarBlank,
-  Buildings,
   Notebook,
   Student,
   ChalkboardTeacher,
@@ -16,10 +15,12 @@ import {
   Key,
   GearSix,
   SidebarSimple,
+  Exam,
+  Stack,
   type Icon,
 } from '@phosphor-icons/react';
 import { useAuth } from '../../hooks/useAuth';
-import { useSchoolIdentity } from '../../features/settings/hooks/useSchoolIdentity';
+import { onLogoError, useSchoolIdentity } from '../../features/settings/hooks/useSchoolIdentity';
 import { homePathFor, userCanAccess } from '../../hooks/usePermission';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -27,7 +28,8 @@ import { cn } from '@/lib/utils';
 interface NavItem { label: string; path: string; icon: Icon; module: string }
 interface NavSection { title: string; items: NavItem[] }
 
-// One flat list per section — every page is a single click away.
+// Grouped by area. Groups are separated by a thin line instead of a heading, so
+// every page fits on screen without the menu scrolling. Titles stay for screen readers.
 const navSections: NavSection[] = [
   {
     title: 'Overview',
@@ -40,8 +42,9 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Attendance', path: '/attendance', icon: CalendarCheck, module: 'attendance' },
       { label: 'Timetable', path: '/timetable', icon: CalendarBlank, module: 'timetable' },
+      { label: 'Exams & Marks', path: '/exams', icon: Exam, module: 'exams' },
+      { label: 'Academic Structure', path: '/academic-structure', icon: Stack, module: 'academic-structure' },
       { label: 'Teaching Logs', path: '/teaching-log', icon: Notebook, module: 'teaching-log' },
-      { label: 'Academic Structure', path: '/academic-structure', icon: Buildings, module: 'academic-structure' },
     ],
   },
   {
@@ -73,7 +76,7 @@ function NavItemLink({ label, path, icon: ItemIcon, collapsed, onMobileClose }: 
       title={collapsed ? label : undefined}
       onClick={onMobileClose}
       className={({ isActive }) => cn(
-        'group flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors',
+        'group flex h-9 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors',
         collapsed && 'justify-center px-0',
         isActive
           ? 'bg-tile-blue text-tile-foreground'
@@ -118,34 +121,26 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
               src={logoSrc}
               alt=""
               className="h-9 w-9 shrink-0 rounded-xl object-contain"
-              onError={(event) => {
-                if (!event.currentTarget.src.endsWith('/logo.png')) event.currentTarget.src = '/logo.png';
-                else event.currentTarget.style.display = 'none';
-              }}
+              onError={onLogoError}
             />
-            <div className="min-w-0">
-              <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-foreground">{schoolName}</p>
-              <p className="truncate text-[11px] text-muted-foreground">School management</p>
-            </div>
+            <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-tight text-foreground">{schoolName}</p>
           </div>
         )}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setCollapsed((c) => !c)}
-          className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:text-foreground"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <SidebarSimple size={18} />
         </Button>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4 pt-2 scrollbar-thin">
-        {sections.map((section) => (
-          <div key={section.title} className="space-y-1">
-            {!collapsed && (
-              <p className="px-3 pb-1 text-[11px] font-medium text-muted-foreground/80">{section.title}</p>
-            )}
+      <nav className="flex-1 overflow-y-auto px-3 pb-3 pt-1 scrollbar-thin">
+        {sections.map((section, i) => (
+          <div key={section.title} role="group" aria-label={section.title} className="space-y-0.5">
+            {i > 0 && <div aria-hidden className="mx-3 my-2 h-px bg-border/70" />}
             {section.items.map((item) => (
               <NavItemLink key={item.path} {...item} collapsed={collapsed} onMobileClose={onMobileClose} />
             ))}
@@ -153,8 +148,8 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
         ))}
       </nav>
 
-      {userCanAccess(user, 'settings') && (
-        <div className="shrink-0 border-t border-border p-3">
+      {['settings', 'academic-structure', 'audit-logs'].some((m) => userCanAccess(user, m)) && (
+        <div className="shrink-0 border-t border-border px-3 py-2">
           <NavItemLink label="Settings" path="/settings" icon={GearSix} collapsed={collapsed} onMobileClose={onMobileClose} />
         </div>
       )}

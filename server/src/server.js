@@ -16,8 +16,22 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
+import mongoose from 'mongoose';
+import morgan from 'morgan';
 import connectDB from './config/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { sanitizeInput } from './middleware/sanitizeInput.js';
+import { hideServerErrors } from './middleware/hideServerErrors.js';
+
+// A production server must not start half-configured: without these it would
+// fall back to a local database or fail every sign-in with a 500.
+if (process.env.NODE_ENV === 'production') {
+  const missing = ['MONGODB_URI', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'].filter((k) => !process.env[k]);
+  if (missing.length) {
+    console.error(`Missing required environment variables: ${missing.join(', ')}. See docs/DEPLOYMENT.md.`);
+    process.exit(1);
+  }
+}
 import reportRoutes from './routes/reportRoutes.js';
 
 //  Auth & Core 
@@ -25,12 +39,10 @@ import authRoutes              from './routes/authRoutes.js';
 import userRoutes              from './routes/userRoutes.js';
 import roleRoutes              from './routes/roleRoutes.js';
 import studentRoutes           from './routes/studentRoutes.js';
-import familyRoutes            from './routes/familyRoutes.js';
 import parentRoutes            from './routes/parentRoutes.js';
 import teacherRoutes           from './routes/teacherRoutes.js';
 import teacherAssignmentRoutes from './routes/teacherAssignmentRoutes.js';
 import assignmentRoutes        from './routes/assignmentRoutes.js';
-import staffRoutes             from './routes/staffRoutes.js';
 
 //  Academic 
 import yearRoutes              from './routes/yearRoutes.js';
@@ -40,9 +52,6 @@ import periodRoutes            from './routes/periodRoutes.js';
 import classRoutes             from './routes/classRoutes.js';
 import sectionRoutes           from './routes/sectionRoutes.js';
 import subjectRoutes           from './routes/subjectRoutes.js';
-import courseClassRoutes       from './routes/courseClassRoutes.js';
-import syllabusRoutes          from './routes/syllabusRoutes.js';
-import timetableRoutes         from './routes/timetableRoutes.js';
 
 // Attendance
 import attendanceRoutes        from './routes/attendanceRoutes.js';
@@ -50,21 +59,13 @@ import staffAttendanceRoutes   from './routes/staffAttendanceRoutes.js';
 
 // Teaching
 import teachingLogRoutes       from './routes/teachingLogRoutes.js';
-import lessonCoverageRoutes    from './routes/lessonCoverageRoutes.js';
-import lessonCoverageReportRoutes from './routes/lessonCoverageReportRoutes.js';
+import examRoutes              from './routes/examRoutes.js';
+import promotionRoutes         from './routes/promotionRoutes.js';
 
 //  Finance 
 import feeRoutes               from './routes/feeRoutes.js';
 import monthlyFeeRoutes        from './routes/monthlyFeeRoutes.js';
-import refundRoutes            from './routes/refundRoutes.js';
 import scholarshipRoutes       from './routes/scholarshipRoutes.js';
-import ledgerRoutes            from './routes/ledgerRoutes.js';
-import chartOfAccountRoutes    from './routes/chartOfAccountRoutes.js';
-import fiscalPeriodRoutes      from './routes/fiscalPeriodRoutes.js';
-import journalEntryRoutes      from './routes/journalEntryRoutes.js';
-import expenseRoutes           from './routes/expenseRoutes.js';
-import fixedAssetRoutes        from './routes/fixedAssetRoutes.js';
-import financialReportRoutes   from './routes/financialReportRoutes.js';
 
 //  Portals 
 import studentPortalRoutes     from './routes/studentPortalRoutes.js';
@@ -84,6 +85,10 @@ import aiRoutes                from './routes/aiRoutes.js';
 if (process.env.NODE_ENV !== 'test') {
   connectDB()
     .then(async (connected) => {
+      if (!connected && process.env.NODE_ENV === 'production') {
+        console.error('Could not connect to the database; exiting so the host restarts the service.');
+        process.exit(1);
+      }
       if (connected) {
         try {
           // System records only (never demo data) — see seed/bootstrap.js.
@@ -133,7 +138,10 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin) || isLocalhostOrigin(origin)) {
       return callback(null, true);
     }
-    callback(new Error('CORS Policy: Origin not allowed.'));
+    const error = new Error('CORS Policy: Origin not allowed.');
+    error.statusCode = 403;
+    error.isOperational = true;
+    callback(error);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -153,17 +161,39 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
+// One access-log line per request (health pings excluded).
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', {
+  skip: (req) => req.path === '/' || req.path === '/api/health' || process.env.NODE_ENV === 'test',
+}));
+
 // 3. Body Parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// Strip MongoDB operators ($gt, $ne, ...) from user input, and hide raw
+// error details from 500 responses in production.
+app.use(sanitizeInput);
+app.use(hideServerErrors);
+
+// Uploaded images (school logo, photos) are shown by the website, which lives
+// on another domain, so they may be loaded cross-origin. Student documents are
+// private: they are only served through GET /api/students/:id/documents/:docId/file.
+app.use('/uploads/student-documents', (_req, res) => res.status(404).end());
+app.use('/uploads', (_req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(process.cwd(), 'uploads'), { dotfiles: 'deny', index: false }));
 
 // 
 // 4. ROUTES
 // 
 
-// Health check
+// Health checks. "/" answers as long as the process is up; "/api/health"
+// also needs the database, so the host can tell a broken deploy from a good one.
 app.get('/', (_req, res) => res.json({ success: true, message: 'Server is running 🚀' }));
+app.get('/api/health', (_req, res) => {
+  const up = mongoose.connection.readyState === 1;
+  res.status(up ? 200 : 503).json({ success: up, database: up ? 'connected' : 'unavailable' });
+});
 
 // Auth & Users
 app.use('/api/auth',           authRoutes);
@@ -172,48 +202,34 @@ app.use('/api/roles',          roleRoutes);
 
 // Core Entities
 app.use('/api/students',       studentRoutes);
-app.use('/api/families',       familyRoutes);
 app.use('/api/parents',        parentRoutes);
 app.use('/api/teachers',       teacherRoutes);
 app.use('/api/teacher-assignments', teacherAssignmentRoutes);
 app.use('/api/assignments',    assignmentRoutes);
-app.use('/api/staff',          staffRoutes);
 
 // Academic
 app.use('/api/years',          yearRoutes);
-app.use('/api/academic-years', yearRoutes);
 app.use('/api/terms',          termRoutes);
 app.use('/api/levels',         levelRoutes);
 app.use('/api/periods',        periodRoutes);
 app.use('/api/classes',        classRoutes);
 app.use('/api/sections',       sectionRoutes);
 app.use('/api/subjects',       subjectRoutes);
-app.use('/api/course-classes', courseClassRoutes);
-app.use('/api/syllabus',       syllabusRoutes);
-app.use('/api/timetable',      timetableRoutes);
+app.use('/api/promotion',      promotionRoutes);
 
 // Attendance
 app.use('/api/attendance',         attendanceRoutes);
 app.use('/api/staff-attendance',   staffAttendanceRoutes);
 
 // Teaching
+app.use('/api/exams',                     examRoutes);
 app.use('/api/teaching-logs',             teachingLogRoutes);
-app.use('/api/lesson-coverage',           lessonCoverageRoutes);
-app.use('/api/lesson-coverage-reports',   lessonCoverageReportRoutes);
 
 // Finance
 app.use('/api/fees',          monthlyFeeRoutes);
 app.use('/api',               feeRoutes);
 app.use('/api',               scholarshipRoutes);
-app.use('/api/refunds',       refundRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/ledger',        ledgerRoutes);
-app.use('/api/chart-of-accounts', chartOfAccountRoutes);
-app.use('/api/fiscal-periods', fiscalPeriodRoutes);
-app.use('/api/journal-entries', journalEntryRoutes);
-app.use('/api/expenses',      expenseRoutes);
-app.use('/api/fixed-assets',  fixedAssetRoutes);
-app.use('/api/financial-reports', financialReportRoutes);
 
 // Portals
 app.use('/api/portal/student', studentPortalRoutes);
@@ -232,15 +248,33 @@ app.use('/api/ai',            aiRoutes);
 // 
 // 5. GLOBAL ERROR HANDLER (must be last)
 // 
+// Unknown API routes answer in JSON like every other API error.
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: `Not found: ${req.method} ${req.originalUrl.split('?')[0]}` });
+});
+
 app.use(errorHandler);
 
 // 
 // 6. START SERVER
 // 
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(` Server running on http://localhost:${PORT}`);
   });
+
+  // Render (and most hosts) send SIGTERM before replacing the server: finish
+  // the requests in flight, close the database, then exit.
+  const shutdown = (signal) => {
+    console.log(`${signal} received, shutting down...`);
+    server.close(async () => {
+      await mongoose.connection.close().catch(() => {});
+      process.exit(0);
+    });
+    globalThis.setTimeout(() => process.exit(1), 10_000).unref();
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 export default app;

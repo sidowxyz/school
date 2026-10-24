@@ -1,6 +1,7 @@
 import Level from '../models/Level.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import { assertNotInUse } from '../utils/inUse.js';
 
 export const createLevel = async (req, res, next) => {
   try {
@@ -44,6 +45,7 @@ export const updateLevel = async (req, res, next) => {
 
 export const deleteLevel = async (req, res, next) => {
   try {
+    await assertNotInUse('level', req.params.id);
     const level = await Level.findByIdAndDelete(req.params.id);
     if (!level) return next(new AppError('Level not found', 404));
     res.status(200).json(new ApiResponse(200, null, 'Level deleted successfully'));

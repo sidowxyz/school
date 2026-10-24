@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { useCan, usePermission } from "../../../hooks/usePermission";
+import type { DrawerTint } from "@/components/ui/drawer-kit";
 import {
   Calendar,
   CalendarBlank,
   PencilSimple,
   Trash,
   Plus,
-  X,
   BookOpen,
   Buildings,
   GraduationCap,
@@ -14,7 +15,6 @@ import {
   Stack,
   Clock,
   Check,
-  SpinnerGap,
   type Icon,
 } from '@phosphor-icons/react';
 
@@ -24,7 +24,9 @@ import type { Year, Level, Term, Class, Section, Subject, Period, Weekday } from
 import type { Teacher } from "../../teachers/types";
 import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { DatePicker, TimePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -38,6 +40,7 @@ import {
 import PageHeader from '@/components/common/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { EmptyState, ErrorState, ListLoading } from "@/components/common/EmptyState";
 
 type Tab = "Academic Years" | "Terms" | "Levels" | "Periods" | "Classes" | "Sections" | "Subjects";
 
@@ -62,6 +65,8 @@ function TabPanel({ title, description, action, toolbar, children }: {
 }
 
 function AddButton({ label, onClick, disabled, title }: { label: string; onClick: () => void; disabled?: boolean; title?: string }) {
+  const canCreate = useCan("academic-structure", "create");
+  if (!canCreate) return null;
   return (
     <Button size="sm" onClick={onClick} disabled={disabled} title={title} className="gap-1.5">
       <Plus size={15} weight="bold" /> {label}
@@ -73,10 +78,20 @@ function AddButton({ label, onClick, disabled, title }: { label: string; onClick
 function ListState({ loading, error, empty, emptyText, children }: {
   loading: boolean; error: string; empty: boolean; emptyText: string; children: React.ReactNode;
 }) {
-  if (loading) return <div className="flex justify-center py-12"><SpinnerGap size={22} className="animate-spin text-primary" /></div>;
-  if (error) return <p className="px-5 py-10 text-center text-sm text-destructive">{error}</p>;
-  if (empty) return <p className="px-5 py-12 text-center text-sm text-muted-foreground">{emptyText}</p>;
+  if (loading) return <ListLoading rows={3} />;
+  if (error) return <ErrorState text={error} compact />;
+  if (empty) return <EmptyState icon={Stack} tint="violet" title="Nothing here yet" text={emptyText} />;
   return <>{children}</>;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** "32 / 40 students", amber when nearly full and pink when full. */
+function SeatsBadge({ count, capacity }: { count: number; capacity?: number | null }) {
+  if (!capacity) return <Badge variant="secondary">{plural(count, "student")}</Badge>;
+  const full = count >= capacity;
+  const tone = full ? "bg-tile-pink text-tile-foreground" : count / capacity >= 0.9 ? "bg-tile-yellow text-tile-foreground" : "bg-muted text-foreground/80";
+  return <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums ${tone}`}>{count} / {capacity}{full ? " · full" : ""}</span>;
 }
 
 const ICON_TINTS = {
@@ -88,6 +103,8 @@ function ItemRow({ icon: RowIcon, tint, title, meta, badges, onEdit, onDelete }:
   icon: Icon; tint: keyof typeof ICON_TINTS; title: React.ReactNode; meta?: React.ReactNode; badges?: React.ReactNode;
   onEdit: () => void; onDelete: () => void;
 }) {
+  const canEdit = useCan("academic-structure", "edit");
+  const canDelete = useCan("academic-structure", "delete");
   return (
     <li className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40">
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-tile-foreground ${ICON_TINTS[tint]}`}>
@@ -99,12 +116,16 @@ function ItemRow({ icon: RowIcon, tint, title, meta, badges, onEdit, onDelete }:
       </div>
       {badges && <div className="hidden shrink-0 items-center gap-2 sm:flex">{badges}</div>}
       <div className="flex shrink-0 items-center gap-1">
-        <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Edit">
-          <PencilSimple size={15} />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Delete">
-          <Trash size={15} />
-        </Button>
+        {canEdit && (
+          <Button variant="ghost" size="icon-sm" onClick={onEdit} className="text-muted-foreground hover:text-foreground" aria-label="Edit">
+            <PencilSimple size={15} />
+          </Button>
+        )}
+        {canDelete && (
+          <Button variant="ghost" size="icon-sm" onClick={onDelete} className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Delete">
+            <Trash size={15} />
+          </Button>
+        )}
       </div>
     </li>
   );
@@ -158,19 +179,19 @@ function SelectField({
   );
 }
 
-function ModalWrapper({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+function ModalWrapper({ onClose, children, centered }: { onClose: () => void; children: React.ReactNode; centered?: boolean }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent centered={centered} className={centered ? "max-w-md" : undefined}>
         {children}
       </DialogContent>
     </Dialog>
   );
 }
 
-function ModalHeader({ title, subtitle }: { title: string; subtitle: string; onClose?: () => void }) {
+function ModalHeader({ title, subtitle, icon, tint }: { title: string; subtitle: string; onClose?: () => void; icon?: Icon; tint?: DrawerTint }) {
   return (
-    <DialogHeader className="mb-2">
+    <DialogHeader icon={icon ?? Stack} tint={tint}>
       <DialogTitle>{title}</DialogTitle>
       {subtitle && <DialogDescription>{subtitle}</DialogDescription>}
     </DialogHeader>
@@ -179,7 +200,7 @@ function ModalHeader({ title, subtitle }: { title: string; subtitle: string; onC
 
 function ModalActions({ onClose, submitLabel, submitting }: { onClose: () => void; submitLabel: string; submitting?: boolean }) {
   return (
-    <DialogFooter className="pt-3">
+    <DialogFooter>
       <Button
         type="button"
         variant="outline"
@@ -210,13 +231,19 @@ function TextField({
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium">{label}</Label>
-      <Input
-        type={type}
-        required={required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
+      {type === "date" ? (
+        <DatePicker value={value} onChange={onChange} required={required} aria-label={label} />
+      ) : type === "time" ? (
+        <TimePicker value={value} onChange={onChange} required={required} aria-label={label} />
+      ) : (
+        <Input
+          type={type}
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+      )}
     </div>
   );
 }
@@ -244,33 +271,21 @@ function DeleteModal({
   };
 
   return (
-    <ModalWrapper onClose={onClose}>
-      <div className="flex items-start justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-        <Button variant="plain" onClick={onClose} className="text-muted-foreground hover:text-foreground">
-          <X size={20} />
-        </Button>
-      </div>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Are you sure you want to delete{" "}
-        <span className="font-medium text-foreground">{itemName}</span>? This action cannot be undone.
-      </p>
+    <ModalWrapper onClose={onClose} centered>
+      <DialogHeader icon={Trash} tint="pink">
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>
+          Are you sure you want to delete{" "}
+          <span className="font-medium text-foreground">{itemName}</span>? This action cannot be undone.
+        </DialogDescription>
+      </DialogHeader>
       <FormError message={error} />
-      <div className="flex justify-end gap-3 mt-4">
-        <Button variant="plain"
-          onClick={onClose}
-          className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-        >
-          Cancel
-        </Button>
-        <Button variant="plain"
-          onClick={confirm}
-          disabled={deleting}
-          className="rounded-lg bg-destructive px-5 py-2.5 text-sm font-semibold text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:opacity-60"
-        >
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button variant="destructive" onClick={confirm} disabled={deleting}>
           {deleting ? "Deleting..." : "Delete"}
         </Button>
-      </div>
+      </DialogFooter>
     </ModalWrapper>
   );
 }
@@ -368,6 +383,8 @@ function YearFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Academic Year" : "Edit Academic Year"}
+        icon={Calendar}
+        tint="blue"
         subtitle={mode === "add" ? "Create a new academic year" : "Update the academic year information"}
         onClose={onClose}
       />
@@ -434,11 +451,13 @@ const ALL_WEEKDAYS: Weekday[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "
 const DEFAULT_WORKING_DAYS: Weekday[] = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
 
 function TermFormModal({
-  mode, initial, years, onClose, onSave,
+  mode, initial, years, currentTerm, onClose, onSave,
 }: {
   mode: "add" | "edit";
   initial?: Term;
   years: Year[];
+  /** The term that is current now (if another one), which an active term replaces. */
+  currentTerm?: Term;
   onClose: () => void;
   onSave: (data: { name: string; academicYearId: string; startDate: string; endDate: string; status: "active" | "inactive"; workingDays: Weekday[] }) => Promise<void>;
 }) {
@@ -447,7 +466,7 @@ function TermFormModal({
   const [academicYearId, setAcademicYearId] = useState(initialYearId);
   const [startDate, setStartDate] = useState(initial?.startDate?.slice(0, 10) ?? "");
   const [endDate, setEndDate] = useState(initial?.endDate?.slice(0, 10) ?? "");
-  const [status, setStatus] = useState<"active" | "inactive">(initial?.status ?? "active");
+  const [status, setStatus] = useState<"active" | "inactive">(initial?.status ?? (currentTerm ? "inactive" : "active"));
   const [workingDays, setWorkingDays] = useState<Weekday[]>(initial?.workingDays?.length ? initial.workingDays : DEFAULT_WORKING_DAYS);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -476,6 +495,8 @@ function TermFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Term" : "Edit Term"}
+        icon={CalendarBlank}
+        tint="green"
         subtitle={mode === "add" ? "Create a new term" : "Update the term information"}
         onClose={onClose}
       />
@@ -493,9 +514,14 @@ function TermFormModal({
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">Status</label>
           <SelectField value={status} onChange={(v) => setStatus(v as "active" | "inactive")}>
-            <option value="active">Active</option>
+            <option value="active">Active (the current term)</option>
             <option value="inactive">Inactive</option>
           </SelectField>
+          {status === "active" && currentTerm && (
+            <p className="mt-1.5 rounded-lg bg-tile-yellow px-3 py-2 text-xs text-tile-foreground">
+              Only one term is current at a time. Saving this as active ends {currentTerm.name}, and attendance, the timetable and new enrolments move to this term.
+            </p>
+          )}
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">Teaching Days</label>
@@ -554,6 +580,7 @@ function TermsTab() {
         <TermFormModal
           mode="add"
           years={years}
+          currentTerm={terms.find((t) => t.status === "active")}
           onClose={() => setShowAdd(false)}
           onSave={async (data) => { await academicApi.createTerm(data); await reload(); setShowAdd(false); }}
         />
@@ -563,6 +590,7 @@ function TermsTab() {
           mode="edit"
           initial={editTarget}
           years={years}
+          currentTerm={terms.find((t) => t.status === "active" && t._id !== editTarget._id)}
           onClose={() => setEditTarget(null)}
           onSave={async (data) => { await academicApi.updateTerm(editTarget._id, data); await reload(); setEditTarget(null); }}
         />
@@ -605,6 +633,8 @@ function LevelFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Level" : "Edit Level"}
+        icon={Stack}
+        tint="violet"
         subtitle={mode === "add" ? "Create a new level (e.g. Primary, Middle, Secondary)" : "Update the level information"}
         onClose={onClose}
       />
@@ -701,6 +731,8 @@ function PeriodFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Period" : "Edit Period"}
+        icon={Clock}
+        tint="yellow"
         subtitle={mode === "add" ? "Define a teaching period for this term" : "Update the period information"}
         onClose={onClose}
       />
@@ -729,7 +761,7 @@ function PeriodsTab() {
   const [deleteTarget, setDeleteTarget] = useState<Period | null>(null);
 
   useEffect(() => {
-    if (!termId && terms.length > 0) setTermId(terms[0]._id);
+    if (!termId && terms.length > 0) setTermId((terms.find((t) => t.status === "active") ?? terms[0])._id);
   }, [terms, termId]);
 
   const reload = useCallback(async () => {
@@ -837,6 +869,8 @@ function ClassFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Class" : "Edit Class"}
+        icon={Buildings}
+        tint="pink"
         subtitle={mode === "add" ? "Create a new class" : "Update the class information"}
         onClose={onClose}
       />
@@ -872,7 +906,8 @@ function ClassesTab() {
         <ListState loading={loading} error={error} empty={classes.length === 0} emptyText={levels.length === 0 ? "Add a level first, then its classes." : "No classes yet."}>
           <ItemList>
             {classes.map((cls) => (
-              <ItemRow key={cls._id} icon={GraduationCap} tint="green" title={cls.cl_name} meta={cls.cl_no}
+              <ItemRow key={cls._id} icon={GraduationCap} tint="green" title={cls.cl_name}
+                meta={`${cls.cl_no} · ${plural(cls.studentCount ?? 0, "student")}`}
                 badges={<Badge variant="secondary">{refName(cls.lev_no, "lev_name")}</Badge>}
                 onEdit={() => setEditTarget(cls)} onDelete={() => setDeleteTarget(cls)} />
             ))}
@@ -919,7 +954,7 @@ function SectionFormModal({
   classes: Class[];
   teachers: Teacher[];
   onClose: () => void;
-  onSave: (data: { name: string; class: string; classTeacherId: string | null }) => Promise<void>;
+  onSave: (data: { name: string; class: string; classTeacherId: string | null; capacity: number | null }) => Promise<void>;
 }) {
   const initialClassId = typeof initial?.class === "string" ? initial.class : initial?.class?._id ?? "";
   const initialTeacherId = !initial?.classTeacherId
@@ -928,6 +963,7 @@ function SectionFormModal({
   const [name, setName] = useState(initial?.name ?? "");
   const [classId, setClassId] = useState(initialClassId);
   const [classTeacherId, setClassTeacherId] = useState(initialTeacherId);
+  const [capacity, setCapacity] = useState(initial?.capacity ? String(initial.capacity) : "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -936,7 +972,7 @@ function SectionFormModal({
     setSubmitting(true);
     setError("");
     try {
-      await onSave({ name, class: classId, classTeacherId: classTeacherId || null });
+      await onSave({ name, class: classId, classTeacherId: classTeacherId || null, capacity: capacity ? Number(capacity) : null });
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to save section.");
       setSubmitting(false);
@@ -947,6 +983,8 @@ function SectionFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Section" : "Edit Section"}
+        icon={SquaresFour}
+        tint="blue"
         subtitle={mode === "add" ? "Create a new section" : "Update the section information"}
         onClose={onClose}
       />
@@ -965,6 +1003,11 @@ function SectionFormModal({
             <option value="">Not assigned</option>
             {teachers.map((t) => <option key={t._id} value={t._id}>{t.userId?.name || t.staffId}</option>)}
           </SelectField>
+        </div>
+        <div>
+          <label htmlFor="section-capacity" className="mb-1.5 block text-sm font-medium text-foreground">Capacity <span className="font-normal text-muted-foreground">(optional)</span></label>
+          <Input id="section-capacity" type="number" min={1} inputMode="numeric" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="No limit" />
+          <p className="mt-1 text-xs text-muted-foreground">Most students it can take. A full section can't take new students.</p>
         </div>
         <FormError message={error} />
         <ModalActions onClose={onClose} submitLabel={mode === "add" ? "Add" : "Update"} submitting={submitting} />
@@ -991,6 +1034,7 @@ function SectionsTab() {
             {sections.map((sec) => (
               <ItemRow key={sec._id} icon={SquaresFour} tint="pink" title={`${refName(sec.class, "cl_name")} · ${sec.name}`}
                 meta={`Class teacher: ${classTeacherName(sec.classTeacherId)}`}
+                badges={<SeatsBadge count={sec.studentCount ?? 0} capacity={sec.capacity} />}
                 onEdit={() => setEditTarget(sec)} onDelete={() => setDeleteTarget(sec)} />
             ))}
           </ItemList>
@@ -1063,6 +1107,8 @@ function SubjectFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Subject" : "Edit Subject"}
+        icon={BookOpen}
+        tint="green"
         subtitle={mode === "add" ? "Create a new subject" : "Update the subject information"}
         onClose={onClose}
       />
@@ -1147,45 +1193,106 @@ function SubjectsTab() {
 
 // Main Page
 
-// In setup order: each step needs the one before it.
-// Periods are per term, so that step shows no count.
-const TABS: { value: Tab; count?: keyof OverviewCounts }[] = [
-  { value: "Academic Years", count: "years" },
-  { value: "Terms", count: "terms" },
-  { value: "Levels", count: "levels" },
-  { value: "Periods" },
-  { value: "Classes", count: "classes" },
-  { value: "Sections", count: "sections" },
-  { value: "Subjects", count: "subjects" },
+// In setup order: each step needs the one before it. Same icons and colours
+// as each step's add/edit drawer. Periods are per term, so that step has no count.
+const TABS: { value: Tab; icon: Icon; tint: keyof typeof ICON_TINTS; hint: string; count?: keyof OverviewCounts; noun?: [string, string] }[] = [
+  { value: "Academic Years", icon: Calendar, tint: "blue", hint: "e.g. 2026–2027", count: "years", noun: ["year", "years"] },
+  { value: "Terms", icon: CalendarBlank, tint: "green", hint: "Parts of the year", count: "terms", noun: ["term", "terms"] },
+  { value: "Levels", icon: Stack, tint: "violet", hint: "Primary, Secondary…", count: "levels", noun: ["level", "levels"] },
+  { value: "Periods", icon: Clock, tint: "yellow", hint: "The school day" },
+  { value: "Classes", icon: Buildings, tint: "pink", hint: "Grade 1, Grade 2…", count: "classes", noun: ["class", "classes"] },
+  { value: "Sections", icon: SquaresFour, tint: "blue", hint: "A, B, C…", count: "sections", noun: ["section", "sections"] },
+  { value: "Subjects", icon: BookOpen, tint: "green", hint: "What is taught", count: "subjects", noun: ["subject", "subjects"] },
 ];
 
+/** The seven setup steps as cards: icon, how far each is, a tick when done and the next one to do. */
+function SetupSteps({ active, counts, onSelect }: { active: Tab; counts: OverviewCounts | null; onSelect: (tab: Tab) => void }) {
+  const counted = TABS.filter((t) => t.count);
+  const done = counts ? counted.filter((t) => counts[t.count!] > 0).length : 0;
+  const next = counts ? counted.find((t) => counts[t.count!] === 0)?.value : undefined;
+  const percent = Math.round((done / counted.length) * 100);
+
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Set up in order</p>
+          <p className="text-xs text-muted-foreground">Each step needs the one before it.</p>
+        </div>
+        <div className="w-full max-w-[220px]">
+          <div className="mb-1 flex justify-between text-xs">
+            <span className="text-muted-foreground">Setup progress</span>
+            <span className="font-semibold tabular-nums text-foreground">{counts ? `${done} of ${counted.length}` : "…"}</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Setup progress">
+            <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${percent}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <Tabs value={active} onValueChange={(v) => onSelect(v as Tab)}>
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 border-0 bg-transparent p-0 shadow-none sm:grid-cols-4 xl:grid-cols-7">
+          {TABS.map(({ value, icon: StepIcon, tint, hint, count, noun }, i) => {
+            const n = count && counts ? counts[count] : undefined;
+            const isDone = n !== undefined && n > 0;
+            const isNext = value === next;
+            return (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className={cn(
+                  "group relative h-auto flex-col items-start gap-2.5 whitespace-normal rounded-2xl border border-border/70 bg-card p-3 text-left font-normal text-foreground",
+                  "hover:border-foreground/20 hover:bg-muted/40",
+                  "data-[state=active]:border-transparent data-[state=active]:bg-tile-blue data-[state=active]:font-normal data-[state=active]:text-tile-foreground data-[state=active]:shadow-sm data-[state=active]:hover:bg-tile-blue",
+                  isNext && "border-dashed border-primary/50",
+                )}
+              >
+                <div className="flex w-full items-center justify-between">
+                  <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-tile-foreground", ICON_TINTS[tint], "group-data-[state=active]:bg-card")}>
+                    <StepIcon size={17} weight="duotone" />
+                  </span>
+                  {isDone ? (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-label="Done">
+                      <Check size={11} weight="bold" />
+                    </span>
+                  ) : isNext ? (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[state=active]:bg-card">Next</span>
+                  ) : (
+                    <span className="text-[11px] font-semibold tabular-nums text-muted-foreground group-data-[state=active]:text-tile-foreground/70">{i + 1}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-tight">{value}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground group-data-[state=active]:text-tile-foreground/75">
+                    {!count ? hint : n === undefined ? "…" : n > 0 ? `${n} ${n === 1 ? noun![0] : noun![1]}` : "Not set up yet"}
+                  </p>
+                </div>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
+    </div>
+  );
+}
+
 export default function AcademicStructurePage() {
-  const [activeTab, setActiveTab] = useState<Tab>("Academic Years");
+  const canSettings = usePermission("settings");
+  const canStructure = usePermission("academic-structure");
+  const canOpenCalendar = canSettings || canStructure;
+  // ?step=Periods opens a step directly (e.g. from the Timetable's "no periods" message).
+  const [params] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<Tab>(() => TABS.find((t) => t.value === params.get("step"))?.value ?? "Academic Years");
   const counts = useOverviewCounts(activeTab);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Academic Structure"
-        subtitle="Set up the school year step by step: years, terms, levels, periods, classes, sections and subjects."
+        subtitle="Years, terms, levels, periods, classes and subjects."
       />
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-          {TABS.map(({ value, count }, i) => {
-            const n = count && counts ? counts[count] : undefined;
-            return (
-              <TabsTrigger key={value} value={value} className="gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
-                  {n ? <Check size={11} weight="bold" className="text-success" /> : i + 1}
-                </span>
-                {value}
-                {n !== undefined && <span className="rounded-full bg-background/70 px-1.5 text-[11px] tabular-nums">{n}</span>}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </Tabs>
+      <SetupSteps active={activeTab} counts={counts} onSelect={setActiveTab} />
 
       {activeTab === "Academic Years" && <AcademicYearsTab />}
       {activeTab === "Terms"          && <TermsTab />}
@@ -1203,9 +1310,11 @@ export default function AcademicStructurePage() {
             <p className="text-xs text-muted-foreground">Term dates appear in the calendar automatically. Add holidays and school events there.</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/settings?tab=Academic" className="gap-2"><Calendar size={14} /> Open calendar</Link>
-        </Button>
+        {canOpenCalendar && (
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/settings?tab=calendar" className="gap-2"><Calendar size={14} /> Open calendar</Link>
+          </Button>
+        )}
       </div>
     </div>
   );

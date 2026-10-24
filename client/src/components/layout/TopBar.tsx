@@ -1,14 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Calendar, MagnifyingGlass, Check, CaretDown, SignOut, List, User } from '@phosphor-icons/react';
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
-import { roleLabel } from "../../hooks/usePermission";
-import { authApi } from "../../features/auth/api/authApi";
+import { Calendar, Check, CaretDown, List } from '@phosphor-icons/react';
 import { academicApi } from "../../features/academic-structure/api/academicApi";
 import type { Year } from "../../features/academic-structure/types";
 import { useAcademicYearStore } from "../../store/academicYearStore";
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import ProfileMenu from './ProfileMenu';
 
 interface TopBarProps {
   onMobileMenuClick?: () => void;
@@ -16,22 +12,15 @@ interface TopBarProps {
 }
 
 export default function TopBar({ onMobileMenuClick, showMenuButton = true }: TopBarProps) {
-  const { clearAuth, user, refreshToken } = useAuth();
-  const navigate = useNavigate();
   const [years, setYears] = useState<Year[]>([]);
   const { selectedYearId, setSelectedYearId } = useAcademicYearStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
-      }
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setUserMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -63,25 +52,14 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
           variant="ghost"
           size="icon"
           onClick={onMobileMenuClick}
-          className="lg:hidden h-9 w-9 text-muted-foreground hover:text-foreground"
+          className="lg:hidden text-muted-foreground hover:text-foreground"
           aria-label="Toggle Navigation Menu"
         >
           <List size={20} />
         </Button>
       )}
 
-      {/* Global Quick Search */}
-      <div className="relative flex-1 max-w-sm md:max-w-md">
-        <MagnifyingGlass
-          size={16}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-        />
-        <Input
-          type="text"
-          placeholder="Search students, teachers, classes..."
-          className="h-10 rounded-full border-transparent bg-muted pl-10 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
-        />
-      </div>
+      <div className="flex-1" />
 
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Academic Year Selector */}
@@ -90,7 +68,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
             variant="outline"
             size="sm"
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="h-10 gap-2 rounded-full px-4 text-xs font-medium text-foreground bg-card hover:bg-accent"
+            className="h-10 rounded-full px-4 font-medium text-foreground bg-card hover:bg-accent"
           >
             <Calendar size={13} className="text-muted-foreground" />
             <span className="max-w-[120px] sm:max-w-none truncate">
@@ -133,62 +111,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
           )}
         </div>
 
-        {/* User Profile Avatar & Menu */}
-        <div className="relative" ref={userMenuRef}>
-          <Button
-            variant="ghost"
-            type="button"
-            onClick={() => setUserMenuOpen((o) => !o)}
-            className="flex h-auto items-center gap-2 rounded-full p-1 pr-2 text-left transition-colors hover:bg-muted"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tile-pink text-sm font-semibold text-tile-foreground">
-              {user?.name?.[0]?.toUpperCase() ?? "A"}
-            </div>
-            <div className="hidden xl:block text-left">
-              <p className="text-xs font-semibold text-foreground leading-tight truncate max-w-[120px]">
-                {user?.name ?? "Admin User"}
-              </p>
-              <p className="text-[10px] text-muted-foreground capitalize leading-tight">
-                {roleLabel(user) || "Staff"}
-              </p>
-            </div>
-            <CaretDown size={12} className="text-muted-foreground hidden sm:block shrink-0" />
-          </Button>
-
-          {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-popover text-popover-foreground rounded-lg shadow-lg border border-border p-1 z-50 animate-in fade-in-50 zoom-in-95">
-              <div className="px-3 py-2 border-b border-border/60 mb-1">
-                <p className="text-xs font-semibold text-foreground truncate">{user?.name ?? "User"}</p>
-                <p className="text-[10px] text-muted-foreground capitalize truncate">{roleLabel(user) || "Portal User"}</p>
-              </div>
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => {
-                  setUserMenuOpen(false);
-                  navigate('/settings');
-                }}
-                className="w-full flex items-center justify-start gap-2 px-3 py-2 text-xs rounded-md text-foreground hover:bg-muted transition-colors h-auto"
-              >
-                <User size={14} className="text-muted-foreground" />
-                Account Settings
-              </Button>
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => {
-                  authApi.logout(refreshToken).catch(() => {});
-                  clearAuth();
-                  navigate("/login");
-                }}
-                className="w-full flex items-center justify-start gap-2 px-3 py-2 text-xs rounded-md text-destructive hover:bg-destructive/10 transition-colors h-auto"
-              >
-                <SignOut size={14} />
-                Sign out
-              </Button>
-            </div>
-          )}
-        </div>
+        <ProfileMenu />
       </div>
     </header>
   );

@@ -1,14 +1,24 @@
-import React, { useState, useEffect, useCallback, ReactNode } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
-    ArrowLeft, DownloadSimple, PencilSimple, User, Users, Envelope, Phone, MapPin,
+    DownloadSimple, PencilSimple, User, Users, Envelope, Phone, MapPin,
     CurrencyDollar, CheckCircle, WarningCircle,
     XCircle, Clock, FileText, UploadSimple, Shield, GraduationCap,
-    Calendar, Trash, BookOpen, Stack, Monitor,
+    Calendar, Trash, BookOpen,
+  FileArrowUp,
+  PencilSimpleLine,
+  CalendarCheck,
+  Receipt,
+  Exam,
+  Cake,
+  IdentificationCard,
+  House,
 } from '@phosphor-icons/react';
 import { studentsApi } from "../api/studentsApi";
 import { academicApi } from "../../academic-structure/api/academicApi";
-import { fileBaseURL } from "../../../lib/axios";
+import { useCan, usePermission } from "../../../hooks/usePermission";
+import { examsApi } from "../../exams/api/examsApi";
+import { ReportCardPanel } from "../../exams/components/ReportCard";
 import type {
     Student as ApiStudent, RefClass, RefSection, AssignedGuardian,
     AttendanceRecord, Invoice, StudentDocument as ApiDocument,
@@ -16,9 +26,10 @@ import type {
 import type { Subject } from "../../academic-structure/types";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import {
@@ -29,10 +40,25 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { EmptyState, ErrorState, ListLoading } from "@/components/common/EmptyState";
+import StatStrip from "@/components/shared/StatStrip";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InfoGrid, ProfileHero, ProfileSection } from "@/components/shared/ProfileKit";
+import { confirmAction } from '@/components/common/ConfirmDialog';
 
 // Types
 
-type ProfileTab = "Personal" | "Academic" | "Attendance" | "Fees" | "Documents";
+/** Term report cards, from the marks teachers entered (published or not). */
+function ResultsTab({ studentId }: { studentId: string }) {
+    const load = useCallback((termId?: string) => examsApi.reportCard(studentId, termId), [studentId]);
+    return (
+        <Card className="rounded-2xl p-5">
+            <ReportCardPanel load={load} emptyText="No marks have been entered for this student yet." />
+        </Card>
+    );
+}
+
+type ProfileTab = "Personal" | "Academic" | "Attendance" | "Results" | "Fees" | "Documents";
 
 interface StudentBase {
     id: string;
@@ -75,14 +101,14 @@ function pctColor(pct: number) {
 }
 
 function formatBytes(bytes: number): string {
-    if (!bytes) return "â€”";
+    if (!bytes) return "—";
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function personName(ref: { firstName: string; lastName: string } | string | null | undefined): string {
-    if (!ref || typeof ref === "string") return "â€”";
+    if (!ref || typeof ref === "string") return "—";
     return `${ref.firstName} ${ref.lastName}`;
 }
 
@@ -96,9 +122,9 @@ function toStudentBase(s: ApiStudent): StudentBase {
         lastName: s.lastName,
         gender: s.gender,
         dob: s.birthDate?.slice(0, 10) ?? "",
-        classId: s.classId && typeof s.classId !== "string" ? s.classId.cl_name : "â€”",
+        classId: s.classId && typeof s.classId !== "string" ? s.classId.cl_name : "—",
         classRefId: s.classId && typeof s.classId !== "string" ? s.classId._id : "",
-        section: section?.name ?? "â€”",
+        section: section?.name ?? "—",
         classAdvisor: classTeacher ? personName(classTeacher.userId) : "Not assigned yet",
         phone: s.phoneNumber,
         address: s.address,
@@ -114,95 +140,6 @@ function toStudentBase(s: ApiStudent): StudentBase {
         previousSchool: s.previousSchool ?? "",
         house: s.house ?? "",
     };
-}
-
-function InfoField({ label, value, icon }: { label: string; value: string; icon?: ReactNode }) {
-    return (
-        <div className="flex flex-col gap-1 p-3 rounded-lg bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
-            <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                {icon && <span className="opacity-70">{icon}</span>}
-                {label}
-            </span>
-            <span className="text-sm font-semibold text-foreground tracking-tight break-words">{value}</span>
-        </div>
-    );
-}
-
-type SummaryTone = "sky" | "emerald" | "amber" | "rose" | "indigo" | "violet";
-
-const SUMMARY_ACCENTS: Record<SummaryTone, { chip: string; border: string; glow: string }> = {
-    sky: {
-        chip: "bg-info/10 text-info border border-info/60",
-        border: "border-t-info",
-        glow: "group-hover:border-info/30",
-    },
-    emerald: {
-        chip: "bg-success/10 text-success border border-success/60",
-        border: "border-t-success",
-        glow: "group-hover:border-success/30",
-    },
-    amber: {
-        chip: "bg-warning/10 text-warning border border-warning/60",
-        border: "border-t-warning",
-        glow: "group-hover:border-warning/30",
-    },
-    rose: {
-        chip: "bg-destructive/10 text-destructive border border-destructive/60",
-        border: "border-t-destructive",
-        glow: "group-hover:border-destructive/30",
-    },
-    indigo: {
-        chip: "bg-info/10 text-info border border-info/60",
-        border: "border-t-info",
-        glow: "group-hover:border-info/30",
-    },
-    violet: {
-        chip: "bg-violet/10 text-violet border border-violet/60",
-        border: "border-t-violet",
-        glow: "group-hover:border-violet/30",
-    },
-};
-
-interface SummaryCardProps {
-    title: string;
-    value: string | number;
-    subtext: string;
-    icon: ReactNode;
-    tone: SummaryTone;
-    badge?: ReactNode;
-    onClick: () => void;
-}
-
-function SummaryCard({ title, value, subtext, icon, tone, badge, onClick }: SummaryCardProps) {
-    const config = SUMMARY_ACCENTS[tone];
-    return (
-        <Button variant="plain"
-            type="button"
-            onClick={onClick}
-            className="group relative flex flex-col justify-between bg-card p-5 text-left transition-colors hover:bg-muted/40 focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-            <div className="flex w-full items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
-                    {title}
-                </span>
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-transform group-hover:scale-105 ${config.chip}`}>
-                    {icon}
-                </span>
-            </div>
-
-            <div className="my-3">
-                <h4 className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">{value}</h4>
-                {badge}
-            </div>
-
-            <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
-                <span className="truncate">{subtext}</span>
-                <span className="flex items-center gap-0.5 text-[11px] font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity ml-1 shrink-0">
-                    View â†’
-                </span>
-            </div>
-        </Button>
-    );
 }
 
 // Edit Profile Modal
@@ -266,9 +203,9 @@ function EditProfileModal({
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-                <DialogHeader className="border-b border-border bg-muted/30 px-6 py-5">
-                    <div className="flex items-center gap-2 mb-1">
+            <DialogContent className="max-w-2xl">
+                <DialogHeader icon={PencilSimpleLine} tint="blue">
+                    <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs font-semibold text-primary border-primary/20 bg-primary/5">
                             Student Information
                         </Badge>
@@ -276,13 +213,13 @@ function EditProfileModal({
                             {student.admissionNumber}
                         </Badge>
                     </div>
-                    <DialogTitle className="text-xl font-bold tracking-tight">Edit Profile</DialogTitle>
-                    <DialogDescription className="text-xs text-muted-foreground">
+                    <DialogTitle>Edit Profile</DialogTitle>
+                    <DialogDescription>
                         Update personal, academic, contact, and guardian details.
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-5">
                     {/* Section 1: Basic Information */}
                     <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4 shadow-2xs">
                         <div className="flex items-center gap-2 pb-2 border-b border-border/60">
@@ -316,7 +253,7 @@ function EditProfileModal({
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-medium text-foreground">Date of Birth <span className="text-destructive">*</span></Label>
-                                <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} required />
+                                <DatePicker value={dob} onChange={setDob} max={new Date().toLocaleDateString('en-CA')} placeholder="Pick date of birth" required aria-label="Date of birth" />
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-medium text-foreground">Blood Group</Label>
@@ -443,11 +380,11 @@ function EditProfileModal({
                         </div>
                     )}
 
-                    <DialogFooter className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
+                    <DialogFooter>
                         <Button variant="outline" type="button" onClick={onClose} disabled={submitting}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={submitting} className="min-w-32 shadow-xs">
+                        <Button type="submit" disabled={submitting} className="min-w-32">
                             {submitting ? "Saving..." : "Save Changes"}
                         </Button>
                     </DialogFooter>
@@ -491,8 +428,8 @@ function UploadDocumentModal({ onClose, onUpload }: { onClose: () => void; onUpl
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-md">
-                <DialogHeader>
+            <DialogContent>
+                <DialogHeader icon={FileArrowUp} tint="violet">
                     <DialogTitle>Upload Document</DialogTitle>
                     <DialogDescription>Add a new document to the student profile.</DialogDescription>
                 </DialogHeader>
@@ -513,7 +450,7 @@ function UploadDocumentModal({ onClose, onUpload }: { onClose: () => void; onUpl
                         </label>
                     </div>
                     {error && <p className="text-sm text-destructive">{error}</p>}
-                    <DialogFooter className="pt-2">
+                    <DialogFooter>
                         <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
                         <Button type="submit" disabled={submitting}>
                             {submitting ? "Uploading..." : "Upload"}
@@ -529,235 +466,93 @@ function UploadDocumentModal({ onClose, onUpload }: { onClose: () => void; onUpl
 
 function PersonalTab({ student, guardian }: { student: StudentBase; guardian: AssignedGuardian | null }) {
     return (
-        <Card className="border-border/80 shadow-2xs overflow-hidden">
-            <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle className="text-base font-semibold text-foreground">Personal Information & Records</CardTitle>
-                        <CardDescription className="text-xs">
-                            Legal identity, contact information, parent/guardian records, and academic history.
-                        </CardDescription>
-                    </div>
-                    {guardian ? (
-                        <Link to={`/parents/${guardian._id}`}>
-                            <Badge variant="outline" className="cursor-pointer hover:bg-primary/10 transition-colors text-primary border-primary/30 text-xs">
-                                View Portal Account â†’
-                            </Badge>
-                        </Link>
-                    ) : (
-                        <Link to="/parents">
-                            <Badge variant="outline" className="cursor-pointer hover:bg-warning/10 transition-colors text-warning border-warning/30 text-xs">
-                                Assign Parent â†’
-                            </Badge>
-                        </Link>
-                    )}
-                </div>
-            </CardHeader>
+        <div className="grid gap-5 lg:grid-cols-2">
+            <ProfileSection className="h-full" icon={User} tint="blue" title="Basic information" description="Name, birth and school details">
+                <InfoGrid items={[
+                    { label: "First name", value: student.firstName },
+                    { label: "Last name", value: student.lastName },
+                    { label: "Gender", value: student.gender },
+                    { label: "Date of birth", value: student.dob ? formatDay(student.dob) : "", icon: Calendar },
+                    { label: "Blood group", value: student.bloodGroup },
+                    { label: "House / team", value: student.house, empty: "Not assigned" },
+                ]} />
+            </ProfileSection>
 
-            <CardContent className="p-6 divide-y divide-border/60 space-y-6">
-                {/* 1. Basic Information */}
-                <div className="space-y-3.5">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-info/10 text-info">
-                            <User size={15} />
-                        </div>
-                        <div>
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                                Basic Information
-                            </h3>
-                            <p className="text-[11px] text-muted-foreground">Identity, demographics, and personal records</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
-                        <InfoField label="First Name" value={student.firstName} />
-                        <InfoField label="Last Name" value={student.lastName} />
-                        <InfoField label="Gender" value={student.gender} />
-                        <InfoField label="Date of Birth" value={student.dob} icon={<Calendar size={13} />} />
-                        <InfoField label="Blood Group" value={student.bloodGroup || "Not recorded"} />
-                        <InfoField label="House / Team" value={student.house || "Not assigned"} icon={<Stack size={13} />} />
-                    </div>
-                </div>
+            <ProfileSection className="h-full" icon={Envelope} tint="green" title="Contact" description="How to reach the student">
+                <InfoGrid items={[
+                    { label: "Email", value: student.email, icon: Envelope, wide: true },
+                    { label: "Phone", value: student.phone, icon: Phone },
+                    { label: "City", value: student.city },
+                    { label: "Address", value: student.address, icon: MapPin, wide: true },
+                    { label: "Country", value: student.country },
+                ]} />
+            </ProfileSection>
 
-                {/* 2. Contact Information */}
-                <div className="pt-6 space-y-3.5">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-success/10 text-success">
-                            <Envelope size={15} />
-                        </div>
-                        <div>
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                                Contact Information
-                            </h3>
-                            <p className="text-[11px] text-muted-foreground">Direct communications and residential address</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                        <InfoField label="Email Address" value={student.email || "Not recorded"} icon={<Envelope size={13} />} />
-                        <InfoField label="Phone Number" value={student.phone || "Not recorded"} icon={<Phone size={13} />} />
-                        <div className="sm:col-span-2">
-                            <InfoField label="Residential Address" value={student.address || "Not recorded"} icon={<MapPin size={13} />} />
-                        </div>
-                        <InfoField label="City" value={student.city || "Not recorded"} />
-                        <InfoField label="Country" value={student.country || "Not recorded"} />
-                    </div>
-                </div>
+            <ProfileSection className="h-full" icon={Users} tint="pink" title="Parent or guardian" description="Family contact and emergency details"
+                action={
+                    <Button variant={guardian ? "outline" : "soft"} size="xs" asChild>
+                        <Link to={guardian ? `/parents/${guardian._id}` : "/parents"}>{guardian ? "Open parent" : "Assign a parent"}</Link>
+                    </Button>
+                }>
+                <InfoGrid items={guardian ? [
+                    { label: "Name", value: guardian.name },
+                    { label: "Phone", value: guardian.phone, icon: Phone },
+                    { label: "Email", value: guardian.email, icon: Envelope, wide: true },
+                    { label: "Emergency contact", value: student.emergencyContactName ? `${student.emergencyContactName}${student.emergencyContactPhone ? ` · ${student.emergencyContactPhone}` : ""}` : "", wide: true },
+                ] : [
+                    // No family linked yet: what was typed on the student record.
+                    { label: "Parent name (on the record)", value: student.parentName },
+                    { label: "Parent phone (on the record)", value: student.parentPhone, icon: Phone },
+                    { label: "Emergency contact", value: student.emergencyContactName ? `${student.emergencyContactName}${student.emergencyContactPhone ? ` · ${student.emergencyContactPhone}` : ""}` : "", wide: true },
+                ]} />
+            </ProfileSection>
 
-                {/* 3. Parent & Guardian Details */}
-                <div className="pt-6 space-y-3.5">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/10 text-warning">
-                                <Users size={15} />
-                            </div>
-                            <div>
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                                    Parent & Guardian Details
-                                </h3>
-                                <p className="text-[11px] text-muted-foreground">Primary guardian contacts and emergency responders</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {guardian ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                            <InfoField label="Assigned Parent" value={guardian.name} />
-                            <InfoField label="Phone" value={guardian.phone} icon={<Phone size={13} />} />
-                            <InfoField label="Email" value={guardian.email || "â€”"} icon={<Envelope size={13} />} />
-                        </div>
-                    ) : (
-                        <div className="rounded-lg bg-warning/10 border border-warning/20 px-3 py-2 text-xs text-warning">
-                            No parent portal account linked yet. Contact details below are saved on the student record.
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                        <InfoField label="Parent Name (on file)" value={student.parentName || "â€”"} />
-                        <InfoField label="Parent Phone (on file)" value={student.parentPhone || "â€”"} icon={<Phone size={13} />} />
-                        <InfoField
-                            label="Emergency Contact"
-                            value={student.emergencyContactName ? `${student.emergencyContactName} (${student.emergencyContactPhone || "no phone on file"})` : "Not recorded"}
-                            icon={<WarningCircle size={13} />}
-                        />
-                    </div>
-                </div>
-
-                {/* 4. Prior Academic Background */}
-                <div className="pt-6 space-y-3.5">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-info/10 text-info">
-                            <Shield size={15} />
-                        </div>
-                        <div>
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                                Prior Academic Background
-                            </h3>
-                            <p className="text-[11px] text-muted-foreground">Transfers and previous school records</p>
-                        </div>
-                    </div>
-                    <div className="pt-1 max-w-md">
-                        <InfoField label="Previous School Attended" value={student.previousSchool || "None on file"} icon={<BookOpen size={13} />} />
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+            <ProfileSection className="h-full" icon={Shield} tint="violet" title="Background" description="Previous schooling">
+                <InfoGrid items={[
+                    { label: "Previous school", value: student.previousSchool, icon: BookOpen, wide: true, empty: "None on file" },
+                ]} />
+            </ProfileSection>
+        </div>
     );
 }
 
+function formatDay(iso: string) {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
 function AcademicTab({ student, subjects }: { student: StudentBase; subjects: Subject[] }) {
+    const tiles = ["bg-tile-blue", "bg-tile-green", "bg-tile-yellow", "bg-tile-pink", "bg-tile-violet"];
     return (
-        <div className="space-y-5">
-            {/* Academic Summary Cards: hairline-divided panel */}
-            <Card className="overflow-hidden border-border bg-border shadow-sm">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-px">
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Enrolled Class</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-info/15 text-info">
-                                <GraduationCap className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-foreground">{student.classId}</h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Section: <span className="font-semibold text-foreground">{student.section}</span></p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Enrolled Subjects</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
-                                <BookOpen className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-foreground">{subjects.length}</h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Curriculum active</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Class Advisor</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15 text-warning">
-                                <User className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-xl font-semibold tracking-tight text-foreground truncate max-w-[200px]" title={student.classAdvisor}>
-                            {student.classAdvisor}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Faculty In-Charge</p>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Academic Details Form Block */}
-            <Card className="border-border/80 shadow-2xs">
-                <CardHeader className="pb-3 border-b border-border/40">
-                    <CardTitle className="text-sm font-semibold">Academic Profile & Enrolled Subjects</CardTitle>
-                    <CardDescription className="text-xs">Class allocation, registration identifier, and subject list</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <InfoField label="Class Level" value={student.classId} />
-                        <InfoField label="Section Group" value={student.section} />
-                        <InfoField label="Admission Number" value={student.rollNumber} />
-                    </div>
-
-                    <div>
-                        <div className="flex items-center justify-between mb-2.5">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Active Coursework ({subjects.length})
-                            </p>
-                        </div>
-                        {subjects.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                                {subjects.map((sub) => (
-                                    <div key={sub._id} className="flex items-center gap-2.5 p-3 rounded-lg border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors">
-                                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold">
-                                            {sub.sub_name.slice(0, 2).toUpperCase()}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-semibold text-foreground truncate">{sub.sub_name}</p>
-                                            <p className="text-[10px] text-muted-foreground">Course ID: {sub.sub_no || "â€”"}</p>
-                                        </div>
-                                    </div>
-                                ))}
+        <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+            <ProfileSection className="h-full" icon={GraduationCap} tint="blue" title="Class">
+                <InfoGrid items={[
+                    { label: "Class", value: student.classId },
+                    { label: "Section", value: student.section, empty: "None" },
+                    { label: "Admission number", value: student.rollNumber, wide: true },
+                    { label: "Class teacher", value: student.classAdvisor === "Not assigned yet" ? "" : student.classAdvisor, empty: "Not assigned yet", wide: true },
+                    { label: "House / team", value: student.house, empty: "Not assigned", wide: true },
+                ]} />
+            </ProfileSection>
+            <ProfileSection className="h-full" icon={BookOpen} tint="green" title={`Subjects (${subjects.length})`} description="What this student's class studies">
+                {subjects.length > 0 ? (
+                    <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                        {subjects.map((sub, i) => (
+                            <div key={sub._id} className="flex items-center gap-3 rounded-xl border border-border/70 bg-card p-3">
+                                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-tile-foreground ${tiles[i % tiles.length]}`}>
+                                    {sub.sub_name.slice(0, 2).toUpperCase()}
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-foreground">{sub.sub_name}</p>
+                                    <p className="text-xs text-muted-foreground">{sub.subjectCode || sub.sub_no || "—"}</p>
+                                </div>
                             </div>
-                        ) : (
-                            <div className="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-                                No subjects mapped to this class level yet.
-                            </div>
-                        )}
+                        ))}
                     </div>
-
-                    <div className="pt-3 border-t border-border/40 flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground">Student House:</span>
-                        {student.house ? (
-                            <Badge variant="secondary" className="font-medium">
-                                {student.house}
-                            </Badge>
-                        ) : (
-                            <span className="text-xs text-muted-foreground italic">Not assigned to a house</span>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
+                ) : (
+                    <EmptyState compact icon={BookOpen} tint="green" title="No subjects yet" text="No subjects are set up for this class yet." />
+                )}
+            </ProfileSection>
         </div>
     );
 }
@@ -795,77 +590,18 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
 
     return (
         <div className="space-y-5">
-            {/* Attendance 4-Stat Strip: one panel, four cells separated by hairlines */}
-            <Card className="overflow-hidden border-border bg-border shadow-sm">
-                <div className="grid grid-cols-2 gap-px lg:grid-cols-4">
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Attendance Rate</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
-                                <Calendar className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className={`mt-3 text-3xl font-semibold tabular-nums tracking-tight ${pctColor(overall)}`}>
-                            {Math.round(overall)}%
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Overall presence</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Sessions Present</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
-                                <CheckCircle className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-                            {presentSum}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">out of {records.length} sessions</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Recorded Absences</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-destructive/15 text-destructive">
-                                <XCircle className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-destructive">
-                            {absentSum}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">unexcused / recorded</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Late Arrivals</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15 text-warning">
-                                <Clock className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-warning">
-                            {lateSum}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">tardy sessions</p>
-                    </div>
-                </div>
-            </Card>
+            <StatStrip items={[
+                { label: "Attendance rate", value: `${Math.round(overall)}%`, icon: Calendar, tone: "emerald", hint: "Present or late" },
+                { label: "Present", value: presentSum, icon: CheckCircle, tone: "sky", hint: `of ${records.length} sessions` },
+                { label: "Absent", value: absentSum, icon: XCircle, tone: "rose", hint: "Sessions missed" },
+                { label: "Late", value: lateSum, icon: Clock, tone: "amber", hint: "Arrived late" },
+            ]} />
 
             {/* Attendance History Block */}
-            <Card className="border-border/80 shadow-2xs">
-                <CardHeader className="pb-3 border-b border-border/40 flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle className="text-sm font-semibold">Monthly Attendance Breakdown</CardTitle>
-                        <CardDescription className="text-xs">Summary of attendance distribution grouped by calendar month</CardDescription>
-                    </div>
-                    <Badge variant="outline" className="font-semibold text-xs">
-                        Overall: {Math.round(overall)}%
-                    </Badge>
-                </CardHeader>
-                <CardContent className="pt-4 p-0">
+            <ProfileSection icon={CalendarCheck} tint="green" title="Month by month" description="Present, absent and late in each month" flush
+                action={<span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">Overall {Math.round(overall)}%</span>}>
                     {byMonth.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">No attendance records found for this student.</p>
+                        <EmptyState icon={CalendarCheck} tint="blue" title="No attendance yet" text="Once teachers take attendance, this student's days show up here month by month." />
                     ) : (
                         <div className="overflow-x-auto">
                             <Table className="w-full text-sm">
@@ -906,8 +642,7 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
                             </Table>
                         </div>
                     )}
-                </CardContent>
-            </Card>
+            </ProfileSection>
         </div>
     );
 }
@@ -927,74 +662,17 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
 
     return (
         <div className="space-y-5">
-            {/* Fees 4-Stat Strip: one panel, four cells separated by hairlines */}
-            <Card className="overflow-hidden border-border bg-border shadow-sm">
-                <div className="grid grid-cols-2 gap-px lg:grid-cols-4">
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Invoiced</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-info/15 text-info">
-                                <CurrencyDollar className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-                            ${totals.invoiced.toLocaleString()}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Assigned tuition & fees</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Paid</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
-                                <CheckCircle className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-success">
-                            ${totals.paid.toLocaleString()}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Settled balance</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Outstanding Balance</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-destructive/15 text-destructive">
-                                <WarningCircle className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-destructive">
-                            ${totals.balance.toLocaleString()}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Remaining due</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Next Due Date</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15 text-warning">
-                                <Calendar className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className={`mt-3 text-xl font-semibold tracking-tight ${nextDueInvoice ? "text-warning" : "text-muted-foreground"}`}>
-                            {nextDueInvoice ? (nextDueInvoice.dueDate ? new Date(nextDueInvoice.dueDate).toLocaleDateString() : "No deadline set") : "Fully Cleared"}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                            {nextDueInvoice ? `Pending: $${nextDueInvoice.balance.toLocaleString()}` : "No outstanding bills"}
-                        </p>
-                    </div>
-                </div>
-            </Card>
+            <StatStrip items={[
+                { label: "Billed", value: `$${totals.invoiced.toLocaleString()}`, icon: CurrencyDollar, tone: "sky", hint: "All fees charged" },
+                { label: "Paid", value: `$${totals.paid.toLocaleString()}`, icon: CheckCircle, tone: "emerald", hint: "Received so far" },
+                { label: "Owed", value: `$${totals.balance.toLocaleString()}`, icon: WarningCircle, tone: totals.balance > 0 ? "rose" : "muted", hint: totals.balance > 0 ? "Still to pay" : "Nothing owed" },
+                { label: "Next due", value: nextDueInvoice ? (nextDueInvoice.dueDate ? new Date(nextDueInvoice.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "No date") : "—", icon: Calendar, tone: "amber", hint: nextDueInvoice ? `$${nextDueInvoice.balance.toLocaleString()} pending` : "All paid" },
+            ]} />
 
             {/* Invoice History */}
-            <Card className="border-border/80 shadow-2xs">
-                <CardHeader className="pb-3 border-b border-border/40">
-                    <CardTitle className="text-sm font-semibold">Billing Ledger & Invoices</CardTitle>
-                    <CardDescription className="text-xs">Historical invoices, fee categories, and payment receipts</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-4 p-0">
+            <ProfileSection icon={Receipt} tint="yellow" title="Bills and payments" description="Every fee charged and what was paid" flush>
                     {invoices.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">No invoices generated for this student yet.</p>
+                        <EmptyState icon={Receipt} tint="yellow" title="No bills yet" text="Monthly fees appear here once the school charges this student's class." />
                     ) : (
                         <div className="overflow-x-auto">
                             <Table className="w-full text-sm">
@@ -1021,7 +699,7 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                                                 <TableCell className="py-3.5 px-4 font-semibold text-success">${fee.paid_amount.toLocaleString()}</TableCell>
                                                 <TableCell className={`py-3.5 px-4 font-semibold ${fee.balance > 0 ? "text-destructive" : "text-muted-foreground"}`}>${fee.balance.toLocaleString()}</TableCell>
                                                 <TableCell className="py-3.5 px-4 text-muted-foreground text-xs">{new Date(fee.registerDate).toLocaleDateString()}</TableCell>
-                                                <TableCell className="py-3.5 px-4 text-muted-foreground text-xs">{fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : "â€”"}</TableCell>
+                                                <TableCell className="py-3.5 px-4 text-muted-foreground text-xs">{fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : "—"}</TableCell>
                                                 <TableCell className="py-3.5 px-4">
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${feeStatusBadge(fee.status)}`}>
                                                         {feeStatusLabel(fee.status)}
@@ -1034,8 +712,7 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                             </Table>
                         </div>
                     )}
-                </CardContent>
-            </Card>
+            </ProfileSection>
         </div>
     );
 }
@@ -1043,6 +720,17 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
 function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: ApiDocument[]; onReload: () => Promise<void> }) {
     const [showUpload, setShowUpload] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
+    const [docError, setDocError] = useState("");
+    const canEdit = useCan("students", "edit");
+
+    async function handleOpen(docId: string) {
+        setDocError("");
+        try {
+            await studentsApi.openDocument(studentId, docId);
+        } catch (err: any) {
+            setDocError(err?.response?.status === 404 ? "That file is no longer on the server. Please upload it again." : "Could not open the document.");
+        }
+    }
 
     async function handleUpload(file: File, name: string) {
         await studentsApi.uploadDocument(studentId, file, name);
@@ -1061,10 +749,14 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
     }
 
     async function handleDelete(docId: string) {
+        if (!(await confirmAction({ title: "Delete this document?", text: "The file is removed for good.", confirmLabel: "Delete document", tone: "danger" }))) return;
         setBusyId(docId);
+        setDocError("");
         try {
             await studentsApi.deleteDocument(studentId, docId);
             await onReload();
+        } catch (err: any) {
+            setDocError(err?.response?.data?.message || "Could not delete the document.");
         } finally {
             setBusyId(null);
         }
@@ -1076,64 +768,18 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
 
     return (
         <div className="space-y-5">
-            {/* Documents Summary Strip: one panel, three cells separated by hairlines */}
-            <Card className="overflow-hidden border-border bg-border shadow-sm">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-px">
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Files</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-info/15 text-info">
-                                <FileText className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-                            {totalDocs}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Stored in student archive</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Verified Records</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-success/15 text-success">
-                                <CheckCircle className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-success">
-                            {verifiedDocs} <span className="text-xs text-muted-foreground font-normal">/ {totalDocs}</span>
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Compliant and approved</p>
-                    </div>
-
-                    <div className="bg-card p-5">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pending Review</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15 text-warning">
-                                <Clock className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <h4 className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-warning">
-                            {pendingDocs}
-                        </h4>
-                        <p className="mt-2 text-xs text-muted-foreground">Awaiting verification</p>
-                    </div>
-                </div>
-            </Card>
+            <StatStrip items={[
+                { label: "Documents", value: totalDocs, icon: FileText, tone: "violet", hint: "On file" },
+                { label: "Verified", value: verifiedDocs, icon: CheckCircle, tone: "emerald", hint: `of ${totalDocs}` },
+                { label: "To check", value: pendingDocs, icon: Clock, tone: "amber", hint: "Waiting for review" },
+            ]} />
 
             {/* Documents Table Block */}
-            <Card className="border-border/80 shadow-2xs">
-                <CardHeader className="pb-3 border-b border-border/40 flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle className="text-sm font-semibold">Student Documents & Verification</CardTitle>
-                        <CardDescription className="text-xs">Certificates, national IDs, and medical files</CardDescription>
-                    </div>
-                    <Button size="sm" onClick={() => setShowUpload(true)} className="gap-2 shadow-2xs">
-                        <UploadSimple size={14} /> Upload Document
-                    </Button>
-                </CardHeader>
-                <CardContent className="pt-4 p-0">
+            <ProfileSection icon={FileText} tint="violet" title="Documents" description="Certificates, IDs and other files" flush
+                action={canEdit && <Button size="sm" onClick={() => setShowUpload(true)}><UploadSimple size={15} /> Upload</Button>}>
+                {docError && <p className="mx-5 mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">{docError}</p>}
                     {docs.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">No documents uploaded for this student yet.</p>
+                        <EmptyState icon={FileArrowUp} tint="violet" title="No documents yet" text="Upload birth certificates, report cards or other files for this student." />
                     ) : (
                         <div className="overflow-x-auto">
                             <Table className="w-full text-sm">
@@ -1172,31 +818,34 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                                                     {doc.status === "Pending" && (
                                                         <Button
                                                             variant="outline"
-                                                            size="sm"
+                                                            size="xs"
                                                             onClick={() => handleVerify(doc._id)}
                                                             disabled={busyId === doc._id}
-                                                            className="h-8 gap-1 text-xs text-success hover:text-success hover:bg-success/10"
+                                                            className="text-success hover:text-success hover:bg-success/10"
                                                         >
                                                             <CheckCircle size={13} /> Verify
                                                         </Button>
                                                     )}
-                                                    <a
-                                                        href={`${fileBaseURL}${doc.fileUrl}`}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                                    >
-                                                        <DownloadSimple size={13} /> Download
-                                                    </a>
                                                     <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleDelete(doc._id)}
-                                                        disabled={busyId === doc._id}
-                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                                        variant="outline"
+                                                        size="xs"
+                                                        onClick={() => handleOpen(doc._id)}
+                                                        className="px-2.5 font-medium text-muted-foreground hover:text-foreground"
                                                     >
-                                                        <Trash size={14} />
+                                                        <DownloadSimple size={13} /> Open
                                                     </Button>
+                                                    {canEdit && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            onClick={() => handleDelete(doc._id)}
+                                                            disabled={busyId === doc._id}
+                                                            aria-label="Delete document"
+                                                            className="text-muted-foreground hover:text-destructive"
+                                                        >
+                                                            <Trash size={14} />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -1205,8 +854,7 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                             </Table>
                         </div>
                     )}
-                </CardContent>
-            </Card>
+            </ProfileSection>
             {showUpload && <UploadDocumentModal onClose={() => setShowUpload(false)} onUpload={handleUpload} />}
         </div>
     );
@@ -1218,6 +866,7 @@ const TABS: { id: ProfileTab; icon: React.ElementType }[] = [
     { id: "Personal", icon: User },
     { id: "Academic", icon: GraduationCap },
     { id: "Attendance", icon: Calendar },
+    { id: "Results", icon: Exam },
     { id: "Fees", icon: CurrencyDollar },
     { id: "Documents", icon: FileText },
 ];
@@ -1225,6 +874,7 @@ const TABS: { id: ProfileTab; icon: React.ElementType }[] = [
 export default function StudentProfilePage() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const canEdit = useCan("students", "edit");
 
     const [apiStudent, setApiStudent] = useState<ApiStudent | null>(null);
     const [classes, setClasses] = useState<RefClass[]>([]);
@@ -1285,13 +935,17 @@ export default function StudentProfilePage() {
     }, [id]);
 
     const [activeTab, setActiveTab] = useState<ProfileTab>("Personal");
+    const canSeeResults = usePermission("exams");
     const [showEdit, setShowEdit] = useState(false);
 
-    if (loading) {
-        return <div className="py-24 text-center text-muted-foreground">Loading student...</div>;
-    }
+    if (loading) return <Card className="rounded-2xl"><ListLoading rows={6} /></Card>;
     if (loadError || !apiStudent) {
-        return <div className="py-24 text-center text-destructive">{loadError || "Student not found."}</div>;
+        return (
+            <Card className="rounded-2xl">
+                <ErrorState text={loadError || "This student couldn't be found."} onRetry={loadError ? load : undefined} />
+                <div className="-mt-8 pb-8 text-center"><Button variant="outline" onClick={() => navigate("/students")}>Back to Students</Button></div>
+            </Card>
+        );
     }
 
     const student = toStudentBase(apiStudent);
@@ -1308,200 +962,45 @@ export default function StudentProfilePage() {
     const feesBalance = invoiceTotals.balance;
 
     return (
-        <div>
-            {/* Page Header */}
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
-                <div className="flex items-center gap-3">
-                    <Button variant="plain"
-                        onClick={() => navigate("/students")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                        <ArrowLeft size={18} />
-                    </Button>
-                    <div>
-                        <h1 className="text-xl font-bold text-foreground sm:text-2xl">Student Profile</h1>
-                        <p className="mt-0.5 text-sm text-muted-foreground">View and manage student information</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                    <Button variant="outline" size="sm" asChild className="gap-2">
-                        <Link to={`/student-portal?studentId=${student.id}`}>
-                            <Monitor size={15} />
-                            <span className="hidden sm:inline">View Portal</span>
-                        </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <DownloadSimple size={15} />
-                        <span className="hidden sm:inline">Download Report</span>
-                        <span className="sm:hidden">Report</span>
-                    </Button>
-                    <Button size="sm" onClick={() => setShowEdit(true)} className="gap-2">
-                        <PencilSimple size={15} />
-                        <span className="hidden sm:inline">Edit Profile</span>
-                        <span className="sm:hidden">Edit</span>
-                    </Button>
-                </div>
-            </div>
+        <div className="space-y-6">
+            <ProfileHero
+                name={`${student.firstName} ${student.lastName}`}
+                kind={[student.classId !== "—" ? student.classId : null, student.section !== "—" ? `Section ${student.section}` : null].filter(Boolean).join(" · ") || "Student"}
+                status={student.status}
+                photo={student.photo}
+                onBack={() => navigate("/students")}
+                backLabel="Students"
+                chips={[
+                    { icon: IdentificationCard, label: student.rollNumber || "No admission number" },
+                    ...(student.dob ? [{ icon: Cake, label: `${age} years · ${formatDay(student.dob)}` }] : []),
+                    ...(student.phone ? [{ icon: Phone, label: student.phone }] : []),
+                    ...(student.house ? [{ icon: House, label: student.house }] : []),
+                ]}
+                actions={<>
+                    {canEdit && <Button size="sm" onClick={() => setShowEdit(true)}><PencilSimple size={15} /> Edit profile</Button>}
+                </>}
+            />
 
-            {/* Student Hero Profile Card */}
-            <Card className="mb-6 border-border/80 shadow-2xs overflow-hidden">
-                <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        {/* Avatar & Identifiers */}
-                        <div className="flex items-center gap-5">
-                            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/50 border-2 border-border shadow-xs">
-                                {student.photo ? (
-                                    <img src={student.photo} alt="Student Avatar" className="h-full w-full object-cover" />
-                                ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary font-bold text-2xl">
-                                        {student.firstName[0]}{student.lastName[0]}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2.5 flex-wrap">
-                                    <h2 className="text-xl font-bold text-foreground tracking-tight sm:text-2xl">
-                                        {student.firstName} {student.lastName}
-                                    </h2>
-                                    <Badge
-                                        variant="outline"
-                                        className={`font-semibold text-xs ${
-                                            student.status.toLowerCase() === "active"
-                                                ? "bg-success/10 text-success border-success/20"
-                                                : "bg-muted text-muted-foreground"
-                                        }`}
-                                    >
-                                        <span className="h-1.5 w-1.5 rounded-full bg-current mr-1.5" />
-                                        {student.status}
-                                    </Badge>
-                                </div>
-                                <p className="mt-1 text-xs text-muted-foreground font-mono">
-                                    Admission ID: <span className="font-semibold text-foreground">{student.rollNumber || "â€”"}</span>
-                                </p>
-                                <div className="mt-2 flex flex-wrap items-center gap-2">
-                                    <Badge variant="secondary" className="text-xs font-medium">
-                                        {student.classId} â€¢ Section {student.section}
-                                    </Badge>
-                                    {student.house && (
-                                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                                            House: {student.house}
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+            <StatStrip items={[
+                { label: "Class", value: student.classId, icon: GraduationCap, tone: "sky", hint: `${subjects.length} subject${subjects.length === 1 ? "" : "s"}`, onClick: () => setActiveTab("Academic"), active: activeTab === "Academic" },
+                { label: "Attendance", value: attendanceRecords.length ? `${attendanceRate}%` : "—", icon: Calendar, tone: "emerald", hint: attendanceRecords.length ? `${attendancePresent} of ${attendanceRecords.length} present` : "Not taken yet", onClick: () => setActiveTab("Attendance"), active: activeTab === "Attendance" },
+                { label: "Owed", value: `$${feesBalance.toLocaleString()}`, icon: CurrencyDollar, tone: feesBalance > 0 ? "rose" : "violet", hint: feesTotal ? `$${feesPaid.toLocaleString()} of $${feesTotal.toLocaleString()} paid` : "No bills yet", onClick: () => setActiveTab("Fees"), active: activeTab === "Fees" },
+                { label: "Documents", value: documents.length, icon: FileText, tone: "amber", hint: documents.length ? `${documents.filter((d) => d.status === "Verified").length} verified` : "None uploaded", onClick: () => setActiveTab("Documents"), active: activeTab === "Documents" },
+            ]} />
 
-                        {/* Top Key Indicator Stats */}
-                        <div className="grid grid-cols-3 gap-3 border-t border-border/60 pt-4 md:border-t-0 md:border-l md:border-border/60 md:pl-6 md:pt-0">
-                            <div className="text-center px-2">
-                                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Attendance</p>
-                                <p className="text-2xl font-bold tracking-tight text-success mt-0.5">{attendanceRate}%</p>
-                                <span className="text-[10px] text-muted-foreground">{attendancePresent}/{attendanceRecords.length} Days</span>
-                            </div>
-                            <div className="text-center px-2 border-x border-border/40">
-                                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Admit No.</p>
-                                <p className="text-base font-bold tracking-tight text-foreground truncate mt-1.5 font-mono">{student.rollNumber}</p>
-                                <span className="text-[10px] text-muted-foreground">Official ID</span>
-                            </div>
-                            <div className="text-center px-2">
-                                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Age</p>
-                                <p className="text-2xl font-bold tracking-tight text-foreground mt-0.5">{age || "â€”"}</p>
-                                <span className="text-[10px] text-muted-foreground">Years old</span>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Quick summary cards: single card with hairline cell dividers */}
-            <Card className="overflow-hidden border-border bg-border shadow-sm mb-6">
-                <div className="grid grid-cols-2 gap-px lg:grid-cols-4">
-                    <SummaryCard
-                        title="Academic"
-                        value={student.classId}
-                        subtext={`${subjects.length} Enrolled Courses`}
-                        icon={<GraduationCap size={16} />}
-                        tone="sky"
-                        onClick={() => setActiveTab("Academic")}
-                    />
-                    <SummaryCard
-                        title="Attendance"
-                        value={`${attendanceRate}%`}
-                        subtext={`${attendancePresent} / ${attendanceRecords.length} Present`}
-                        icon={<Calendar size={16} />}
-                        tone="emerald"
-                        onClick={() => setActiveTab("Attendance")}
-                        badge={
-                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                                <div className="h-full rounded-full bg-success transition-all duration-500" style={{ width: `${attendanceRate}%` }} />
-                            </div>
-                        }
-                    />
-                    <SummaryCard
-                        title="Fees & Balance"
-                        value={`$${feesBalance.toLocaleString()}`}
-                        subtext={`$${feesPaid.toLocaleString()} / $${feesTotal.toLocaleString()} Paid`}
-                        icon={<CurrencyDollar size={16} />}
-                        tone={feesBalance > 0 ? "rose" : "indigo"}
-                        onClick={() => setActiveTab("Fees")}
-                        badge={
-                            <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                                feesBalance === 0
-                                    ? "bg-success/10 text-success border-success/20"
-                                    : feesBalance < 100
-                                        ? "bg-warning/10 text-warning border-warning/20"
-                                        : "bg-destructive/10 text-destructive border-destructive/20"
-                            }`}>
-                                {feesBalance === 0 ? "Fully Paid" : "Payment Pending"}
-                            </span>
-                        }
-                    />
-                    <SummaryCard
-                        title="Documents"
-                        value={`${documents.length} Uploaded`}
-                        subtext={`${documents.filter(d => d.status === "Verified").length} / ${documents.length} Verified`}
-                        icon={<FileText size={16} />}
-                        tone="violet"
-                        onClick={() => setActiveTab("Documents")}
-                        badge={
-                            <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                                documents.length > 0 && documents.every(d => d.status === "Verified")
-                                    ? "bg-success/10 text-success border-success/20"
-                                    : "bg-warning/10 text-warning border-warning/20"
-                            }`}>
-                                {documents.length > 0 && documents.every(d => d.status === "Verified") ? "All Verified" : "Pending Review"}
-                            </span>
-                        }
-                    />
-                </div>
-            </Card>
-
-            {/* Tabs Bar */}
-            <div className="mb-6 flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-muted/40 p-1.5 shadow-2xs">
-                {TABS.map(({ id, icon: Icon }) => {
-                    const active = activeTab === id;
-                    return (
-                        <Button
-                            variant="plain"
-                            key={id}
-                            onClick={() => setActiveTab(id)}
-                            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all sm:text-sm ${
-                                active
-                                    ? "bg-background text-foreground shadow-2xs border border-border/60"
-                                    : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                            }`}
-                        >
-                            <Icon size={15} />
-                            <span className="hidden sm:inline">{id}</span>
-                        </Button>
-                    );
-                })}
-            </div>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProfileTab)}>
+                <TabsList className="h-auto w-full justify-start overflow-x-auto sm:w-auto">
+                    {TABS.filter(({ id }) => id !== "Results" || canSeeResults).map(({ id, icon: TabIcon }) => (
+                        <TabsTrigger key={id} value={id} className="gap-2"><TabIcon size={16} /> {id}</TabsTrigger>
+                    ))}
+                </TabsList>
+            </Tabs>
 
             {/* Tab Content */}
             {activeTab === "Personal" && <PersonalTab student={student} guardian={assignedGuardian} />}
             {activeTab === "Academic" && <AcademicTab student={student} subjects={subjects} />}
             {activeTab === "Attendance" && <AttendanceTab records={attendanceRecords} />}
+            {activeTab === "Results" && canSeeResults && <ResultsTab studentId={student.id} />}
             {activeTab === "Fees" && <FeesTab invoices={invoices} totals={invoiceTotals} />}
             {activeTab === "Documents" && <DocumentsTab studentId={student.id} docs={documents} onReload={reloadDocuments} />}
 

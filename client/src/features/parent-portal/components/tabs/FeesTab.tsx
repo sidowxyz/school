@@ -50,7 +50,7 @@ export default function FeesTab() {
           title="Invoices"
           subtitle="Fee invoices and payment status"
           action={
-            <Button variant="outline" size="sm" onClick={exportInvoices} className="gap-1.5 text-xs h-8 shadow-xs">
+            <Button variant="outline" size="xs" onClick={exportInvoices}>
               <DownloadSimple size={13} /> Export CSV
             </Button>
           }

@@ -1,3 +1,4 @@
+import { ChalkboardTeacher, CheckCircle } from "@phosphor-icons/react";
 import { useState } from "react";
 import { teachersApi } from "../api/teachersApi";
 import CredentialsReveal from "../../../components/common/CredentialsReveal";
@@ -49,8 +50,8 @@ export default function AddTeacherModal({ onClose, onCreated }: Props) {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent>
+        <DialogHeader icon={created ? CheckCircle : ChalkboardTeacher} tint="green">
           <DialogTitle>
             {created ? "Teacher Registered" : "Add New Teacher"}
           </DialogTitle>
@@ -175,7 +176,7 @@ export default function AddTeacherModal({ onClose, onCreated }: Props) {
               </div>
             )}
 
-            <DialogFooter className="pt-2">
+            <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>

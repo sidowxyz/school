@@ -2,10 +2,14 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import dns from "dns";
 
-try {
-  dns.setServers(["8.8.8.8", "1.1.1.1"]);
-} catch (err) {
-  console.warn("Warning: Could not set DNS servers:", err.message);
+// Some home/office resolvers fail mongodb+srv SRV lookups. Set MONGO_DNS_SERVERS
+// (e.g. "8.8.8.8,1.1.1.1") to use other resolvers; hosts like Render don't need it.
+if (process.env.MONGO_DNS_SERVERS) {
+  try {
+    dns.setServers(process.env.MONGO_DNS_SERVERS.split(',').map((s) => s.trim()).filter(Boolean));
+  } catch (err) {
+    console.warn("Warning: Could not set DNS servers:", err.message);
+  }
 }
 
 /**
@@ -31,7 +35,9 @@ dotenv.config();
 
 const connectDB = async () => {
   try {
-    let dbUri = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/school_management_system';
+    let dbUri = process.env.MONGODB_URI || process.env.MONGO_URI
+      || (process.env.NODE_ENV === 'production' ? null : 'mongodb://127.0.0.1:27017/school_management_system');
+    if (!dbUri) throw new Error('MONGODB_URI is not set');
 
     // Clean up if MONGODB_URI= was accidentally prepended in the env variable
     if (dbUri.startsWith("MONGODB_URI=")) {

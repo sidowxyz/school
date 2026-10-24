@@ -10,7 +10,8 @@ import AuditTable from "../components/AuditTable";
 import { useAuditLogs } from "../hooks/useAuditLogs";
 import { Button } from '@/components/ui/button';
 
-export default function AuditLogsPage() {
+/** Lives as a tab in Settings (embedded); kept usable on its own too. */
+export default function AuditLogsPage({ embedded = false }: { embedded?: boolean }) {
 const { logs: auditLogs, loading, error, reload } = useAuditLogs();
 
 const [search, setSearch] = useState("");
@@ -28,8 +29,7 @@ const filteredLogs = useMemo(() => {
       user === "All Users" || log.user === user;
 
     const matchesAction =
-      action === "All Actions" ||
-      log.action.toLowerCase().includes(action.toLowerCase());
+      action === "All Actions" || log.action === action;
 
     const matchesDate =
       !date || log.timestamp.includes(date);
@@ -42,6 +42,10 @@ const filteredLogs = useMemo(() => {
     );
   });
 }, [auditLogs, search, user, action, date]);
+
+// Filter choices come from the entries themselves, so they always match.
+const userOptions = useMemo(() => [...new Set(auditLogs.map((l) => l.user))].sort(), [auditLogs]);
+const actionOptions = useMemo(() => [...new Set(auditLogs.map((l) => l.action))].sort(), [auditLogs]);
 const handleExportCSV = () => {
   const headers = [
     "Performed By",
@@ -63,9 +67,11 @@ const handleExportCSV = () => {
     log.timestamp,
   ]);
 
+  // Quote every cell so commas and quotes inside values don't break the columns.
+  const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const csvContent = [
-    headers.join(","),
-    ...rows.map((row) => row.join(",")),
+    headers.map(cell).join(","),
+    ...rows.map((row) => row.map(cell).join(",")),
   ].join("\n");
 
   const blob = new Blob([csvContent], {
@@ -86,27 +92,26 @@ const handleExportCSV = () => {
 };
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Audit Logs"
-        subtitle="Track all administrative actions and system activity."
-        action={
+      {(() => {
+        const actions = (
           <div className="flex items-center gap-2">
-            <Button variant="plain"
+            <Button variant="outline"
               onClick={reload}
-              disabled={loading}
-              className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-muted-foreground hover:bg-muted/50 disabled:opacity-50">
+              disabled={loading}>
               <ArrowsClockwise size={18} className={loading ? "animate-spin" : undefined} />
               Refresh
             </Button>
-            <Button variant="plain"
-             onClick={handleExportCSV}
-             className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90">
+            <Button variant="default"
+             onClick={handleExportCSV}>
               <DownloadSimple size={18} />
               Export CSV
             </Button>
           </div>
-        }
-      />
+        );
+        return embedded
+          ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Every change made in the system, newest first.</p>{actions}</div>
+          : <PageHeader title="Audit Logs" subtitle="Every change made in the system, newest first." action={actions} />;
+      })()}
 
       {error && (
         <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -125,6 +130,8 @@ const handleExportCSV = () => {
   setAction={setAction}
   date={date}
   setDate={setDate}
+  userOptions={userOptions}
+  actionOptions={actionOptions}
 />
 
       {loading ? (

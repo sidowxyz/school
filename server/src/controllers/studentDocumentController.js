@@ -84,3 +84,21 @@ export const deleteStudentDocument = async (req, res, next) => {
     next(error);
   }
 };
+
+// GET /api/students/:id/documents/:docId/file — student documents are private,
+// so they are only handed out here, to signed-in staff, never as public files.
+export const downloadStudentDocument = async (req, res, next) => {
+  try {
+    const doc = await StudentDocument.findOne({ _id: req.params.docId, student: req.params.id });
+    if (!doc) return next(new AppError('Document not found', 404));
+    const root = path.join(process.cwd(), 'uploads', 'student-documents');
+    const filePath = path.join(process.cwd(), doc.fileUrl);
+    if (!filePath.startsWith(root + path.sep)) return next(new AppError('Document not found', 404));
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.sendFile(filePath, (err) => {
+      if (err && !res.headersSent) next(new AppError('The file is no longer on the server. Please upload it again.', 404));
+    });
+  } catch (error) {
+    next(error);
+  }
+};

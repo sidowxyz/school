@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { CHART_TOOLTIP } from '@/lib/chartTheme';
 import { cn } from '@/lib/utils';
 import { TILE_FILLS, TILE_HSL, sameDay, timeAgo } from './dashboardUtils';
+import { EmptyState } from '@/components/common/EmptyState';
 
 // Shared pieces for every role's dashboard: pastel number tiles, white panels,
 // a week calendar, quick actions, an activity feed and a donut breakdown.
@@ -118,19 +119,14 @@ export function Panel({ title, description, action, children, flush, className }
 export function PanelLink({ to, children }: { to: string; children: ReactNode }) {
   const navigate = useNavigate();
   return (
-    <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => navigate(to)}>
+    <Button variant="ghost" size="xs" onClick={() => navigate(to)}>
       {children} <ArrowRight size={13} />
     </Button>
   );
 }
 
-export function PanelEmpty({ text, action }: { text: string; action?: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center gap-3 py-10 text-center">
-      <p className="text-sm text-muted-foreground">{text}</p>
-      {action}
-    </div>
-  );
+export function PanelEmpty({ text, action, icon }: { text: string; action?: ReactNode; icon?: Icon }) {
+  return <EmptyState compact icon={icon} text={text} action={action} />;
 }
 
 export interface QuickAction { label: string; icon: Icon; to: string; state?: unknown }
@@ -166,14 +162,14 @@ const EVENT_STYLE: Record<string, string> = {
   Event: 'bg-tile-pink text-tile-foreground',
 };
 
-/** Monday of the week containing `d`. */
+/** Saturday of the week containing `d` (the school week runs Saturday to Thursday; Friday is off). */
 function startOfWeek(d: Date) {
   const out = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  out.setDate(out.getDate() - ((out.getDay() + 6) % 7));
+  out.setDate(out.getDate() - ((out.getDay() + 1) % 7));
   return out;
 }
 
-/** One week, Monday to Sunday, with the school's calendar items in their day. */
+/** One week, Saturday to Friday, with the school's calendar items in their day. */
 export function WeekCalendar({ items }: { items: CalendarItem[] }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const today = new Date();
@@ -192,9 +188,9 @@ export function WeekCalendar({ items }: { items: CalendarItem[] }) {
       description={rangeLabel}
       action={
         <div className="flex items-center gap-1">
-          {!isThisWeek && <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setWeekStart(startOfWeek(new Date()))}>Today</Button>}
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => shift(-1)} aria-label="Previous week"><CaretLeft size={14} /></Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => shift(1)} aria-label="Next week"><CaretRight size={14} /></Button>
+          {!isThisWeek && <Button variant="ghost" size="xs" onClick={() => setWeekStart(startOfWeek(new Date()))}>Today</Button>}
+          <Button variant="outline" size="icon-sm" onClick={() => shift(-1)} aria-label="Previous week"><CaretLeft size={14} /></Button>
+          <Button variant="outline" size="icon-sm" onClick={() => shift(1)} aria-label="Next week"><CaretRight size={14} /></Button>
         </div>
       }
     >
@@ -204,7 +200,7 @@ export function WeekCalendar({ items }: { items: CalendarItem[] }) {
             const isToday = sameDay(d, today);
             const dayItems = items.filter((it) => sameDay(new Date(it.date), d));
             return (
-              <div key={d.toISOString()} className={cn('min-h-[148px] border-border', i > 0 && 'border-l', i >= 5 && 'bg-muted/60')}>
+              <div key={d.toISOString()} className={cn('min-h-[148px] border-border', i > 0 && 'border-l', d.getDay() === 5 && 'bg-muted/60')}>
                 <div className={cn('flex items-center justify-between border-b border-border px-2.5 py-2 text-xs', isToday && 'bg-primary/10')}>
                   <span className="font-medium text-muted-foreground">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                   <span className={cn('flex h-6 w-6 items-center justify-center rounded-full font-semibold tabular-nums', isToday ? 'bg-primary text-primary-foreground' : 'text-foreground')}>
@@ -359,9 +355,9 @@ export function DotPill({ tone, children }: { tone: 'success' | 'warning' | 'mut
 }
 
 /** This week's student attendance as an area chart. */
-export function AttendancePanel({ weekly, rate }: { weekly: { day: string; present: number; absent: number }[]; rate?: number }) {
+export function AttendancePanel({ weekly, rate }: { weekly: { day: string; present: number; absent: number; excused?: number }[]; rate?: number }) {
   const navigate = useNavigate();
-  const hasData = weekly.some((d) => (d.present ?? 0) + (d.absent ?? 0) > 0);
+  const hasData = weekly.some((d) => (d.present ?? 0) + (d.absent ?? 0) + (d.excused ?? 0) > 0);
   return (
     <Panel
       title="Attendance this week"
@@ -371,7 +367,7 @@ export function AttendancePanel({ weekly, rate }: { weekly: { day: string; prese
       {!hasData ? (
         <PanelEmpty
           text="No attendance has been taken this week."
-          action={<Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate('/attendance')}>Take attendance</Button>}
+          action={<Button variant="outline" size="xs" onClick={() => navigate('/attendance')}>Take attendance</Button>}
         />
       ) : (
         <ResponsiveContainer width="100%" height={240}>

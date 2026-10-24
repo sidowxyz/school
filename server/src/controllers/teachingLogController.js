@@ -3,6 +3,7 @@ import Teacher from '../models/Teacher.js';
 import TeacherAssignment from '../models/TeacherAssignment.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import { searchRegex } from '../utils/query.js';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -179,7 +180,7 @@ export const getTeachingLogs = async (req, res, next) => {
       query.date = parsedDate;
     }
     if (search) {
-      const regex = new RegExp(search, 'i');
+      const regex = searchRegex(search) ?? /(?:)/;
       query.$or = [{ topicTaught: regex }, { lessonObjective: regex }, { subject: regex }];
     }
 

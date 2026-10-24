@@ -67,9 +67,11 @@ export const applyPaymentToInvoice = async ({
     registerDate: new Date()
   }], { session });
 
-  invoice.paid_amount += amount;
-  invoice.balance = Math.max(0, invoice.invoice_amount - invoice.paid_amount);
-  invoice.status = invoice.paid_amount >= invoice.invoice_amount
+  // Money is kept to the cent: adding 0.70 + 0.10 must give exactly 0.80, or the
+  // invoice would stay "part paid" by a fraction of a cent forever.
+  invoice.paid_amount = Math.round((invoice.paid_amount + amount) * 100) / 100;
+  invoice.balance = Math.max(0, Math.round((invoice.invoice_amount - invoice.paid_amount) * 100) / 100);
+  invoice.status = invoice.balance <= 0
     ? 'Paid'
     : invoice.paid_amount > 0 ? 'Partially_Paid' : 'Unpaid';
   await invoice.save({ session });

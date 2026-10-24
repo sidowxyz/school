@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
 /**
@@ -20,7 +21,7 @@ export const generateAccessToken = (user) => {
  */
 export const generateRefreshToken = (user) => {
   return jwt.sign(
-    { id: user._id },              // Kaliya ID-ga ayaa lagu dhex qariyaa
+    { id: user._id, jti: crypto.randomUUID() }, // a unique id, so every session's token differs
     process.env.JWT_REFRESH_SECRET, // Furaha labaad ee sirta ah ee .env ku jira
     { expiresIn: '7d' }            // Wuxuu dhacayaa 7 maalmood ka dib
   );

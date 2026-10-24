@@ -32,13 +32,13 @@ router.put('/:id', authenticate, authorize('admin'), auditLogger('Teacher', 'UPD
 router.delete('/:id', authenticate, authorize('admin'), auditLogger('Teacher', 'DELETE'), deleteTeacher);
 
 // POST   /api/teachers/:id/assignments         - Add assignment
-router.post('/:id/assignments', authenticate, authorize('admin'), auditLogger('Teacher', 'UPDATE'), addAssignment);
+router.post('/:id/assignments', authenticate, authorize('admin', 'academic_officer'), auditLogger('Teacher', 'UPDATE'), addAssignment);
 
 // PUT    /api/teachers/:id/assignments/:assignmentId - Edit assignment
-router.put('/:id/assignments/:assignmentId', authenticate, authorize('admin'), auditLogger('Teacher', 'UPDATE'), updateAssignment);
+router.put('/:id/assignments/:assignmentId', authenticate, authorize('admin', 'academic_officer'), auditLogger('Teacher', 'UPDATE'), updateAssignment);
 
 // DELETE /api/teachers/:id/assignments/:assignmentId - Remove assignment
-router.delete('/:id/assignments/:assignmentId', authenticate, authorize('admin'), auditLogger('Teacher', 'UPDATE'), removeAssignment);
+router.delete('/:id/assignments/:assignmentId', authenticate, authorize('admin', 'academic_officer'), auditLogger('Teacher', 'UPDATE'), removeAssignment);
 
 // GET    /api/teachers/:id/timetable           - Get teacher timetable
 router.get('/:id/timetable', authenticate, getTimetable);

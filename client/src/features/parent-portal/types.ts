@@ -1,6 +1,6 @@
-export type TabId = 'dashboard' | 'profile' | 'attendance' | 'fees';
+export type TabId = 'dashboard' | 'profile' | 'attendance' | 'results' | 'fees';
 
-export const TAB_IDS: TabId[] = ['dashboard', 'profile', 'attendance', 'fees'];
+export const TAB_IDS: TabId[] = ['dashboard', 'profile', 'attendance', 'results', 'fees'];
 
 export interface ParentProfile {
   name: string;

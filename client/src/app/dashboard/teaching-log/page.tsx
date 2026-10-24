@@ -133,15 +133,14 @@ export default function TeachingLogPage({
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title={teacherName ? `${teacherName}'s Teacher Portal` : 'Teaching Log'}
+        title={teacherName ? `${teacherName}'s Teaching Logs` : 'Teaching Logs'}
         subtitle={readOnly
-          ? 'Review this teacher’s schedule, classes, attendance context, lessons, and daily logs'
-          : 'Your complete teaching workspace — schedule, classes, attendance, lessons and daily logs'}
+          ? 'Their timetable, classes, lessons and daily logs.'
+          : 'Your timetable, classes, lessons and daily logs.'}
         action={
         <>
-          {!readOnly && <Button variant="plain"
+          {!readOnly && <Button variant="default"
             onClick={() => navigate('/teaching-log/create')}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer"
           >
             <Plus size={16} /> Add New Log
           </Button>}
@@ -168,8 +167,8 @@ export default function TeachingLogPage({
         { label: 'Subjects logged', value: logStats.subjectsCount, icon: ChartPie, tone: 'sky', hint: 'Curriculum areas covered' },
       ]} />
 
-      {/* Tab bar */}
-      <div className="bg-muted/80 border border-border rounded-xl p-1.5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1">
+      {/* Tab bar: same look as the shared Tabs, pastel blue for the open tab. */}
+      <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-card p-1 sm:grid-cols-3 lg:grid-cols-5">
         {visibleTabs.map((t) => {
           const active = tab === t.id;
           const Icon = t.icon;
@@ -177,13 +176,14 @@ export default function TeachingLogPage({
             <Button variant="plain"
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center justify-center gap-2 py-2.5 px-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              aria-pressed={active}
+              className={`flex items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors ${
                 active
-                  ? 'bg-card text-primary shadow-sm ring-1 ring-black/5'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/60'
+                  ? 'bg-tile-blue font-semibold text-tile-foreground'
+                  : 'font-medium text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
-              <Icon size={15} className={active ? 'text-primary' : 'text-muted-foreground'} />
+              <Icon size={15} />
               <span className="truncate">{t.label}</span>
             </Button>
           );
@@ -265,9 +265,8 @@ export default function TeachingLogPage({
               <h3 className="text-base font-bold flex items-center gap-2 text-destructive">
                 <Trash size={18} /> Delete Teaching Log
               </h3>
-              <Button variant="plain"
+              <Button variant="ghost" size="icon-sm"
                 onClick={() => setDeleteTargetId(null)}
-                className="text-muted-foreground hover:text-muted-foreground rounded-lg hover:bg-muted/50 p-1 cursor-pointer"
               >
                 <X size={18} />
               </Button>
@@ -278,15 +277,13 @@ export default function TeachingLogPage({
             </p>
 
             <div className="flex justify-end gap-3">
-              <Button variant="plain"
+              <Button variant="outline"
                 onClick={() => setDeleteTargetId(null)}
-                className="px-4 py-2 border border-border text-foreground/80 hover:bg-muted/50 rounded-lg text-xs font-bold transition-colors cursor-pointer"
               >
                 Cancel
               </Button>
-              <Button variant="plain"
+              <Button variant="destructive"
                 onClick={handleDeleteConfirm}
-                className="px-4 py-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg text-xs font-bold transition-colors cursor-pointer"
               >
                 Delete Log
               </Button>

@@ -1,6 +1,7 @@
 import { MagnifyingGlass, ArrowsClockwise } from '@phosphor-icons/react';
 import { TeachingLogFilters as FilterTypes, TeachingLogStatus } from '../../types/teachingLog.types';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 
@@ -35,9 +36,6 @@ export default function TeachingLogFilters({
     onFilterChange({ status: e.target.value as TeachingLogStatus | '' });
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFilterChange({ date: e.target.value });
-  };
 
   const selectCls =
     'border border-border rounded-lg px-3 py-2.5 text-sm text-foreground/80 bg-card hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-w-[140px] cursor-pointer';
@@ -84,18 +82,19 @@ export default function TeachingLogFilters({
       </NativeSelect>
 
       {/* Date Filter */}
-      <Input
-        type="date"
+      <DatePicker
         value={filters.date || ''}
-        onChange={handleDateChange}
-        className="border border-border rounded-lg px-3 py-2 text-sm text-foreground/80 bg-card hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
+        onChange={(date) => onFilterChange({ date })}
+        placeholder="Any date"
+        clearable
+        className="w-48"
+        aria-label="Filter by date"
       />
 
       {/* Reset Button */}
-      <Button variant="plain"
+      <Button variant="outline" size="icon"
         onClick={onReset}
         title="Reset Filters"
-        className="flex items-center justify-center border border-border hover:border-warning/40 rounded-lg p-2.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors font-medium cursor-pointer"
       >
         <ArrowsClockwise size={16} />
       </Button>

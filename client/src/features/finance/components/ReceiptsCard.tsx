@@ -103,7 +103,7 @@ export default function ReceiptsCard({ from, to }: { from: string; to: string })
                     <TableCell className="text-sm text-muted-foreground">{r.payment_method?.payment_method_name ?? '—'}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{money(r.total)}</TableCell>
                     <TableCell>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Print ${r.receipt_no}`}
+                      <Button size="icon-sm" variant="ghost" aria-label={`Print ${r.receipt_no}`}
                         onClick={(e) => { e.stopPropagation(); open(r._id); }} disabled={opening === r._id}>
                         {opening === r._id ? <SpinnerGap size={15} className="animate-spin" /> : <Printer size={15} />}
                       </Button>

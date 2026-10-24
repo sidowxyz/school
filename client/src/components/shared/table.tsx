@@ -52,10 +52,9 @@ export function TablePagination({
         Showing {start}&ndash;{end} of {totalItems}
       </p>
       <div className="flex items-center gap-1.5">
-        <Button variant="plain"
+        <Button variant="outline" size="icon-sm"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-border text-muted-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/50 transition-colors"
         >
           <CaretLeft size={14} />
         </Button>

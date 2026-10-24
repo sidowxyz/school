@@ -19,5 +19,5 @@ export const createUserSchema = z.object({
   lastName: z.string().trim().min(1, 'Last name is required'),
   email: z.string().trim().email('Please enter a valid email address.'),
   role: roleKey,
-  password: z.string().min(6, 'Password must be at least 6 characters').optional()
+  password: z.string().min(8, 'Password must be at least 8 characters').optional()
 });

@@ -16,6 +16,7 @@ export const parentsApi = {
   create:  async (data: CreateParentPayload): Promise<CreateParentResult> =>
     (await api.post('/parents', data)).data.data,
   update:  (id: string, data: Partial<CreateParentPayload>) => api.put(`/parents/${id}`, data),
+  remove:  (id: string) => api.delete(`/parents/${id}`),
 
   assignStudent:   (parentId: string, studentId: string) =>
     api.post(`/parents/${parentId}/students/${studentId}`),
@@ -23,7 +24,7 @@ export const parentsApi = {
     api.delete(`/parents/${parentId}/students/${studentId}`),
 
   getUnassignedStudents: async (): Promise<UnassignedStudent[]> =>
-    (await api.get('/students', { params: { unassigned: 'true', limit: 200 } })).data.data.students,
+    (await api.get('/students', { params: { unassigned: 'true', limit: 1000 } })).data.data.students,
 };
 
 export const siblingRulesApi = {

@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react';
-import { FloppyDisk, SpinnerGap, Check } from '@phosphor-icons/react';
+import { FloppyDisk, SpinnerGap, Check, Buildings } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
 import { monthlyFeesApi, apiError } from '../api/monthlyFeesApi';
 import { money, type ClassFee } from '../monthlyTypes';
+import { TableEmptyRow, TableLoadingRows } from '@/components/common/EmptyState';
 
 /** Setup → the monthly fee each class (grade) pays. */
 export default function ClassFeesPanel() {
-  const { role } = useAuth();
-  const canEdit = role === 'admin';
+  const canEdit = useCan('fees-setup', 'edit');
   const { showToast } = useToast();
   const [classes, setClasses] = useState<ClassFee[]>([]);
+  const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -22,7 +23,7 @@ export default function ClassFeesPanel() {
   const load = () => monthlyFeesApi.getClassFees().then((list) => {
     setClasses(list);
     setDrafts(Object.fromEntries(list.map((c) => [c._id, c.monthly_fee === null ? '' : String(c.monthly_fee)])));
-  }).catch((err) => showToast(apiError(err, 'Could not load classes.'), 'error'));
+  }).catch((err) => showToast(apiError(err, 'Could not load classes.'), 'error')).finally(() => setLoading(false));
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
@@ -64,6 +65,10 @@ export default function ClassFeesPanel() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {loading && classes.length === 0 && <TableLoadingRows columns={5} rows={4} />}
+            {!loading && classes.length === 0 && (
+              <TableEmptyRow colSpan={5} icon={Buildings} tint="yellow" title="No classes yet" text="Add classes under Settings › Academic structure, then set their monthly fee here." />
+            )}
             {classes.map((c) => {
               const dirty = drafts[c._id] !== (c.monthly_fee === null ? '' : String(c.monthly_fee));
               return (
@@ -81,7 +86,7 @@ export default function ClassFeesPanel() {
                             className="h-9 pl-6 tabular-nums" aria-label={`Monthly fee for ${c.name}`} />
                         </div>
                         {dirty && (
-                          <Button type="submit" size="sm" disabled={saving === c._id} className="h-9 gap-1.5">
+                          <Button type="submit" size="sm" disabled={saving === c._id} className="gap-1.5">
                             {saving === c._id ? <SpinnerGap size={14} className="animate-spin" /> : <FloppyDisk size={14} />} Save
                           </Button>
                         )}

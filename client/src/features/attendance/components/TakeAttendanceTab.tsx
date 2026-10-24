@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Checks, FloppyDisk, SpinnerGap, UsersThree } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Card, CardContent } from '@/components/ui/card';
@@ -117,7 +118,7 @@ export default function TakeAttendanceTab({ terms, classes, sections }: { terms:
         <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-1.5">
             <Label htmlFor="ta-date" className="text-xs">Date</Label>
-            <Input id="ta-date" type="date" value={date} max={todayIso()} onChange={(e) => e.target.value && setDate(e.target.value)} />
+            <DatePicker id="ta-date" value={date} max={todayIso()} onChange={(v) => v && setDate(v)} />
           </div>
           {terms.length > 1 && (
             <div className="space-y-1.5">
@@ -161,7 +162,7 @@ export default function TakeAttendanceTab({ terms, classes, sections }: { terms:
             {alreadySaved && !dirty && <span className="text-muted-foreground">· saved</span>}
             {dirty && <span className="text-warning">· not saved yet</span>}
           </div>
-          <Button variant="outline" size="sm" onClick={() => markAll('Present')} disabled={!students.length} className="h-8 gap-1.5">
+          <Button variant="outline" size="xs" onClick={() => markAll('Present')} disabled={!students.length}>
             <Checks size={14} /> All present
           </Button>
         </div>
@@ -206,7 +207,7 @@ export default function TakeAttendanceTab({ terms, classes, sections }: { terms:
             <p className="text-xs text-muted-foreground">
               {new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
-            <Button onClick={save} disabled={saving || !periodId} className="gap-2">
+            <Button onClick={save} disabled={saving || !periodId}>
               {saving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
               {saving ? 'Saving…' : alreadySaved ? 'Update attendance' : 'Save attendance'}
             </Button>

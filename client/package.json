@@ -35,7 +35,6 @@
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.1",
     "recharts": "^2.15.4",
-    "school-management-workspace": "file:..",
     "sonner": "^2.0.8",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",

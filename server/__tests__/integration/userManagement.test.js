@@ -20,7 +20,7 @@ describe('User management & deactivation', () => {
     await User.deleteMany({ email: { $in: emails } });
     const [admin, target] = await User.create([
       { firstName: 'Um', lastName: 'Admin', email: emails[0], password: 'password123', role: 'admin' },
-      { firstName: 'Um', lastName: 'Target', email: emails[1], password: 'password123', role: 'student' }
+      { firstName: 'Um', lastName: 'Target', email: emails[1], password: 'password123', role: 'accountant' }
     ]);
     adminId = admin._id.toString();
     targetId = target._id.toString();
@@ -48,7 +48,7 @@ describe('User management & deactivation', () => {
     it('rejects a non-admin with 403', async () => {
       const res = await request(app)
         .get('/api/users')
-        .set('Authorization', `Bearer ${signToken(targetId, 'student')}`);
+        .set('Authorization', `Bearer ${signToken(targetId, 'accountant')}`);
       expect(res.status).toBe(403);
     });
 
@@ -63,11 +63,47 @@ describe('User management & deactivation', () => {
       const res = await request(app)
         .patch(`/api/users/${targetId}/role`)
         .set('Authorization', asAdmin())
-        .send({ role: 'teacher' });
+        .send({ role: 'principal' });
       expect(res.status).toBe(200);
-      expect(res.body.data.role).toBe('teacher');
+      expect(res.body.data.role).toBe('principal');
       const reloaded = await User.findById(targetId);
-      expect(reloaded.role).toBe('teacher');
+      expect(reloaded.role).toBe('principal');
+    });
+
+    it('refuses teacher, student and parent roles (they come from their own pages)', async () => {
+      const res = await request(app)
+        .patch(`/api/users/${targetId}/role`)
+        .set('Authorization', asAdmin())
+        .send({ role: 'teacher' });
+      expect(res.status).toBe(400);
+    });
+
+    it('keeps at least one active admin', async () => {
+      const res = await request(app)
+        .patch(`/api/users/${adminId}/role`)
+        .set('Authorization', asAdmin())
+        .send({ role: 'principal' });
+      expect(res.status).toBe(400);
+      expect((await User.findById(adminId)).role).toBe('admin');
+    });
+
+    it('resets a password to a temporary one and signs the user out everywhere', async () => {
+      const login = await request(app).post('/api/auth/login').send({ email: emails[1], password: 'password123' });
+      const res = await request(app)
+        .post(`/api/users/${targetId}/reset-password`)
+        .set('Authorization', asAdmin());
+      expect(res.status).toBe(200);
+      const { temporaryPassword } = res.body.data;
+      expect(temporaryPassword.length).toBeGreaterThanOrEqual(8);
+      // The old session is gone, the new password works.
+      const refresh = await request(app).post('/api/auth/refresh').send({ token: login.body.data.refreshToken });
+      expect(refresh.status).toBe(403);
+      const again = await request(app).post('/api/auth/login').send({ email: emails[1], password: temporaryPassword });
+      expect(again.status).toBe(200);
+      // Put the known password back for the tests below.
+      const target = await User.findById(targetId);
+      target.password = 'password123';
+      await target.save();
     });
 
     it('rejects an invalid role with 400', async () => {
@@ -82,7 +118,7 @@ describe('User management & deactivation', () => {
   describe('Deactivation enforcement', () => {
     it('a deactivated user is rejected by authenticate even with a valid token', async () => {
       // Token minted while active.
-      const token = signToken(targetId, 'teacher');
+      const token = signToken(targetId, 'principal');
       await request(app)
         .patch(`/api/users/${targetId}/status`)
         .set('Authorization', asAdmin())

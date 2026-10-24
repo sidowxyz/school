@@ -6,6 +6,7 @@ import { teachersApi } from '@/features/teachers/api/teachersApi';
 import type { TeacherAssignment } from '@/features/teachers/types';
 import { periodLabel, weekdayForDate } from './portal/portalData';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -184,7 +185,7 @@ export default function TeachingLogForm({
       await onSubmit(payload, status);
       navigate('/teaching-log');
     } catch (err: any) {
-      setFormError(err?.message || 'Something went wrong while saving the teaching log.');
+      setFormError(err?.response?.data?.message || err?.message || 'Something went wrong while saving the teaching log.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -233,11 +234,12 @@ export default function TeachingLogForm({
               <label className={labelCls}>
                 Date <span className="text-destructive">*</span>
               </label>
-              <Input
-                type="date"
-                className={inputCls('date')}
+              <DatePicker
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={setDate}
+                max={new Date().toLocaleDateString('en-CA')}
+                invalid={!!validationErrors.date}
+                aria-label="Lesson date"
               />
               {validationErrors.date && <p className="text-[11px] text-destructive mt-1">{validationErrors.date}</p>}
             </div>
@@ -470,12 +472,15 @@ export default function TeachingLogForm({
             {/* Submission Deadline */}
             <div>
               <label className={labelCls}>Submission Deadline</label>
-              <Input
-                type="date"
+              <DatePicker
                 disabled={!homeworkGiven.trim()}
-                className={`${inputCls('submissionDeadline')} disabled:opacity-50 disabled:cursor-not-allowed`}
                 value={submissionDeadline}
-                onChange={(e) => setSubmissionDeadline(e.target.value)}
+                onChange={setSubmissionDeadline}
+                min={date || undefined}
+                invalid={!!validationErrors.submissionDeadline}
+                clearable
+                placeholder="No deadline"
+                aria-label="Submission deadline"
               />
               {!homeworkGiven.trim() && (
                 <p className="text-[10px] text-muted-foreground mt-1">
@@ -488,32 +493,32 @@ export default function TeachingLogForm({
 
         {/* FORM BUTTON CONTROLS */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-3">
-          <Button variant="plain"
+          <Button variant="ghost"
             type="button"
             onClick={() => navigate('/teaching-log')}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground/80 hover:bg-muted/50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto"
           >
             <ArrowLeft size={16} /> Back to Logs
           </Button>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             {/* Save as Draft */}
-            <Button variant="plain"
+            <Button variant="outline"
               type="button"
               disabled={isLoading}
               onClick={() => handleFormSubmit('draft')}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground/80 hover:bg-muted/50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer bg-card"
+              className="w-full sm:w-auto"
             >
               <FloppyDisk size={16} className="text-muted-foreground" />
               Save as Draft
             </Button>
 
             {/* Submit Log */}
-            <Button variant="plain"
+            <Button variant="default"
               type="button"
               disabled={isLoading}
               onClick={() => handleFormSubmit('completed')}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full sm:w-auto"
             >
               <CheckCircle size={16} />
               Submit Completed Log

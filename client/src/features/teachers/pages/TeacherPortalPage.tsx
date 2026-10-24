@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { teachersApi } from '../api/teachersApi';
 import { CaretLeft, GraduationCap } from '@phosphor-icons/react';
 import { useAuth } from '@/hooks/useAuth';
 import TeachingLogPage from '@/app/dashboard/teaching-log/page';
@@ -33,6 +35,12 @@ export default function TeacherPortalPage() {
   const { role } = useAuth();
   const isTeacher = role === 'teacher';
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [params] = useSearchParams();
+  const linkedId = params.get('teacherId');
+  useEffect(() => {
+    if (isTeacher || !linkedId) return;
+    teachersApi.getById(linkedId).then((d) => setSelectedTeacher(d.teacher)).catch(() => undefined);
+  }, [isTeacher, linkedId]);
 
   if (!isTeacher && !selectedTeacher) {
     return <AdminTeacherSearch onSelect={setSelectedTeacher} />;

@@ -249,9 +249,21 @@ describe('Portals', () => {
       expect(res.body.data.invoices).toHaveLength(1);
     });
 
-    // Exams, marks/results, library and communication were removed from the
-    // MVP, so their portal endpoints must no longer exist.
-    it.each(['results', 'report-cards', 'library', 'notifications', 'messages'])(
+    // Results (report cards) are served again from the new exams module, at
+    // /results only; library and communication were removed from the MVP.
+    it('student /results returns their report card (none yet)', async () => {
+      const res = await request(app).get('/api/portal/student/results').set('Authorization', studentAuth());
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({ terms: [], card: null });
+    });
+
+    it("parent child /results returns that child's report card (none yet)", async () => {
+      const res = await request(app).get(`/api/portal/parent/children/${studentAId}/results`).set('Authorization', parentAuth());
+      expect(res.status).toBe(200);
+      expect(res.body.data.card).toBeNull();
+    });
+
+    it.each(['report-cards', 'library', 'notifications', 'messages'])(
       'student /%s is no longer served (404)',
       async (path) => {
         const res = await request(app).get(`/api/portal/student/${path}`).set('Authorization', studentAuth());
@@ -260,7 +272,6 @@ describe('Portals', () => {
     );
 
     it.each([
-      [`children/:id/results`],
       ['notices'],
       ['messages'],
     ])('parent /%s is no longer served (404)', async (path) => {

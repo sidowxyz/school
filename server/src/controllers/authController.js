@@ -2,13 +2,28 @@ import User from '../models/User.js';
 import Student from '../models/Student.js';
 import Guardian from '../models/Guardian.js';
 import Teacher from '../models/Teacher.js';
-import { registerSchema, loginSchema } from '../validators/authValidator.js';
+import { loginSchema } from '../validators/authValidator.js';
 import { generateAccessToken, generateRefreshToken } from '../utils/tokenService.js';
 import jwt from 'jsonwebtoken';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { accessFor } from '../services/accessRoleService.js';
 import crypto from 'crypto';
+
+// Refresh tokens are stored hashed, one per signed-in device (newest MAX_SESSIONS),
+// so a phone and a laptop can stay signed in together. Each refresh swaps the
+// used token for a new one; a password change ends every other session.
+const MAX_SESSIONS = 5;
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+const startSession = async (user) => {
+  const refreshToken = generateRefreshToken(user);
+  await User.updateOne({ _id: user._id }, {
+    $push: { refreshTokens: { $each: [hashToken(refreshToken)], $slice: -MAX_SESSIONS } },
+    $set: { lastLogin: new Date() },
+  });
+  return refreshToken;
+};
 
 const resolveProfile = async (user) => {
   if (user.role === 'student') {
@@ -31,33 +46,6 @@ const resolveProfile = async (user) => {
   return { type: null, data: null };
 };
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-export const register = async (req, res, next) => {
-  try {
-    const validatedData = registerSchema.parse(req.body);
-
-    const userExists = await User.findOne({ email: validatedData.email });
-    if (userExists) {
-      return next(new AppError('Email is already in use', 400));
-    }
-
-    const user = await User.create({
-      firstName: validatedData.firstName,
-      lastName:  validatedData.lastName,
-      email:     validatedData.email,
-      password:  validatedData.password,
-      role:      'student'
-    });
-
-    return res.status(201).json(
-      new ApiResponse(201, { id: user._id, name: user.name, email: user.email }, 'User registered successfully')
-    );
-  } catch (error) {
-    next(error);
-  }
-};
-
 // @desc    Login user & get tokens
 // @route   POST /api/auth/login
 export const login = async (req, res, next) => {
@@ -75,12 +63,7 @@ export const login = async (req, res, next) => {
     }
 
     const accessToken  = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    // Hash refresh token before saving to DB
-    const hashedToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
-    user.refreshToken = hashedToken;
-    await user.save();
+    const refreshToken = await startSession(user);
 
     return res.status(200).json(new ApiResponse(200, {
       user: {
@@ -111,15 +94,18 @@ export const refreshToken = async (req, res, next) => {
     // Verify token signature first
     jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
-    // Hash token to find user in DB
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-    const user = await User.findOne({ refreshToken: hashedToken });
+    // Swap the used token for a new one in a single update, so the same token
+    // can't be used twice. Deactivated accounts can't refresh.
+    const nextToken = generateRefreshToken({ _id: jwt.decode(token).id });
+    const user = await User.findOneAndUpdate(
+      { refreshTokens: hashToken(token), status: { $ne: false } },
+      { $set: { 'refreshTokens.$': hashToken(nextToken) } },
+      { new: true },
+    );
     if (!user) return next(new AppError('Invalid or deleted refresh token', 403));
 
-    // Issue new access token
-    const newAccessToken = generateAccessToken(user);
     return res.status(200).json(
-      new ApiResponse(200, { accessToken: newAccessToken }, 'Token refreshed successfully')
+      new ApiResponse(200, { accessToken: generateAccessToken(user), refreshToken: nextToken }, 'Token refreshed successfully')
     );
   } catch (error) {
     if (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError') {
@@ -135,69 +121,9 @@ export const logout = async (req, res, next) => {
   try {
     const { token } = req.body;
     if (token) {
-      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-      await User.findOneAndUpdate({ refreshToken: hashedToken }, { refreshToken: '' });
+      await User.updateOne({ refreshTokens: hashToken(token) }, { $pull: { refreshTokens: hashToken(token) } });
     }
     return res.status(200).json(new ApiResponse(200, null, 'Logged out successfully'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Forgot Password
-// @route   POST /api/auth/forgot-password
-export const forgotPassword = async (req, res, next) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      // Don't reveal whether email exists
-      return res.status(200).json(
-        new ApiResponse(200, null, 'If an account with that email exists, a password reset link has been generated.')
-      );
-    }
-
-    const resetToken  = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-
-    user.passwordResetToken   = hashedToken;
-    user.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
-    await user.save();
-
-    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
-
-    return res.status(200).json(
-      new ApiResponse(200, { resetUrl }, 'Password reset link generated successfully.')
-    );
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Reset Password
-// @route   POST /api/auth/reset-password/:token
-export const resetPassword = async (req, res, next) => {
-  try {
-    const { password } = req.body;
-    const { token }    = req.params;
-
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-    const user = await User.findOne({
-      passwordResetToken:   hashedToken,
-      passwordResetExpires: { $gt: Date.now() }
-    });
-
-    if (!user) {
-      return next(new AppError('Password reset token is invalid or has expired.', 400));
-    }
-
-    user.password             = password;
-    user.passwordResetToken   = undefined;
-    user.passwordResetExpires = undefined;
-    await user.save();
-
-    return res.status(200).json(new ApiResponse(200, null, 'Password has been reset successfully.'));
   } catch (error) {
     next(error);
   }
@@ -209,7 +135,7 @@ export const resetPassword = async (req, res, next) => {
 export const getCurrentUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).select(
-      '-password -refreshToken -passwordResetToken -passwordResetExpires'
+      '-password -passwordResetToken -passwordResetExpires'
     );
 
     if (!user) {
@@ -231,7 +157,8 @@ export const getCurrentUser = async (req, res, next) => {
 // @access  Private
 export const changePassword = async (req, res, next) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    // refreshToken (optional): this device's session, which stays signed in.
+    const { currentPassword, newPassword, refreshToken: keep } = req.body;
     const user = await User.findById(req.user.id);
 
     if (!user) {
@@ -245,6 +172,10 @@ export const changePassword = async (req, res, next) => {
 
     user.password = newPassword;
     await user.save();
+    // Sign out every other device.
+    const current = await User.findById(user._id).select('+refreshTokens');
+    const kept = keep && current.refreshTokens.includes(hashToken(keep)) ? [hashToken(keep)] : [];
+    await User.updateOne({ _id: user._id }, { refreshTokens: kept });
 
     return res.status(200).json(new ApiResponse(200, null, 'Password changed successfully'));
   } catch (error) {

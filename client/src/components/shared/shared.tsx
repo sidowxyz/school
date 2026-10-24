@@ -153,7 +153,7 @@ export function SearchableSelect({
         size="sm"
         disabled={disabled}
         onClick={() => !disabled && setOpen((o) => !o)}
-        className="w-full justify-between gap-2 text-xs font-medium"
+        className="w-full justify-between font-medium"
       >
         <span className={cn('truncate', !selected && 'text-muted-foreground')}>
           {selected ? selected.label : placeholder}

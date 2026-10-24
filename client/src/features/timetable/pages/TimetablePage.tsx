@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpen, CalendarBlank, ChalkboardTeacher, Clock, Plus, SpinnerGap, Student, type Icon } from '@phosphor-icons/react';
+import { Link } from "react-router-dom";
+import { BookOpen, Buildings, CalendarBlank, ChalkboardTeacher, Clock, Plus, Student, type Icon } from '@phosphor-icons/react';
 import PageHeader from "../../../components/common/PageHeader";
 import { academicApi } from "../../academic-structure/api/academicApi";
 import type { Term, Class, Section, Subject, Period } from "../../academic-structure/types";
@@ -15,11 +16,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StatStrip from '@/components/shared/StatStrip';
 import { useAuth } from '@/hooks/useAuth';
+import { useCan, usePermission } from '@/hooks/usePermission';
+import { EmptyState, ErrorState, ListLoading } from '@/components/common/EmptyState';
 import { cn } from '@/lib/utils';
 
 // Somali school week — Saturday through Thursday, Friday off by default. Terms
 // can customize this via workingDays, so the grid always follows the term.
 const WEEK_ORDER: Weekday[] = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+// Same default as a new term on the server (Term.workingDays).
+const DEFAULT_DAYS: Weekday[] = WEEK_ORDER.filter((d) => d !== "Friday");
 const JS_DAY: Record<Weekday, number> = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
 
 // Pastel fills handed out to subjects in name order, so up to five subjects never share a colour.
@@ -40,7 +45,8 @@ export default function TimetablePage() {
   const { role, user } = useAuth();
   const isTeacher = role === "teacher";
   // Assignment changes are admin-only on the server; everyone else just reads.
-  const canEdit = role === "admin";
+  const canEdit = useCan("timetable", "edit");
+  const canSetUp = usePermission("academic-structure");
 
   const [terms, setTerms] = useState<Term[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
@@ -118,7 +124,7 @@ export default function TimetablePage() {
   useEffect(() => { loadAssignments(); }, [loadAssignments]);
 
   const selectedTerm = terms.find((t) => t._id === termId);
-  const workingDays: Weekday[] = selectedTerm?.workingDays?.length ? selectedTerm.workingDays : WEEK_ORDER;
+  const workingDays: Weekday[] = selectedTerm?.workingDays?.length ? selectedTerm.workingDays : DEFAULT_DAYS;
   const days = WEEK_ORDER.filter((d) => workingDays.includes(d));
   const sortedPeriods = useMemo(
     () => periods.slice().sort((a, b) => (Number(a.per_no) || 0) - (Number(b.per_no) || 0)),
@@ -156,8 +162,27 @@ export default function TimetablePage() {
   };
   const teacherOptions: TeacherOption[] = teachers.map((t) => ({ _id: t._id, label: t.userId?.name || t.staffId }));
 
-  if (refLoading) return <div className="flex justify-center py-24"><SpinnerGap size={28} className="animate-spin text-primary" /></div>;
-  if (refError) return <p className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">{refError}</p>;
+  if (refLoading) return <Card className="rounded-2xl border-border/70 shadow-none"><ListLoading rows={6} /></Card>;
+  if (refError) return <Card className="rounded-2xl border-border/70 shadow-none"><ErrorState text={refError} onRetry={() => window.location.reload()} /></Card>;
+
+  // What is still missing before a timetable can be shown, in setup order.
+  // Teachers and others who can't set things up are told who can.
+  const officeHint = "The academic office sets this up.";
+  const setupLink = (step: string) => canSetUp
+    ? <Button asChild><Link to={`/academic-structure?step=${encodeURIComponent(step)}`}><Buildings size={16} /> Open Academic Structure</Link></Button>
+    : undefined;
+  const missing: { icon: Icon; title: string; text: string; action?: React.ReactNode } | null =
+    !terms.length
+      ? { icon: CalendarBlank, title: "No term yet", text: canSetUp ? "Add the school year and its first term, then the periods of the school day." : `The timetable isn't ready yet. ${officeHint}`, action: setupLink("Terms") }
+      : view === "class" && !classes.length
+      ? { icon: Student, title: "No classes yet", text: canSetUp ? "Add classes (and their sections) to build their timetables." : `No classes have been set up yet. ${officeHint}`, action: setupLink("Classes") }
+      : view === "teacher" && !teachers.length
+      ? { icon: ChalkboardTeacher, title: "No teachers yet", text: "Add teachers on the Teachers page, then give them lessons here.", action: canEdit ? <Button asChild><Link to="/teachers"><ChalkboardTeacher size={16} /> Open Teachers</Link></Button> : undefined }
+      : !periodsLoading && termId && !sortedPeriods.length
+      ? { icon: Clock, title: "No periods in this term", text: canSetUp ? "Add the periods of the school day (e.g. Period 1, 07:30–08:15) under Academic Structure → Periods." : `The school day hasn't been set up for this term. ${officeHint}`, action: setupLink("Periods") }
+      : view === "teacher" && isTeacher && !teacherId
+      ? { icon: ChalkboardTeacher, title: "No timetable for you yet", text: "Your account isn't linked to a teacher record. Ask the school office." }
+      : null;
 
   const filterLabel: { icon: Icon; text: string } = view === "teacher"
     ? { icon: ChalkboardTeacher, text: teachers.find((t) => t._id === teacherId)?.userId?.name ?? "" }
@@ -167,14 +192,16 @@ export default function TimetablePage() {
     <div className="space-y-5">
       <PageHeader
         title="Timetable"
-        subtitle={isTeacher ? "Your lessons for the week." : "Who teaches what, and when, for every class."}
+        subtitle={isTeacher ? "Your lessons for the week." : "Each class's weekly lessons and teachers."}
         action={canEdit ? (
-          <Button onClick={() => openAdd()} disabled={!termId || !canCreate} className="gap-2">
+          <Button onClick={() => openAdd()} disabled={!termId || !canCreate || !!missing}>
             <Plus size={16} /> Add lesson
           </Button>
         ) : undefined}
       />
 
+      {/* A teacher with a single term has nothing to pick, so no filter bar. */}
+      {(!isTeacher || terms.length > 1) && (
       <Card className="rounded-2xl border-border/70 shadow-none">
         <CardContent className="flex flex-wrap items-end gap-3 p-4">
           {!isTeacher && (
@@ -223,24 +250,21 @@ export default function TimetablePage() {
           )}
         </CardContent>
       </Card>
+      )}
 
-      <StatStrip items={[
+      {!missing && <StatStrip items={[
         { label: "Lessons a week", value: lessons, icon: BookOpen, tone: "sky", hint: filterLabel.text || "Selected timetable" },
         { label: "Subjects", value: subjectTotals.length, icon: ChalkboardTeacher, tone: "violet", hint: subjectTotals[0] ? `Most: ${subjectTotals[0][0]}` : "None scheduled" },
         { label: "Free periods", value: Math.max(0, totalSlots - lessons), icon: Clock, tone: "amber", hint: `of ${totalSlots} in the week` },
         { label: "School days", value: days.length, icon: CalendarBlank, tone: "emerald", hint: days.length ? `${days[0].slice(0, 3)} – ${days[days.length - 1].slice(0, 3)}` : "Set in the term" },
-      ]} />
+      ]} />}
 
-      {!termId ? (
-        <Card className="rounded-2xl border-border/70 p-12 text-center text-sm text-muted-foreground shadow-none">
-          Create a term in Academic Structure to start the timetable.
+      {missing ? (
+        <Card className="rounded-2xl border-border/70 shadow-none">
+          <EmptyState icon={missing.icon} tint="blue" title={missing.title} text={missing.text} action={missing.action} />
         </Card>
       ) : periodsLoading ? (
-        <div className="flex justify-center py-16"><SpinnerGap size={24} className="animate-spin text-primary" /></div>
-      ) : sortedPeriods.length === 0 ? (
-        <Card className="rounded-2xl border-warning/20 bg-warning/10 p-8 text-center text-sm text-warning shadow-none">
-          This term has no periods yet. Add them in Academic Structure → Periods.
-        </Card>
+        <Card className="rounded-2xl border-border/70 shadow-none"><ListLoading rows={6} /></Card>
       ) : (
         <Card className="overflow-hidden rounded-2xl border-border/70 shadow-none">
           <div className="overflow-x-auto">
@@ -249,9 +273,9 @@ export default function TimetablePage() {
               {/* Header row */}
               <div className="border-b border-border bg-muted/50 px-3 py-3 text-xs font-medium text-muted-foreground">Period</div>
               {days.map((day) => (
-                <div key={day} className={cn("border-b border-l border-border px-3 py-3 text-sm font-semibold", day === todayName ? "bg-primary/10 text-primary" : "bg-muted/50 text-foreground")}>
+                <div key={day} className={cn("flex flex-wrap items-center gap-x-1.5 gap-y-1 border-b border-l border-border px-3 py-3 text-sm font-semibold", day === todayName ? "bg-primary/10 text-primary" : "bg-muted/50 text-foreground")}>
                   {day}
-                  {day === todayName && <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">Today</span>}
+                  {day === todayName && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">Today</span>}
                 </div>
               ))}
 

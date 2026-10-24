@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash } from '@phosphor-icons/react';
+import { Plus, Trash, Books } from '@phosphor-icons/react';
 import { teachersApi } from "../api/teachersApi";
 import type { TimetableSlotInput, Weekday, RefSubject, RefClass, RefSection, RefTerm, TimetableSlot } from "../types";
 import { academicApi } from "../../academic-structure/api/academicApi";
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { confirmAction } from '@/components/common/ConfirmDialog';
 
 const DAYS: Weekday[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -178,7 +179,7 @@ export default function AssignmentFormModal({
     if (!initial) return;
     const effectiveTeacherId = teacherId || selectedTeacherId;
     if (!effectiveTeacherId) return;
-    if (!window.confirm("Remove this timetable entry? This cannot be undone.")) return;
+    if (!(await confirmAction({ title: "Remove this class from the teacher?", text: "Its lessons are taken off the timetable.", confirmLabel: "Remove", tone: "danger" }))) return;
     setSubmitting(true);
     setError("");
     try {
@@ -193,8 +194,8 @@ export default function AssignmentFormModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent>
+        <DialogHeader icon={Books} tint="yellow">
           <DialogTitle>
             {mode === "add" ? "Add Assignment" : "Edit Assignment"}
           </DialogTitle>
@@ -230,7 +231,7 @@ export default function AssignmentFormModal({
                 <>
                   <span className="block text-xs font-medium text-muted-foreground">Class *</span>
                   <div className="h-10 flex items-center px-3 rounded-lg border border-border bg-muted text-sm text-muted-foreground">
-                    {classes.find((c) => c._id === lockedClassId)?.cl_name || "â€”"}
+                    {classes.find((c) => c._id === lockedClassId)?.cl_name || "—"}
                   </div>
                 </>
               ) : (
@@ -255,7 +256,7 @@ export default function AssignmentFormModal({
                 <>
                   <span className="block text-xs font-medium text-muted-foreground">Section *</span>
                   <div className="h-10 flex items-center px-3 rounded-lg border border-border bg-muted text-sm text-muted-foreground">
-                    {sections.find((s) => s._id === lockedSectionId)?.name || "â€”"}
+                    {sections.find((s) => s._id === lockedSectionId)?.name || "—"}
                   </div>
                 </>
               ) : (
@@ -278,7 +279,7 @@ export default function AssignmentFormModal({
                   <div className="h-10 flex items-center px-3 rounded-lg border border-border bg-muted text-sm text-muted-foreground">
                     {terms.find((t) => t._id === lockedTermId)
                       ? termLabel(terms.find((t) => t._id === lockedTermId)!)
-                      : "â€”"}
+                      : "—"}
                   </div>
                 </>
               ) : (
@@ -303,10 +304,10 @@ export default function AssignmentFormModal({
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
+                size="xs"
                 onClick={addSlot}
                 disabled={!termId}
-                className="h-7 text-xs text-primary hover:text-primary"
+                className="text-primary hover:text-primary"
               >
                 <Plus size={13} className="mr-1" /> Add slot
               </Button>
@@ -318,7 +319,7 @@ export default function AssignmentFormModal({
               <p className="text-xs text-muted-foreground">Loading periods...</p>
             ) : periods.length === 0 ? (
               <p className="text-xs text-warning">
-                This term has no periods yet â€” add them under Academic Structure &rarr; Periods first.
+                This term has no periods yet — add them under Academic Structure &rarr; Periods first.
               </p>
             ) : (
               <div className="space-y-2">
@@ -346,7 +347,7 @@ export default function AssignmentFormModal({
                         variant="ghost"
                         size="icon"
                         onClick={() => removeSlot(i)}
-                        className="h-9 w-9 text-destructive hover:text-destructive shrink-0"
+                        className="text-destructive hover:text-destructive shrink-0"
                       >
                         <Trash size={15} />
                       </Button>

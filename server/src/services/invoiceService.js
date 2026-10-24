@@ -6,6 +6,7 @@ import Status from '../models/Status.js';
 import Counter from '../models/Counter.js';
 import { getSiblingDiscountPercent } from './familyService.js';
 import { postJournalEntry } from './journalService.js';
+import SystemSetting from '../models/SystemSetting.js';
 
 // Auto-generates INV-<year>-<seq> when the caller doesn't supply invoice_no,
 // using the same atomic per-year Counter pattern as admission numbers
@@ -53,15 +54,26 @@ export const computeStudentDiscount = async (studentDoc, original_amount) => {
   const ownPct = own?.kind === 'percent' ? Number(own.value) || 0 : 0;
   const ownAmount = own?.kind === 'amount' ? Number(own.value) || 0 : 0;
 
-  const discount_percentage = Math.min(100, Math.max(0, siblingPct + scholarshipPct + ownPct));
-  const discount_amount = Math.min(
-    original_amount,
-    Math.round(original_amount * discount_percentage) / 100 + ownAmount
-  );
+  // The school's Discount Policy (Settings): either only the single best
+  // discount applies, or all of them add up.
+  const rule = (await SystemSetting.findOne().select('discountRule').lean())?.discountRule ?? 'highest_only';
+  const round2 = (n) => Math.round(n * 100) / 100;
+  let discount_percentage;
+  let discount_amount;
+  if (rule === 'combined') {
+    discount_percentage = Math.min(100, Math.max(0, siblingPct + scholarshipPct + ownPct));
+    discount_amount = Math.min(original_amount, round2(original_amount * discount_percentage / 100 + ownAmount));
+  } else {
+    const bestPct = Math.min(100, Math.max(0, siblingPct, scholarshipPct, ownPct));
+    const fromPct = round2(original_amount * bestPct / 100);
+    // A fixed-amount discount competes with the best percentage.
+    discount_percentage = ownAmount > fromPct ? 0 : bestPct;
+    discount_amount = Math.min(original_amount, Math.max(fromPct, ownAmount));
+  }
   return {
     discount_percentage,
     discount_amount,
-    invoice_amount: Math.max(0, original_amount - discount_amount),
+    invoice_amount: Math.max(0, round2(original_amount - discount_amount)),
     parts: { siblingPct, scholarshipPct, ownPct, ownAmount },
   };
 };

@@ -27,6 +27,8 @@ export interface Class {
   cl_no: string;
   cl_name: string;
   lev_no: string | { _id: string; lev_name: string; lev_no: string };
+  /** Active students in the class (sent by the class list). */
+  studentCount?: number;
 }
 
 export interface Section {
@@ -34,6 +36,10 @@ export interface Section {
   name: string;
   class: string | { _id: string; cl_name: string; cl_no: string };
   classTeacherId?: string | { _id: string; staffId: string; userId?: { firstName: string; lastName: string } } | null;
+  /** Most students it can take; null means no limit. */
+  capacity?: number | null;
+  /** Active students in the section (sent by the section list). */
+  studentCount?: number;
 }
 
 export interface Subject {

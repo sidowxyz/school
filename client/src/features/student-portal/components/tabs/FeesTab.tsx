@@ -55,7 +55,7 @@ export default function FeesTab() {
       ]} />
 
       <Panel title="My bills" description="Monthly fees and what has been paid" flush
-        action={<Button variant="outline" size="sm" onClick={exportCsv} disabled={!invoices.length} className="h-8 gap-1.5"><DownloadSimple size={13} /> CSV</Button>}>
+        action={<Button variant="outline" size="xs" onClick={exportCsv} disabled={!invoices.length}><DownloadSimple size={13} /> CSV</Button>}>
         {invoices.length === 0 ? (
           <PanelEmpty text="No bills yet. They appear here once the school charges your fees." />
         ) : (

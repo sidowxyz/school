@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowsClockwise, CaretLeft, CaretRight, MagnifyingGlass, Plus, ShieldCheck, UserCheck, UserMinus, Users,
+  ArrowsClockwise, CaretLeft, CaretRight, Key, MagnifyingGlass, Plus, ShieldCheck, UserCheck, UserMinus, Users,
+  CheckCircle,
+  UserPlus,
+  UsersThree,
 } from '@phosphor-icons/react';
 
 import PageHeader from "../../../components/common/PageHeader";
@@ -26,6 +29,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TableEmptyRow, TableLoadingRows } from "@/components/common/EmptyState";
+import { confirmAction } from '@/components/common/ConfirmDialog';
 
 // Roles come from the Roles page (built-in ones first, then the school's own).
 type RoleOption = Pick<AppRole, "key" | "name" | "color" | "builtIn" | "userCount">;
@@ -37,6 +42,8 @@ const FILL: Record<AppRole["color"], string> = {
 
 // Staff roles that sign in to the main app (not teachers, students or parents).
 const STAFF_ROLES = ["admin", "principal", "academic_officer", "accountant"];
+// These logins come with a profile and are made on their own pages.
+const PROFILE_ROLES = ["teacher", "student", "parent"];
 
 const roleName = (roles: RoleOption[], key: string) => roles.find((r) => r.key === key)?.name ?? key.replace(/_/g, " ");
 
@@ -45,7 +52,7 @@ function RoleOptions({ roles }: { roles: RoleOption[] }) {
   return (
     <>
       <optgroup label="Built-in roles">
-        {roles.filter((r) => r.builtIn).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
+        {roles.filter((r) => r.builtIn && !PROFILE_ROLES.includes(r.key)).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
       </optgroup>
       {custom.length > 0 && (
         <optgroup label="Custom roles">
@@ -111,8 +118,8 @@ function AddUserModal({ roles, onClose, onCreated }: { roles: RoleOption[]; onCl
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent>
+        <DialogHeader icon={created ? CheckCircle : UserPlus} tint={created ? "green" : "blue"}>
           <DialogTitle>{created ? "User Created" : "Add New User"}</DialogTitle>
           <DialogDescription>
             {created
@@ -168,10 +175,10 @@ function AddUserModal({ roles, onClose, onCreated }: { roles: RoleOption[]; onCl
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} className="h-10 rounded-xl">
+              <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting} className="h-10 rounded-xl">
+              <Button type="submit" disabled={submitting}>
                 {submitting ? "Saving..." : "Create User"}
               </Button>
             </DialogFooter>
@@ -214,6 +221,8 @@ export default function UserListPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [resetFor, setResetFor] = useState<{ email: string; password: string } | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRole | "">("");
@@ -306,6 +315,20 @@ export default function UserListPage() {
     }
   }
 
+  // There is no email delivery: an admin sets a temporary password and hands it over.
+  async function handleResetPassword(user: AppUser) {
+    if (!(await confirmAction({ title: `Reset the password for ${user.name}?`, text: "They are signed out everywhere and get a new temporary password to sign in with.", confirmLabel: "Reset password" }))) return;
+    setResettingId(user._id);
+    try {
+      const result = await usersApi.resetPassword(user._id);
+      setResetFor({ email: result.email, password: result.temporaryPassword });
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not reset the password.");
+    } finally {
+      setResettingId(null);
+    }
+  }
+
   async function handleStatusToggle(user: AppUser) {
     const next = !user.status;
     setUsers((list) => list.map((u) => (u._id === user._id ? { ...u, status: next } : u)));
@@ -329,18 +352,18 @@ export default function UserListPage() {
   return (
     <div className="space-y-5 pb-8">
       <PageHeader
-        title="User Management"
-        subtitle="Manage system accounts and roles. Teachers, parents and students get accounts from their own pages; use this for staff accounts."
+        title="User Accounts"
+        subtitle="Sign-in accounts for office staff and custom roles."
         action={
           <div className="flex items-center gap-2">
             <span className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
               <span className={cn("h-2 w-2 rounded-full", refreshing ? "animate-pulse bg-warning" : "bg-success")} />
               {updatedAt ? `Live · updated ${timeAgo(updatedAt.toISOString())}` : "Connecting…"}
             </span>
-            <Button variant="outline" size="icon" onClick={() => void load(true)} disabled={refreshing || loading} aria-label="Refresh users" className="h-10 w-10 rounded-xl">
+            <Button variant="outline" size="icon" onClick={() => void load(true)} disabled={refreshing || loading} aria-label="Refresh users" className="h-10 w-10">
               <ArrowsClockwise size={16} className={refreshing ? "animate-spin" : ""} />
             </Button>
-            <Button onClick={() => setShowAdd(true)} className="h-10 gap-2 rounded-xl">
+            <Button onClick={() => setShowAdd(true)}>
               <Plus size={16} /> Add User
             </Button>
           </div>
@@ -387,7 +410,7 @@ export default function UserListPage() {
             <option value="inactive">Deactivated</option>
           </NativeSelect>
           {filtered && (
-            <Button variant="ghost" className="h-10 rounded-xl text-muted-foreground" onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); setPage(1); }}>
+            <Button variant="ghost" className="text-muted-foreground" onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); setPage(1); }}>
               Clear
             </Button>
           )}
@@ -424,14 +447,26 @@ export default function UserListPage() {
                 <TableHead className="px-4 font-semibold">Role</TableHead>
                 <TableHead className="px-4 font-semibold">Status</TableHead>
                 <TableHead className="px-4 font-semibold">Last login</TableHead>
-                <TableHead className="px-6 text-right font-semibold">Joined</TableHead>
+                <TableHead className="px-4 text-right font-semibold">Joined</TableHead>
+                <TableHead className="px-6 text-right font-semibold"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={5} className="py-16 text-center text-xs text-muted-foreground">Loading users...</TableCell></TableRow>
+                <TableLoadingRows columns={6} avatar />
               ) : users.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="py-16 text-center text-sm text-muted-foreground">{filtered ? "No users match your filters." : "No users found."}</TableCell></TableRow>
+                filtered ? (
+                  <TableEmptyRow
+                    colSpan={6}
+                    icon={MagnifyingGlass}
+                    tint="violet"
+                    title="No users match"
+                    text="Try another name or email, or clear the role and status filters."
+                    action={<Button variant="outline" size="sm" onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); setPage(1); }}>Clear filters</Button>}
+                  />
+                ) : (
+                  <TableEmptyRow colSpan={6} icon={UsersThree} tint="blue" title="No users yet" text="Staff accounts you add here appear in this list." />
+                )
               ) : (
                 users.map((user) => {
                   const isMe = !!me && me.id === user._id;
@@ -452,6 +487,11 @@ export default function UserListPage() {
                         </div>
                       </TableCell>
                       <TableCell className="px-4 py-3.5">
+                        {PROFILE_ROLES.includes(user.role) ? (
+                          <span className="inline-flex h-9 items-center rounded-xl bg-muted/40 px-3 text-xs" title="Managed from the Teachers, Students or Parents page">
+                            {roleName(roles, user.role)}
+                          </span>
+                        ) : (
                         <NativeSelect
                           value={user.role}
                           disabled={isMe}
@@ -463,6 +503,7 @@ export default function UserListPage() {
                           {!roles.some((r) => r.key === user.role) && <option value={user.role}>{roleName(roles, user.role)}</option>}
                           <RoleOptions roles={roles} />
                         </NativeSelect>
+                        )}
                       </TableCell>
                       <TableCell className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5">
@@ -483,8 +524,13 @@ export default function UserListPage() {
                           {timeAgo(user.lastLogin)}
                         </span>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap px-6 py-3.5 text-right text-xs text-muted-foreground">
+                      <TableCell className="whitespace-nowrap px-4 py-3.5 text-right text-xs text-muted-foreground">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-6 py-3.5 text-right">
+                        <Button variant="ghost" size="xs" onClick={() => void handleResetPassword(user)} disabled={resettingId === user._id}>
+                          <Key size={14} /> Reset password
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -499,11 +545,11 @@ export default function UserListPage() {
             {total === 0 ? "0 users" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total}`}
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">
+            <Button variant="outline" size="icon-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">
               <CaretLeft size={14} />
             </Button>
             <span className="min-w-16 text-center font-medium text-foreground">Page {page} of {pageCount}</span>
-            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)} aria-label="Next page">
+            <Button variant="outline" size="icon-sm" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)} aria-label="Next page">
               <CaretRight size={14} />
             </Button>
           </div>
@@ -511,6 +557,17 @@ export default function UserListPage() {
       </Card>
 
       {showAdd && <AddUserModal roles={roles} onClose={() => setShowAdd(false)} onCreated={() => void load(true)} />}
+      {resetFor && (
+        <Dialog open onOpenChange={(open) => !open && setResetFor(null)}>
+          <DialogContent>
+            <DialogHeader icon={Key} tint="yellow">
+              <DialogTitle>Password reset</DialogTitle>
+              <DialogDescription>Give these sign-in details to the person. They can change the password under My account.</DialogDescription>
+            </DialogHeader>
+            <CredentialsReveal title="New temporary password" email={resetFor.email} password={resetFor.password} onDone={() => setResetFor(null)} />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

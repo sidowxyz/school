@@ -43,9 +43,8 @@ export default function TeachingLogDetailPage() {
       <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-xl p-6 text-center max-w-xl mx-auto my-12">
         <h3 className="font-bold text-base mb-2">Error Loading Details</h3>
         <p className="text-sm mb-4">{error || 'Teaching log entry not found'}</p>
-        <Button variant="plain"
+        <Button variant="outline" size="sm"
           onClick={() => navigate('/teaching-log')}
-          className="bg-card hover:bg-muted/50 border border-border text-foreground/80 font-bold px-4 py-2 rounded-lg text-xs"
         >
           Return to Dashboard
         </Button>
@@ -60,18 +59,17 @@ export default function TeachingLogDetailPage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Page Header */}
       <PageHeader
-        title="Teaching Log Details"
-        subtitle="Review specific learning objectives and outcomes registered for this lesson"
+        title="Teaching Log"
+        subtitle="What was taught in this lesson and how it went."
         action={
           <div className="flex gap-3">
-            <Button variant="plain"
+            <Button variant="outline"
               onClick={() => readOnly ? navigate(-1) : navigate('/teaching-log')}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-border bg-card text-foreground/80 hover:bg-muted/50 text-xs font-bold transition-colors cursor-pointer"
             >
               <ArrowLeft size={14} /> Back
             </Button>
             {!readOnly && (
-              <Button asChild size="sm" className="gap-1.5">
+              <Button asChild>
                 <Link to={`/teaching-log/${log._id}/edit`}><PencilSimple size={14} /> Edit Log</Link>
               </Button>
             )}

@@ -1,4 +1,4 @@
-import { Eye } from '@phosphor-icons/react';
+import { Eye, ClockCounterClockwise } from '@phosphor-icons/react';
 import { useState } from "react";
 import AuditDetailModal from "./AuditDetailModal";
 
@@ -6,6 +6,7 @@ import AuditDetailModal from "./AuditDetailModal";
 import { AuditLog } from "../types";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { TableEmptyRow } from "@/components/common/EmptyState";
 
 interface AuditTableProps {
   logs: AuditLog[];
@@ -100,7 +101,7 @@ const [open, setOpen] = useState(false);
 
                 {/* Time */}
                 <TableCell className="px-6 py-4 text-sm text-muted-foreground">
-                  {log.timestamp}
+                  {new Date(log.timestamp).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </TableCell>
 
                 {/* View */}
@@ -119,14 +120,13 @@ const [open, setOpen] = useState(false);
             ))}
 
             {logs.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  No audit logs found.
-                </TableCell>
-              </TableRow>
+              <TableEmptyRow
+                colSpan={7}
+                icon={ClockCounterClockwise}
+                tint="violet"
+                title="No activity found"
+                text="Changes people make (adding, editing, deleting) show up here. Try clearing the filters if you expected something."
+              />
             )}
           </TableBody>
         </Table>

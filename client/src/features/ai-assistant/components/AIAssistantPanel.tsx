@@ -129,23 +129,21 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
             </Button>
 
             {turns.length > 0 && (
-              <Button variant="plain"
+              <Button variant="ghost" size="icon-sm"
                 type="button"
                 onClick={() => {
                   reset();
                   setShowHistory(false);
                 }}
                 title="Start a new conversation"
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <ArrowCounterClockwise size={15} />
                 <span className="sr-only">Start a new conversation</span>
               </Button>
             )}
-            <Button variant="plain"
+            <Button variant="ghost" size="icon-sm"
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <X size={16} />
               <span className="sr-only">Close assistant</span>
@@ -216,10 +214,10 @@ export default function AIAssistantPanel({ open, onClose }: Props) {
                   aria-label="Ask the assistant"
                   className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/40"
                 />
-                <Button variant="plain"
+                <Button variant="default" size="icon"
                   type="submit"
                   disabled={busy || draft.trim().length === 0}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="shrink-0"
                 >
                   <PaperPlaneRight size={15} />
                   <span className="sr-only">Send</span>

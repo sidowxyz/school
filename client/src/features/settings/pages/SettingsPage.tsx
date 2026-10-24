@@ -1,192 +1,172 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Percent, CalendarBlank, ClockCounterClockwise, SpinnerGap, Palette, ArrowCounterClockwise, FloppyDisk, Buildings } from '@phosphor-icons/react';
-import SuccessModal from '../../../components/common/SuccessModal';
+import { useEffect, useMemo, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
+import { ArrowCircleUp, Buildings, CalendarBlank, ClockCounterClockwise, FloppyDisk, Palette, Percent, SpinnerGap, WarningCircle, type Icon } from '@phosphor-icons/react';
 import PageHeader from '../../../components/common/PageHeader';
-import { useTheme, type Theme } from '../../../context/ThemeContext';
+import { useTheme } from '../../../context/ThemeContext';
+import { useToast } from '@/hooks/use-toast';
 import SchoolProfile from '../components/SchoolProfile';
 import AcademicCalendar from '../components/AcademicCalendar';
 import BrandingSettings from '../components/BrandingSettings';
 import DiscountPolicy from '../components/DiscountPolicy';
-import RecentActivity from '../components/RecentActivity';
+import AuditLogsPage from '../../audit-logs/pages/AuditLogsPage';
+import PromotionTab from '../../promotion/PromotionTab';
+import { usePermission } from '../../../hooks/usePermission';
 import { settingsApi, type SystemSettings } from '../api/settingsApi';
 import { publishSchoolIdentity } from '../hooks/useSchoolIdentity';
+import { DashboardLoading } from '../../dashboard/components/DashboardKit';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const tabs = [
-  { id: 'School Profile', label: 'School Profile', icon: Buildings },
-  { id: 'Academic', label: 'Academic', icon: CalendarBlank },
-  { id: 'Branding', label: 'Branding', icon: Palette },
-  { id: 'Discount Policy', label: 'Discount Policy', icon: Percent },
-  { id: 'Audit', label: 'Audit Logs', icon: ClockCounterClockwise },
-] as const;
+type TabId = 'school' | 'promotion' | 'calendar' | 'branding' | 'discounts' | 'audit';
 
-type TabId = typeof tabs[number]['id'];
+// Each tab shows only for the people who may use it ("module" as in usePermission).
+const TABS: { id: TabId; label: string; icon: Icon; module: 'settings' | 'academic-structure' | 'audit-logs' | 'calendar' }[] = [
+  { id: 'school', label: 'School profile', icon: Buildings, module: 'settings' },
+  { id: 'promotion', label: 'New school year', icon: ArrowCircleUp, module: 'academic-structure' },
+  { id: 'calendar', label: 'Calendar', icon: CalendarBlank, module: 'calendar' },
+  { id: 'branding', label: 'Logo & theme', icon: Palette, module: 'settings' },
+  { id: 'discounts', label: 'Discount policy', icon: Percent, module: 'settings' },
+  { id: 'audit', label: 'Audit logs', icon: ClockCounterClockwise, module: 'audit-logs' },
+];
+
+// Older links used the tab titles.
+const LEGACY: Record<string, TabId> = {
+  'School Profile': 'school', Academic: 'calendar', Branding: 'branding', 'Discount Policy': 'discounts', Audit: 'audit', activity: 'audit',
+};
+
+// The fields saved with "Save changes" (the logo saves on upload, the theme instantly).
+const SAVED_FIELDS = ['schoolName', 'schoolCode', 'principalName', 'schoolEmail', 'schoolPhone', 'website', 'address', 'discountRule'] as const;
 
 export default function SettingsPage() {
-  const [searchParams] = useSearchParams();
-  const requestedTab = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<TabId>(tabs.some((tab) => tab.id === requestedTab) ? requestedTab as TabId : 'School Profile');
+  const canSettings = usePermission('settings');
+  const canStructure = usePermission('academic-structure');
+  const canAudit = usePermission('audit-logs');
+  const allowed = { settings: canSettings, 'academic-structure': canStructure, 'audit-logs': canAudit, calendar: canSettings || canStructure };
+  const tabs = TABS.filter((t) => allowed[t.module]);
+
+  const [params, setParams] = useSearchParams();
+  const raw = params.get('tab') ?? '';
+  const asked = TABS.some((t) => t.id === raw) ? (raw as TabId) : LEGACY[raw];
+  const tab: TabId = tabs.some((t) => t.id === asked) ? asked! : tabs[0]?.id ?? 'school';
+  const openTab = (value: string) => setParams(value === tabs[0]?.id ? {} : { tab: value }, { replace: true });
+
+  const { showToast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [saved, setSaved] = useState<SystemSettings | null>(null);
   const [draft, setDraft] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const [savedTheme, setSavedTheme] = useState<Theme>(theme);
 
   useEffect(() => {
+    // School details are only for the people who can change them.
+    if (!canSettings) { setLoading(false); return; }
     settingsApi.getSystemSettings().then((settings) => {
       setSaved(settings);
       setDraft(settings);
       publishSchoolIdentity({ schoolName: settings.schoolName, logoUrl: settings.logoUrl || '/logo.png' });
-    }).catch(() => setError('Could not load system settings. Please try again.')).finally(() => setLoading(false));
-  }, []);
+    }).catch(() => setError('Could not load the settings. Refresh the page to try again.')).finally(() => setLoading(false));
+  }, [canSettings]);
 
-  const editableTab = activeTab === 'School Profile' || activeTab === 'Branding' || activeTab === 'Discount Policy';
-  const updateDraft = (patch: Partial<SystemSettings>) => setDraft((current) => current ? { ...current, ...patch } : current);
+  const changed = useMemo(
+    () => !!saved && !!draft && SAVED_FIELDS.some((k) => (saved[k] ?? '') !== (draft[k] ?? '')),
+    [saved, draft],
+  );
 
-  const reset = () => {
-    if (saved) setDraft(saved);
-    if (activeTab === 'Branding') setTheme(savedTheme);
-    setError('');
-  };
+  // Warn before leaving the page with unsaved changes.
+  useEffect(() => {
+    if (!changed) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [changed]);
+
+  const updateDraft = (patch: Partial<SystemSettings>) => setDraft((current) => (current ? { ...current, ...patch } : current));
 
   const save = async () => {
     if (!draft) return;
+    if (!draft.schoolName.trim()) { setError('The school needs a name.'); openTab('school'); return; }
     setSaving(true);
     setError('');
     try {
-      const updated = await settingsApi.updateSystemSettings({
-        schoolName: draft.schoolName,
-        schoolCode: draft.schoolCode,
-        schoolEmail: draft.schoolEmail,
-        schoolPhone: draft.schoolPhone,
-        address: draft.address,
-        website: draft.website,
-        principalName: draft.principalName,
-        timezone: draft.timezone,
-        language: draft.language,
-        logoUrl: draft.logoUrl,
-        brandingColors: draft.brandingColors,
-        discountRule: draft.discountRule,
-      });
+      const updated = await settingsApi.updateSystemSettings(Object.fromEntries(SAVED_FIELDS.map((k) => [k, draft[k]])) as Partial<SystemSettings>);
       setSaved(updated);
       setDraft(updated);
       publishSchoolIdentity({ schoolName: updated.schoolName, logoUrl: updated.logoUrl || '/logo.png' });
-      setSavedTheme(theme);
-      setShowSuccess(true);
+      showToast('Settings saved.');
     } catch (reason) {
-      setError((reason as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Settings could not be saved.');
+      setError((reason as { response?: { data?: { message?: string } } })?.response?.data?.message || 'The settings could not be saved.');
     } finally {
       setSaving(false);
     }
   };
 
+  // Academic Structure has its own page again; old links still land there.
+  if (raw === 'structure') return <Navigate to="/academic-structure" replace />;
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Settings & System Configuration"
-        subtitle="Manage school identity, academic policies, branding, discount rules, and audit logs."
-        action={
-          editableTab ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={reset}
-                disabled={!draft || saving}
-                className="h-10 gap-1.5 rounded-xl text-sm"
-              >
-                <ArrowCounterClockwise className="h-3.5 w-3.5" />
-                Reset
-              </Button>
-              <Button
-                size="sm"
-                type="button"
-                onClick={() => void save()}
-                disabled={!draft || saving}
-                className="h-10 gap-1.5 rounded-xl text-sm font-semibold shadow-sm"
-              >
-                {saving ? <SpinnerGap className="h-3.5 w-3.5 animate-spin" /> : <FloppyDisk className="h-3.5 w-3.5" />}
-                {saving ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </div>
-          ) : undefined
-        }
+        title="Settings"
+        subtitle={canSettings ? "School details, calendar, branding, fee rules and logs." : 'The school calendar and moving students into the next year.'}
       />
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
-        {/* Section navigation */}
-        <nav aria-label="Settings sections" className="rounded-2xl border border-border bg-card p-2 shadow-sm lg:sticky lg:top-4">
-          <div className="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <Button
-                  variant="ghost"
-                  type="button"
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`h-10 shrink-0 justify-start gap-2.5 rounded-xl px-3 text-sm font-medium whitespace-nowrap ${
-                    isActive
-                      ? 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" weight={isActive ? 'fill' : 'regular'} />
-                  <span>{tab.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-        </nav>
+      <Tabs value={tab} onValueChange={openTab}>
+        <TabsList className="h-auto w-full justify-start overflow-x-auto sm:w-auto">
+          {tabs.map(({ id, label, icon: TabIcon }) => (
+            <TabsTrigger key={id} value={id} className="gap-2">
+              <TabIcon size={16} />
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
-        <div className="min-w-0 space-y-4">
-          {error && (
-            <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-
-          {loading ? (
-            <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-card py-24 text-sm text-muted-foreground">
-              <SpinnerGap className="h-5 w-5 animate-spin text-primary" />
-              Loading settings…
-            </div>
-          ) : draft ? (
-            <>
-              {activeTab === 'School Profile' && <SchoolProfile value={draft} onChange={updateDraft} />}
-              {activeTab === 'Academic' && <AcademicCalendar />}
-              {activeTab === 'Branding' && (
-                <BrandingSettings
-                  value={draft}
-                  onChange={(patch) => {
-                    updateDraft(patch);
-                    if (patch.logoUrl) setSaved((current) => (current ? { ...current, ...patch } : current));
-                  }}
-                  theme={theme}
-                  onThemeChange={setTheme}
-                />
-              )}
-              {activeTab === 'Discount Policy' && (
-                <DiscountPolicy value={draft.discountRule} onChange={(discountRule) => updateDraft({ discountRule })} />
-              )}
-              {activeTab === 'Audit' && <RecentActivity />}
-            </>
-          ) : null}
+      {error && (
+        <div className="flex items-center gap-2 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <WarningCircle size={17} className="shrink-0" /> {error}
         </div>
-      </div>
+      )}
 
-      <SuccessModal
-        open={showSuccess}
-        title="Settings Saved"
-        description="School settings have been updated successfully."
-        onClose={() => setShowSuccess(false)}
-      />
+      {/* These tabs don't need the school details. */}
+      {tab === 'promotion' && <PromotionTab />}
+      {tab === 'calendar' && <AcademicCalendar />}
+      {tab === 'audit' && <AuditLogsPage embedded />}
+
+      {['school', 'branding', 'discounts'].includes(tab) && (loading ? (
+        <DashboardLoading />
+      ) : draft && saved ? (
+        <>
+          {tab === 'school' && <SchoolProfile value={draft} onChange={updateDraft} />}
+          {tab === 'branding' && (
+            <BrandingSettings
+              value={draft}
+              onLogoChange={(logoUrl) => { updateDraft({ logoUrl }); setSaved((s) => (s ? { ...s, logoUrl } : s)); }}
+              theme={theme}
+              onThemeChange={setTheme}
+            />
+          )}
+          {tab === 'discounts' && <DiscountPolicy value={draft.discountRule} onChange={(discountRule) => updateDraft({ discountRule })} />}
+        </>
+      ) : null)}
+
+      {/* Shown only while there is something to save. */}
+      {changed && (
+        <div className="sticky bottom-4 z-30 mr-14 rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <span className="h-2 w-2 rounded-full bg-warning" /> You have unsaved changes
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setDraft(saved); setError(''); }} disabled={saving}>Discard</Button>
+              <Button onClick={() => void save()} disabled={saving}>
+                {saving ? <SpinnerGap size={15} className="animate-spin" /> : <FloppyDisk size={15} />}
+                {saving ? 'Saving…' : 'Save changes'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -80,19 +80,17 @@ export default function ConfirmationCard({ confirmation, onConfirm, onCancel }: 
 
           {state === 'awaiting' || busy ? (
             <div className="mt-3 flex items-center gap-2">
-              <Button variant="plain"
+              <Button variant="default" size="xs"
                 type="button"
                 onClick={onConfirm}
                 disabled={busy}
-                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 {busy ? 'Working…' : 'Confirm'}
               </Button>
-              <Button variant="plain"
+              <Button variant="outline" size="xs"
                 type="button"
                 onClick={onCancel}
                 disabled={busy}
-                className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Cancel
               </Button>

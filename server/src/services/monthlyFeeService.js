@@ -9,6 +9,7 @@ import Year from '../models/Year.js';
 import { buildInvoiceForStudent, computeStudentDiscount } from './invoiceService.js';
 import { applyPaymentToInvoice, generateFeeNumber } from './paymentService.js';
 import { abortTransaction, commitTransaction, startTransaction } from '../utils/transaction.js';
+import { schoolPeriod } from '../utils/schoolTime.js';
 
 /*
  * Monthly school fees.
@@ -28,8 +29,8 @@ const round2 = (n) => Math.round(n * 100) / 100;
 
 export const PERIOD_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-export const currentPeriod = (d = new Date()) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+// The month on the school's clock (see utils/schoolTime.js), not the server's.
+export const currentPeriod = (d = new Date()) => schoolPeriod(d);
 
 export const addMonths = (period, n) => {
   const [y, m] = period.split('-').map(Number);
@@ -138,6 +139,9 @@ export const chargeStudentMonth = async (student, period, session = null) => {
  */
 export const chargeMonth = async ({ period = currentPeriod(), classId } = {}) => {
   if (!PERIOD_RE.test(period)) throw fail(400, 'Month must look like 2026-07.');
+  // Months ahead are only charged when a family pays ahead (collectPayment's
+  // pay_through), never for the whole school at once.
+  if (period > currentPeriod()) throw fail(400, "A month that hasn't started yet can't be charged. Families who pay ahead are charged when they pay.");
 
   const fees = await FeeStructure.find({ billing: 'monthly', ...(classId ? { class_id: classId } : {}) });
   let created = 0;

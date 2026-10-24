@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarCheck, CheckCircle, DownloadSimple, MagnifyingGlass, SpinnerGap, UsersThree } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MonthPicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Card, CardContent } from '@/components/ui/card';
@@ -76,7 +77,7 @@ export default function MonthlyReportTab({ classes, sections }: { classes: Class
         <CardContent className="flex flex-wrap items-end gap-3 p-4">
           <div className="space-y-1.5">
             <Label htmlFor="mr-month" className="text-xs">Month</Label>
-            <Input id="mr-month" type="month" value={month} max={thisMonth()} onChange={(e) => e.target.value && setMonth(e.target.value)} className="w-44" />
+            <MonthPicker id="mr-month" value={month} max={thisMonth()} onChange={(v) => v && setMonth(v)} className="w-48" />
           </div>
           <div className="min-w-[160px] space-y-1.5">
             <Label htmlFor="mr-class" className="text-xs">Class</Label>
@@ -94,7 +95,7 @@ export default function MonthlyReportTab({ classes, sections }: { classes: Class
               </NativeSelect>
             </div>
           )}
-          <Button variant="outline" onClick={exportCsv} disabled={!rows.length} className="ml-auto gap-2">
+          <Button variant="outline" onClick={exportCsv} disabled={!rows.length} className="ml-auto">
             <DownloadSimple size={15} /> Download CSV
           </Button>
         </CardContent>

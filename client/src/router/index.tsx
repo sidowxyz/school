@@ -11,7 +11,6 @@ import NotFoundPage from '../components/common/NotFoundPage';
 // Authentication
 import LoginPage from '../features/auth/pages/LoginPage';
 import ForgotPasswordPage from '../features/auth/pages/ForgotPasswordPage';
-import ResetPasswordPage from '../features/auth/pages/ResetPasswordPage';
 
 // Dashboards
 import AdminDashboard from '../features/dashboard/pages/AdminDashboard';
@@ -23,7 +22,6 @@ import StudentDashboard from '../features/dashboard/pages/StudentDashboard';
 import ParentDashboard from '../features/dashboard/pages/ParentDashboard';
 
 // Academic Structure
-import AcademicStructurePage from '../features/academic-structure/pages/AcademicStructurePage';
 
 // Attendance
 import StudentAttendancePage from '../features/attendance/pages/StudentAttendancePage';
@@ -47,6 +45,8 @@ import UserListPage from '../features/users/pages/UserListPage';
 
 // Timetable
 import TimetablePage from '../features/timetable/pages/TimetablePage';
+import ExamsPage from '../features/exams/pages/ExamsPage';
+import AcademicStructurePage from '../features/academic-structure/pages/AcademicStructurePage';
 
 // Finance
 import FeeManagementPage from '../features/finance/pages/FeeManagementPage';
@@ -58,7 +58,6 @@ import ReportsPage from '../features/reports/pages/ReportsPage';
 import SettingsPage from '../features/settings/pages/SettingsPage';
 
 // Audit Logs
-import AuditLogsPage from '../features/audit-logs/pages/AuditLogsPage';
 
 // Parent Portal
 import ParentPortalPage from '../features/parent-portal/pages/ParentPortalPage';
@@ -73,11 +72,30 @@ import TeachingLogDetailPage from '../app/dashboard/teaching-log/[id]/page';
 import TeachingLogEditPage from '../app/dashboard/teaching-log/[id]/edit/page';
 
 import { useAuthStore } from '../store/authStore';
-import { homePathFor } from '../hooks/usePermission';
+import { homePathFor, userCanAccess } from '../hooks/usePermission';
 import RolesPage from '../features/roles/pages/RolesPage';
+import AccountPage from '../features/account/pages/AccountPage';
+import RouteErrorPage from '../components/common/RouteErrorPage';
 
 function HomeRedirect() {
   const user = useAuthStore((s) => s.user);
+  return <Navigate to={homePathFor(user)} replace />;
+}
+
+// Settings holds several tabs with different owners (school details for admins,
+// academic structure for the academic office, ...), so it opens for anyone who
+// can use at least one of them.
+function SettingsRoute() {
+  const user = useAuthStore((s) => s.user);
+  const canOpen = ['settings', 'academic-structure', 'audit-logs'].some((m) => userCanAccess(user, m));
+  return canOpen ? <SettingsPage /> : <Navigate to="/403" replace />;
+}
+
+// Each role has its own dashboard; opening another role's (e.g. by typing the
+// address) goes to your own instead. Admins may look at any of them.
+function OwnDashboard({ path, children }: { path: string; children: React.ReactNode }) {
+  const user = useAuthStore((s) => s.user);
+  if (user?.role === 'admin' || homePathFor(user) === path) return <>{children}</>;
   return <Navigate to={homePathFor(user)} replace />;
 }
 
@@ -91,6 +109,7 @@ export const router = createBrowserRouter([
   // Public authentication routes
   {
     element: <AuthLayout />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         path: '/login',
@@ -100,37 +119,38 @@ export const router = createBrowserRouter([
         path: '/forgot-password',
         element: <ForgotPasswordPage />,
       },
-      {
-        path: '/reset-password',
-        element: <ResetPasswordPage />,
-      },
     ],
   },
 
   // Protected application routes
   {
     element: <ProtectedRoute />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         element: <AppLayout />,
         children: [
           { path: '/', element: <HomeRedirect /> },
           { path: '/403', element: <ForbiddenPage /> },
+          // Every signed-in person: appearance and their own password.
+          { path: '/account', element: <AccountPage /> },
 
           // Dashboards — any authenticated role, per rolePermissions' 'dashboard' entry
           moduleGated('dashboard', [
-            { path: '/dashboard/admin', element: <AdminDashboard /> },
-            { path: '/dashboard/principal', element: <PrincipalDashboard /> },
-            { path: '/dashboard/academic-officer', element: <AcademicOfficerDashboard /> },
-            { path: '/dashboard/teacher', element: <TeacherDashboard /> },
-            { path: '/dashboard/accountant', element: <AccountantDashboard /> },
-            { path: '/dashboard/student', element: <StudentDashboard /> },
-            { path: '/dashboard/parent', element: <ParentDashboard /> },
+            { path: '/dashboard/admin', element: <OwnDashboard path="/dashboard/admin"><AdminDashboard /></OwnDashboard> },
+            { path: '/dashboard/principal', element: <OwnDashboard path="/dashboard/principal"><PrincipalDashboard /></OwnDashboard> },
+            { path: '/dashboard/academic-officer', element: <OwnDashboard path="/dashboard/academic-officer"><AcademicOfficerDashboard /></OwnDashboard> },
+            { path: '/dashboard/teacher', element: <OwnDashboard path="/dashboard/teacher"><TeacherDashboard /></OwnDashboard> },
+            { path: '/dashboard/accountant', element: <OwnDashboard path="/dashboard/accountant"><AccountantDashboard /></OwnDashboard> },
+            { path: '/dashboard/student', element: <OwnDashboard path="/student-portal"><StudentDashboard /></OwnDashboard> },
+            { path: '/dashboard/parent', element: <OwnDashboard path="/parent-portal"><ParentDashboard /></OwnDashboard> },
           ]),
 
+          // Academic Structure and Audit Logs now live in Settings.
           moduleGated('academic-structure', [
             { path: '/academic-structure', element: <AcademicStructurePage /> },
           ]),
+          { path: '/audit-logs', element: <Navigate to="/settings?tab=audit" replace /> },
 
           moduleGated('attendance', [
             { path: '/attendance', element: <StudentAttendancePage /> },
@@ -164,6 +184,10 @@ export const router = createBrowserRouter([
             { path: '/timetable', element: <TimetablePage /> },
           ]),
 
+          moduleGated('exams', [
+            { path: '/exams', element: <ExamsPage /> },
+          ]),
+
           moduleGated('fees', [
             { path: '/finance', element: <FeeManagementPage /> },
             { path: '/fees', element: <Navigate to="/finance" replace /> },
@@ -178,13 +202,7 @@ export const router = createBrowserRouter([
           // Settings & Audit Logs have no Sidebar entry (no module grants them to
           // non-admin roles), so only 'admin' (which matches every module via '*')
           // passes ModuleRoute here.
-          moduleGated('settings', [
-            { path: '/settings', element: <SettingsPage /> },
-          ]),
-
-          moduleGated('audit-logs', [
-            { path: '/audit-logs', element: <AuditLogsPage /> },
-          ]),
+          { path: '/settings', element: <SettingsRoute /> },
 
           moduleGated('parent-portal', [
             { path: '/parent-portal', element: <ParentPortalPage /> },
@@ -194,11 +212,15 @@ export const router = createBrowserRouter([
             { path: '/student-portal', element: <StudentPortalPage /> },
           ]),
 
-          moduleGated('teaching-log', [
+          // Teachers see their own logs; admins open any teacher's, read-only.
+          moduleGated('teacher-portal', [
             { path: '/teacher-portal', element: <TeacherPortalPage /> },
+            { path: '/teaching-log/:id', element: <TeachingLogDetailPage /> },
+          ]),
+
+          moduleGated('teaching-log', [
             { path: '/teaching-log', element: <TeachingLogPage /> },
             { path: '/teaching-log/create', element: <TeachingLogCreatePage /> },
-            { path: '/teaching-log/:id', element: <TeachingLogDetailPage /> },
             { path: '/teaching-log/:id/edit', element: <TeachingLogEditPage /> },
             // Backward-compatible aliases
             { path: '/dashboard/teaching-log', element: <TeachingLogPage /> },

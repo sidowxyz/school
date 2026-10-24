@@ -8,6 +8,7 @@ import {
   updateParent,
   assignStudent,
   unassignStudent,
+  deleteParent,
 } from '../controllers/parentController.js';
 
 const router = express.Router();
@@ -17,9 +18,12 @@ router.use(authenticate);
 const canManageParents = authorize('admin', 'principal', 'academic_officer');
 
 router.post('/', canManageParents, createParent);
-router.get('/', getParents);
-router.get('/:id', getParent);
+// Guardian contact details: only the offices that manage families.
+router.get('/', canManageParents, getParents);
+router.get('/:id', canManageParents, getParent);
 router.put('/:id', canManageParents, updateParent);
+// Deleting a family contact is for admins only.
+router.delete('/:id', authorize('admin'), deleteParent);
 router.post('/:id/students/:studentId', canManageParents, assignStudent);
 router.delete('/:id/students/:studentId', canManageParents, unassignStudent);
 

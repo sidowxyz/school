@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { SpinnerGap } from '@phosphor-icons/react';
+import { SpinnerGap, CalendarBlank, Clock } from '@phosphor-icons/react';
 import type { TeacherAssignment, Weekday } from '@/features/teachers/types';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { EmptyState } from '@/components/common/EmptyState';
 
 const DAYS: Weekday[] = [
   'Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
@@ -131,9 +132,9 @@ export default function TimetableTab({ assignments, loading = false }: Timetable
           <SpinnerGap size={19} className="animate-spin text-primary" /> Loading your timetable...
         </div>
       ) : filteredAssignments.length === 0 ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">No timetable assignments found.</div>
+        <EmptyState icon={CalendarBlank} tint="blue" title="No lessons on your timetable" text="Your periods show here once the academic office builds the timetable." />
       ) : periods.length === 0 ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">No periods are scheduled for these assignments.</div>
+        <EmptyState icon={Clock} tint="yellow" title="No periods scheduled" text="The school day's periods haven't been set up for this term yet." />
       ) : (
         <div className="overflow-x-auto">
           <Table className="w-full min-w-[1180px]">

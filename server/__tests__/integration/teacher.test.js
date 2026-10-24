@@ -104,7 +104,7 @@ describe('Teacher & Assignment Integration Tests', () => {
     if (firstAssignRes.statusCode !== 201) console.log('Assignment create failed:', firstAssignRes.body);
     expect(firstAssignRes.statusCode).toBe(201);
 
-    // 4. Try adding the exact same assignment again
+    // 4. Add another lesson of the same subject to the same class
     const duplicateAssignRes = await request(app)
       .post(`/api/teachers/${teacherId}/assignments`)
       .set('Authorization', `Bearer ${adminToken}`)
@@ -116,8 +116,10 @@ describe('Teacher & Assignment Integration Tests', () => {
         timetableSlots: [{ day: 'Tuesday', periodId: period2._id }]
       });
 
-    // 5. Verify it is rejected as a bad request due to unique index
-    expect(duplicateAssignRes.statusCode).toBe(400);
-    expect(duplicateAssignRes.body.message).toMatch(/Duplicate assignment/i);
+    // 5. Same teacher, subject, class and term: the new lesson joins the
+    //    existing assignment (a subject is taught several times a week).
+    expect(duplicateAssignRes.statusCode).toBe(200);
+    expect(duplicateAssignRes.body.data.timetableSlots).toHaveLength(2);
+    expect(await TeacherAssignment.countDocuments({ teacherId })).toBe(1);
   }, 30000);
 });

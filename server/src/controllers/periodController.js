@@ -1,6 +1,7 @@
 import Period from '../models/Period.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import { assertNotInUse } from '../utils/inUse.js';
 
 const assertValidTimes = (time_in, time_out) => {
   if (time_in && time_out && time_in >= time_out) {
@@ -61,6 +62,7 @@ export const updatePeriod = async (req, res, next) => {
 
 export const deletePeriod = async (req, res, next) => {
   try {
+    await assertNotInUse('period', req.params.id);
     const period = await Period.findByIdAndDelete(req.params.id);
     if (!period) return next(new AppError('Period not found', 404));
     res.status(200).json(new ApiResponse(200, null, 'Period deleted successfully'));

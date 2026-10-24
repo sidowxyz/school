@@ -16,6 +16,8 @@ import '../models/Period.js';
 import '../models/Subject.js';
 import '../models/User.js';
 import '../models/Teacher.js';
+import mongoose from 'mongoose';
+import { buildReportCard } from '../services/resultService.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 
@@ -192,6 +194,19 @@ export const getMyScholarship = async (req, res, next) => {
         };
 
     res.status(200).json(new ApiResponse(200, { active }, 'Scholarship retrieved'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/portal/student/results?termId=  |  GET /api/portal/student/:studentId/results
+// The student's report card. Students only see exams the school has published.
+export const getMyResults = async (req, res, next) => {
+  try {
+    const student = await resolveStudent(req);
+    const termId = mongoose.isValidObjectId(req.query.termId) ? req.query.termId : undefined;
+    const publishedOnly = req.user?.role === 'student';
+    res.status(200).json(new ApiResponse(200, await buildReportCard(student._id, termId, { publishedOnly }), 'Results retrieved'));
   } catch (error) {
     next(error);
   }

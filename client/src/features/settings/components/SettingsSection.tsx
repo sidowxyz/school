@@ -1,49 +1,49 @@
 import type { ElementType, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-/** Page-level heading for one settings tab. */
-export function SettingsHeading({ title, description }: { title: string; description: string }) {
-  return (
-    <div>
-      <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-    </div>
-  );
-}
+const TINT = {
+  blue: 'bg-tile-blue', green: 'bg-tile-green', yellow: 'bg-tile-yellow', pink: 'bg-tile-pink', violet: 'bg-tile-violet',
+} as const;
+export type Tint = keyof typeof TINT;
 
-/** A titled card that groups related settings. */
+/** A titled card that groups related settings, in the same style as the dashboard panels. */
 export function SettingsSection({
   icon: Icon,
+  tint = 'blue',
   title,
   description,
   action,
   children,
   className,
+  flush,
 }: {
   icon?: ElementType;
+  tint?: Tint;
   title: string;
   description?: string;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Let a list run edge to edge under the header. */
+  flush?: boolean;
 }) {
   return (
-    <section className={cn('overflow-hidden rounded-2xl border border-border bg-card shadow-sm', className)}>
-      <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
-        <div className="flex items-start gap-3">
+    <section className={cn('overflow-hidden rounded-2xl border border-border/70 bg-card', className)}>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
           {Icon && (
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Icon size={18} weight="bold" />
+            <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-tile-foreground', TINT[tint])}>
+              <Icon size={19} />
             </span>
           )}
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-            {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-foreground">{title}</h3>
+            {description && <p className="text-xs text-muted-foreground">{description}</p>}
           </div>
         </div>
         {action}
       </div>
-      <div className="p-5 sm:p-6">{children}</div>
+      <div className={cn(flush ? 'mt-4 border-t border-border' : 'p-5 sm:p-6')}>{children}</div>
     </section>
   );
 }
@@ -61,12 +61,10 @@ export function SettingsField({
   className?: string;
 }) {
   return (
-    <label className={cn('block', className)}>
-      <span className="mb-1.5 block text-xs font-semibold text-foreground/80">{label}</span>
+    <label className={cn('block space-y-1.5', className)}>
+      <span className="block text-xs font-medium text-foreground/80">{label}</span>
       {children}
-      {hint && <span className="mt-1.5 block text-xs text-muted-foreground">{hint}</span>}
+      {hint && <span className="block text-[11px] text-muted-foreground">{hint}</span>}
     </label>
   );
 }
-
-export const settingsInput = 'h-11 w-full rounded-xl border border-border bg-muted/40 px-3.5 text-sm text-foreground';

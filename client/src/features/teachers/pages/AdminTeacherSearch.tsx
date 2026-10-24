@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, CaretLeft, GraduationCap, SpinnerGap, MagnifyingGlass, Users } from '@phosphor-icons/react';
+import { ArrowRight, CaretLeft, GraduationCap, SpinnerGap, MagnifyingGlass, Users, ChalkboardTeacher } from '@phosphor-icons/react';
 import { teachersApi } from '../api/teachersApi';
 import type { Teacher } from '../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
 
 interface Props {
   onSelect: (teacher: Teacher) => void;
@@ -24,7 +25,7 @@ export default function AdminTeacherSearch({ onSelect }: Props) {
       try {
         setLoading(true);
         setError('');
-        const result = await teachersApi.getAll({ limit: 500 });
+        const result = await teachersApi.getAll({ limit: 1000 });
         if (!cancelled) setTeachers(result);
       } catch {
         if (!cancelled) setError('Failed to load teachers. Is the server running?');
@@ -90,7 +91,7 @@ export default function AdminTeacherSearch({ onSelect }: Props) {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <PageHeader title="Teacher Portal" subtitle="Search for a teacher, or browse a department, to view their portal." />
+      <PageHeader title="Teacher Portal" subtitle="Find a teacher to open their portal." />
 
       <div className="relative">
         <MagnifyingGlass size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -142,7 +143,7 @@ export default function AdminTeacherSearch({ onSelect }: Props) {
               <span className="text-sm">Loading departments…</span>
             </div>
           ) : departments.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">No teachers found.</div>
+            <EmptyState icon={ChalkboardTeacher} tint="violet" title="No teachers found" text="Try another search." />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {departments.map(({ department, count }) => (

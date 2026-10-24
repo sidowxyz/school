@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowsClockwise, CurrencyDollar, GraduationCap, Printer, SpinnerGap, UserCheck, Users, WarningCircle } from '@phosphor-icons/react';
+import { ArrowsClockwise, CurrencyDollar, GraduationCap, Printer, SpinnerGap, UserCheck, Users, WarningCircle, ChartBar } from '@phosphor-icons/react';
 
 import PageHeader from '../../../components/common/PageHeader';
 import StatStrip, { type StatItem } from '../../../components/shared/StatStrip';
@@ -11,8 +11,10 @@ import { reportsApi } from '../api/reportsApi';
 import type { ReportCell, ReportResult } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { NativeSelect } from '@/components/ui/native-select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { EmptyState } from '@/components/common/EmptyState';
 
 // The page is a one-screen summary built from a handful of the existing
 // reports. Each block only appears when the signed-in role can run its report;
@@ -34,7 +36,7 @@ const COLORS = ['hsl(var(--success))', 'hsl(var(--info))', 'hsl(var(--warning))'
 const AXIS = { fontSize: 12, fill: 'hsl(var(--muted-foreground))' };
 
 const num = (v: unknown) => Number(v) || 0;
-const money = (n: number) => `$${num(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+const money = (n: number) => `$${num(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const summaryValue = (report: ReportResult | undefined, label: string) =>
   report?.summary.find((s) => s.label === label)?.value;
 
@@ -83,30 +85,28 @@ function MiniTable({ title, subtitle, report, keys, limit = 5 }: { title: string
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
       {rows.length === 0 ? (
-        <p className="px-5 py-10 text-center text-sm text-muted-foreground">Nothing to show.</p>
+        <EmptyState compact icon={ChartBar} tint="blue" title="Nothing to show" text="Try a different year, class or date range." />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                {columns.map((c) => (
-                  <th key={c.key} className={`px-5 py-2.5 font-semibold ${c.type === 'number' || c.type === 'money' ? 'text-right' : ''}`}>{c.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((row, i) => (
-                <tr key={i} className="hover:bg-muted/40">
-                  {columns.map((c) => (
-                    <td key={c.key} className={`whitespace-nowrap px-5 py-3 ${c.type === 'number' || c.type === 'money' ? 'text-right font-medium tabular-nums' : 'text-foreground/80'}`}>
-                      {formatCell(row[c.key], c.type)}
-                    </td>
-                  ))}
-                </tr>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground hover:bg-muted/50">
+              {columns.map((c) => (
+                <TableHead key={c.key} className={`h-auto px-5 py-2.5 font-semibold ${c.type === 'number' || c.type === 'money' ? 'text-right' : ''}`}>{c.label}</TableHead>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, i) => (
+              <TableRow key={i} className="hover:bg-muted/40">
+                {columns.map((c) => (
+                  <TableCell key={c.key} className={`whitespace-nowrap px-5 py-3 ${c.type === 'number' || c.type === 'money' ? 'text-right font-medium tabular-nums' : 'text-foreground/80'}`}>
+                    {formatCell(row[c.key], c.type)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </Card>
   );
@@ -191,14 +191,14 @@ export default function ReportsPage() {
   return (
     <div className="space-y-5 pb-8">
       <PageHeader
-        title="Reports & Analytics"
-        subtitle="The key numbers at a glance. Detailed lists are in each module."
+        title="Reports"
+        subtitle="The school's key numbers at a glance."
         action={
           <div className="flex items-center gap-2 print:hidden">
-            <Button variant="outline" onClick={() => void load()} disabled={loading} className="h-10 gap-2 rounded-xl">
+            <Button variant="outline" onClick={() => void load()} disabled={loading}>
               <ArrowsClockwise size={15} className={loading ? 'animate-spin' : ''} /> Refresh
             </Button>
-            <Button variant="outline" onClick={() => window.print()} disabled={!hasAnything} className="h-10 gap-2 rounded-xl">
+            <Button variant="outline" onClick={() => window.print()} disabled={!hasAnything}>
               <Printer size={15} /> Print
             </Button>
           </div>
@@ -226,14 +226,14 @@ export default function ReportsPage() {
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-semibold text-foreground/80">From</span>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-10 rounded-xl bg-muted/40" />
+              <DatePicker value={from} max={to || undefined} onChange={setFrom} placeholder="Any date" clearable className="w-48" aria-label="From" />
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-semibold text-foreground/80">To</span>
-              <Input type="date" min={from} value={to} onChange={(e) => setTo(e.target.value)} className="h-10 rounded-xl bg-muted/40" />
+              <DatePicker value={to} min={from || undefined} onChange={setTo} placeholder="Any date" clearable className="w-48" aria-label="To" />
             </label>
             {(yearId || classId || from || to) && (
-              <Button variant="ghost" className="h-10 rounded-xl text-muted-foreground" onClick={() => { setYearId(''); setClassId(''); setFrom(''); setTo(''); }}>
+              <Button variant="ghost" className="text-muted-foreground" onClick={() => { setYearId(''); setClassId(''); setFrom(''); setTo(''); }}>
                 Clear
               </Button>
             )}
@@ -244,7 +244,7 @@ export default function ReportsPage() {
       {loading && !hasAnything ? (
         <div className="flex items-center justify-center py-24"><SpinnerGap className="h-8 w-8 animate-spin text-primary" /></div>
       ) : !hasAnything ? (
-        <Card className="rounded-2xl p-12 text-center text-sm text-muted-foreground">No report data is available for your role.</Card>
+        <Card className="rounded-2xl"><EmptyState icon={ChartBar} tint="blue" title="No reports yet" text="No report data is available for your role." /></Card>
       ) : (
         <div className={loading ? 'space-y-5 opacity-60 transition-opacity' : 'space-y-5 transition-opacity'}>
           {stats.length > 0 && <StatStrip items={stats} />}

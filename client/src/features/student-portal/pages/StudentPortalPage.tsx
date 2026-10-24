@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, CurrencyDollar, Gear, UserCircle, CaretLeft, type Icon } from '@phosphor-icons/react';
+import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, CurrencyDollar, Gear, UserCircle, CaretLeft, Exam, type Icon } from '@phosphor-icons/react';
 
 import { useAuth } from '../../../hooks/useAuth';
 import type { Student } from '../../students/types';
@@ -15,6 +15,7 @@ import AttendanceTab from '../components/tabs/AttendanceTab';
 import TimetableTab from '../components/tabs/TimetableTab';
 import SubjectsTab from '../components/tabs/SubjectsTab';
 import FeesTab from '../components/tabs/FeesTab';
+import ResultsTab from '../components/tabs/ResultsTab';
 import SettingsTab from '../components/tabs/SettingsTab';
 import { TAB_IDS, type TabId } from '../types';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,10 @@ function StudentPortalContent({ student }: { student: Student | null }) {
   const isStudent = role === 'student';
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
-  const tab: TabId = TAB_IDS.includes(rawTab as TabId) ? (rawTab as TabId) : 'dashboard';
+  // Settings (theme, password) belong to whoever is signed in, so staff
+  // looking at a student's portal don't get that tab.
+  const allowed = TAB_IDS.filter((id) => isStudent || id !== 'settings');
+  const tab: TabId = allowed.includes(rawTab as TabId) ? (rawTab as TabId) : 'dashboard';
 
   const setTab = (next: TabId) => {
     setSearchParams((prev) => {
@@ -38,15 +42,17 @@ function StudentPortalContent({ student }: { student: Student | null }) {
     });
   };
 
-  const tabs: TabDef[] = [
+  const allTabs: TabDef[] = [
     { id: 'dashboard',     label: 'Dashboard',     icon: SquaresFour },
     { id: 'profile',       label: 'My Profile',    icon: User },
     { id: 'attendance',    label: 'Attendance',    icon: ClipboardText },
     { id: 'timetable',     label: 'Timetable',     icon: CalendarBlank },
     { id: 'subjects',      label: 'Subjects',      icon: BookOpen },
+    { id: 'results',       label: 'Results',       icon: Exam },
     { id: 'fees',          label: 'Fees',          icon: CurrencyDollar },
     { id: 'settings',      label: 'Settings',      icon: Gear },
   ];
+  const tabs = allTabs.filter((t) => allowed.includes(t.id));
 
   const tabContent = (
     <>
@@ -55,6 +61,7 @@ function StudentPortalContent({ student }: { student: Student | null }) {
       {tab === 'attendance'    && <AttendanceTab />}
       {tab === 'timetable'     && <TimetableTab />}
       {tab === 'subjects'      && <SubjectsTab />}
+      {tab === 'results'       && <ResultsTab />}
       {tab === 'fees'          && <FeesTab />}
       {tab === 'settings'      && <SettingsTab />}
     </>
@@ -101,7 +108,7 @@ function ViewingBanner({ student, onChange }: { student: Student; onChange: () =
         Viewing the portal of <span className="font-semibold">{student.firstName} {student.lastName}</span>
         <span className="font-mono text-xs text-muted-foreground">{student.admissionNumber}</span>
       </p>
-      <Button variant="outline" size="sm" onClick={onChange} className="h-8 shrink-0 gap-1.5">
+      <Button variant="outline" size="xs" onClick={onChange} className="shrink-0">
         <CaretLeft size={14} /> <span className="hidden sm:inline">Change student</span><span className="sm:hidden">Change</span>
       </Button>
     </div>
@@ -116,7 +123,8 @@ export default function StudentPortalPage() {
   // sees their own portal directly.
   const [selected, setSelected] = useState<Student | null>(null);
   const [meProfile, setMeProfile] = useState<Student | null>(null);
-  const [searchParams] = useSearchParams();
+  const [loadError, setLoadError] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
   const studentIdParam = searchParams.get('studentId');
 
   // If navigated directly with ?studentId=..., load that student automatically
@@ -126,13 +134,19 @@ export default function StudentPortalPage() {
     (async () => {
       try {
         const s = await studentsApi.getById(studentIdParam);
-        if (!cancelled && s) setSelected(s);
-      } catch (err) {
-        console.error('Failed to load student for portal preview', err);
+        if (!cancelled && s) { setSelected(s); setLoadError(''); }
+      } catch {
+        if (!cancelled) setLoadError("That student couldn't be opened. Pick a student below.");
       }
     })();
     return () => { cancelled = true; };
   }, [isStudent, studentIdParam, selected]);
+
+  // "Change student" goes back to the search (and forgets the student in the URL).
+  const changeStudent = () => {
+    setSelected(null);
+    setSearchParams({}, { replace: true });
+  };
 
   // A logged-in student loads their own real profile.
   useEffect(() => {
@@ -142,15 +156,29 @@ export default function StudentPortalPage() {
       try {
         const p = await portalApi.getMyProfile();
         if (!cancelled) setMeProfile(p);
-      } catch {
-        // Leave null — the profile shows its loading/empty state; nothing is invented.
+      } catch (err) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (!cancelled) {
+          setLoadError(status === 404
+            ? "Your login isn't linked to a student record yet. Please contact the school office."
+            : "Your portal couldn't be loaded. Check your connection and refresh the page.");
+        }
       }
     })();
     return () => { cancelled = true; };
   }, [isStudent]);
 
+  if (isStudent && loadError) {
+    return <p className="rounded-2xl bg-tile-yellow p-6 text-sm text-tile-foreground">{loadError}</p>;
+  }
+
   if (!isStudent && !selected) {
-    return <AdminStudentSearch onSelect={setSelected} />;
+    return (
+      <>
+        {loadError && <p className="mb-4 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{loadError}</p>}
+        <AdminStudentSearch onSelect={setSelected} />
+      </>
+    );
   }
 
   const student = isStudent ? meProfile : selected;
@@ -160,7 +188,7 @@ export default function StudentPortalPage() {
   return (
     <PortalProvider value={{ student, studentId }}>
       {!isStudent && selected && (
-        <ViewingBanner student={selected} onChange={() => setSelected(null)} />
+        <ViewingBanner student={selected} onChange={changeStudent} />
       )}
       <StudentPortalContent student={student} />
     </PortalProvider>

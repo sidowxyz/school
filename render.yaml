@@ -12,13 +12,15 @@ services:
     rootDir: server
     buildCommand: npx --yes pnpm@10.34.7 install --frozen-lockfile
     startCommand: node src/server.js
-    healthCheckPath: /
+    healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
         value: "24"
       - key: NODE_ENV
         value: production
+      - key: SCHOOL_TIMEZONE
+        value: Africa/Mogadishu
       - key: MONGODB_URI
         sync: false
       - key: JWT_ACCESS_SECRET
@@ -40,13 +42,15 @@ services:
     rootDir: server
     buildCommand: npx --yes pnpm@10.34.7 install --frozen-lockfile
     startCommand: node src/server.js
-    healthCheckPath: /
+    healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
         value: "24"
       - key: NODE_ENV
         value: production
+      - key: SCHOOL_TIMEZONE
+        value: Africa/Mogadishu
       - key: MONGODB_URI
         sync: false
       - key: JWT_ACCESS_SECRET

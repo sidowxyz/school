@@ -16,6 +16,7 @@ export const teachersApi = {
   create:  async (data: CreateTeacherPayload): Promise<CreateTeacherResult> =>
     (await api.post('/teachers', data)).data.data,
   update:  (id: string, data: unknown) => api.put(`/teachers/${id}`, data),
+  remove:  (id: string) => api.delete(`/teachers/${id}`),
 
   addAssignment:    async (teacherId: string, data: CreateAssignmentPayload): Promise<TeacherAssignment> =>
     (await api.post(`/teachers/${teacherId}/assignments`, data)).data.data,

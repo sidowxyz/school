@@ -8,4 +8,6 @@ export const usersApi = {
     (await api.post('/users', data)).data.data,
   updateRole: (id: string, role: string) => api.patch(`/users/${id}/role`, { role }),
   updateStatus: (id: string, status: boolean) => api.patch(`/users/${id}/status`, { status }),
+  resetPassword: async (id: string): Promise<{ email: string; temporaryPassword: string }> =>
+    (await api.post(`/users/${id}/reset-password`)).data.data,
 };

@@ -13,16 +13,22 @@ import Address from '../models/Address.js';
 import Residence from '../models/Residence.js';
 import StudentClass from '../models/StudentClass.js';
 import Term from '../models/Term.js';
+import Year from '../models/Year.js';
 import AppError from '../utils/AppError.js';
+import { sectionHeadcount } from '../utils/classCounts.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { recomputeFamilyDiscount } from './familyService.js';
-import { abortTransaction, commitTransaction, startTransaction, withTransaction } from '../utils/transaction.js';
+import { abortTransaction, commitTransaction, startTransaction, transactionsSupported, withTransaction } from '../utils/transaction.js';
+import { pageParams, searchRegex } from '../utils/query.js';
 
 // The academic year a newly-enrolled student belongs to, absent an explicit
 // yearId — whichever Term is currently marked active.
 export const resolveCurrentYearId = async () => {
-  const activeTerm = await Term.findOne({ status: 'active' }).sort({ createdAt: -1 });
-  return activeTerm?.academicYearId ? activeTerm.academicYearId.toString() : null;
+  const activeTerm = await Term.findOne({ status: 'active' }).sort({ startDate: -1, createdAt: -1 });
+  if (activeTerm?.academicYearId) return activeTerm.academicYearId.toString();
+  // No term set up yet: the newest school year, so enrolment still has a home.
+  const latestYear = await Year.findOne().sort({ createdAt: -1 }).select('_id').lean();
+  return latestYear ? latestYear._id.toString() : null;
 };
 
 // Helper to generate next admission_no atomically with session support
@@ -38,7 +44,9 @@ const generateAdmissionNumber = async (session = null) => {
 };
 
 
-const validateClassAndSection = async (classId, sectionId, session = null) => {
+// `movingStudentId` is set when a student joins the section (registration or a
+// move): a full section refuses them. Students already in it are never refused.
+const validateClassAndSection = async (classId, sectionId, session = null, { joining = false, movingStudentId = null } = {}) => {
   const selectedClass = await Class.findById(classId).session(session);
   if (!selectedClass) throw new AppError('Selected class was not found.', 404);
 
@@ -52,6 +60,12 @@ const validateClassAndSection = async (classId, sectionId, session = null) => {
   if (!selectedSection || selectedSection.class.toString() !== classId.toString()) {
     throw new AppError('The selected section does not belong to this class.', 400);
   }
+  if (joining && selectedSection.capacity) {
+    const headcount = await sectionHeadcount(selectedSection._id, movingStudentId, session);
+    if (headcount >= selectedSection.capacity) {
+      throw new AppError(`${selectedClass.cl_name} ${selectedSection.name} is full (${headcount} of ${selectedSection.capacity} places). Pick another section or raise its capacity.`, 409);
+    }
+  }
   return selectedSection._id;
 };
 
@@ -60,11 +74,23 @@ export const createStudentService = async (bodyData) => {
   let student;
   let parentPortalCredentials = null;
   let familyId = null;
+  // Records written by this attempt. On a database without transactions (a
+  // standalone local MongoDB) a failure halfway would otherwise leave e.g. the
+  // new guardian behind, and every retry would then fail with "this parent or
+  // guardian already exists". So they are removed again on failure.
+  let created = [];
+  const track = (Model, docs) => { for (const d of docs) created.push([Model, d._id]); return docs; };
 
   try {
     await withTransaction(session, async () => {
+      created = [];
+      // Everything that can refuse the registration is checked before anything is written.
+      const sectionId = await validateClassAndSection(bodyData.classId, bodyData.sectionId, session, { joining: true });
+      if (bodyData.email) {
+        const existingStudent = await Student.findOne({ email: bodyData.email, isDeleted: false }).session(session);
+        if (existingStudent) throw new AppError('A student with this email address already exists.', 409);
+      }
       const admissionNumber = await generateAdmissionNumber(session);
-      const sectionId = await validateClassAndSection(bodyData.classId, bodyData.sectionId, session);
       const guardianInput = bodyData.guardian || {
         mode: 'new',
         name: bodyData.parentName,
@@ -85,31 +111,34 @@ export const createStudentService = async (bodyData) => {
         if (existingGuardian) {
           throw new AppError('This parent or guardian already exists. Choose “Existing parent/guardian” and assign the student to that family.', 409);
         }
+        if (guardianInput.createPortalUser) {
+          if (!email) throw new AppError('Enter the parent\'s email to give them a portal login.', 400);
+          const existingUser = await User.findOne({ email }).session(session);
+          if (existingUser) throw new AppError('The parent portal email is already in use.', 409);
+        }
 
-        const [family] = await Family.create([{
+        const [family] = track(Family, await Family.create([{
           familyName: `${guardianInput.name} Family`,
           primaryContactPhone: phone,
           primaryContactEmail: email,
-        }], { session });
+        }], { session }));
 
         let userId = null;
         if (guardianInput.createPortalUser) {
-          const existingUser = await User.findOne({ email }).session(session);
-          if (existingUser) throw new AppError('The parent portal email is already in use.', 409);
           const temporaryPassword = generatePassword();
           const nameParts = String(guardianInput.name).trim().split(/\s+/);
-          const [user] = await User.create([{
+          const [user] = track(User, await User.create([{
             firstName: nameParts[0] || 'Parent',
             lastName: nameParts.slice(1).join(' ') || 'Guardian',
             email,
             password: temporaryPassword,
             role: 'parent',
-          }], { session });
+          }], { session }));
           userId = user._id;
           parentPortalCredentials = { email, temporaryPassword };
         }
 
-        [guardian] = await Guardian.create([{
+        [guardian] = track(Guardian, await Guardian.create([{
           familyId: family._id,
           userId,
           name: guardianInput.name,
@@ -117,7 +146,7 @@ export const createStudentService = async (bodyData) => {
           phone,
           email,
           isPrimary: true,
-        }], { session });
+        }], { session }));
       }
 
       familyId = guardian.familyId;
@@ -133,22 +162,22 @@ export const createStudentService = async (bodyData) => {
         guardians: [{ guardianId: guardian._id, isPrimary: true }],
       });
 
-      if (studentData.email) {
-        const existingStudent = await Student.findOne({ email: studentData.email, isDeleted: false }).session(session);
-        if (existingStudent) throw new AppError('A student with this email address already exists.', 409);
-      }
-
-      [student] = await Student.create([studentData], { session });
+      [student] = track(Student, await Student.create([studentData], { session }));
       const yearId = bodyData.yearId || (await resolveCurrentYearId());
       if (yearId) {
-        await StudentClass.create([{
+        track(StudentClass, await StudentClass.create([{
           sc_no: `SC-${student._id}-${yearId}`,
           student: student._id,
           class: student.classId,
           section: student.sectionId ?? null,
           year: yearId,
-        }], { session });
+        }], { session }));
       }
+    }).catch(async (error) => {
+      if (!(await transactionsSupported())) {
+        await Promise.all(created.reverse().map(([Model, id]) => Model.deleteOne({ _id: id }).catch(() => {})));
+      }
+      throw error;
     });
 
     await recomputeFamilyDiscount(familyId);
@@ -182,7 +211,14 @@ export const getAllStudentsService = async (filters) => {
   // graduated/created in a different year has no StudentClass row for this one.
   if (yearId) {
     const enrolledIds = await StudentClass.distinct('student', { year: yearId });
-    query._id = { $in: enrolledIds };
+    // Students with no enrolment at all (e.g. registered before the school year
+    // was set up) belong to the current year, so they never vanish from the list.
+    if (String(yearId) === String(await resolveCurrentYearId())) {
+      const everEnrolled = await StudentClass.distinct('student');
+      query.$and = [{ $or: [{ _id: { $in: enrolledIds } }, { _id: { $nin: everEnrolled } }] }];
+    } else {
+      query._id = { $in: enrolledIds };
+    }
   }
 
   // Used by the Parents admin UI's "assign a student" picker, so it only offers
@@ -191,13 +227,13 @@ export const getAllStudentsService = async (filters) => {
     query.guardians = { $size: 0 };
   }
 
-  if (search) {
+  if (searchRegex(search)) {
     query.$or = [
-      { firstName: { $regex: search, $options: 'i' } },
-      { lastName: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
-      { admissionNumber: { $regex: search, $options: 'i' } },
-      { phoneNumber: { $regex: search, $options: 'i' } }
+      { firstName: searchRegex(search) },
+      { lastName: searchRegex(search) },
+      { email: searchRegex(search) },
+      { admissionNumber: searchRegex(search) },
+      { phoneNumber: searchRegex(search) }
     ];
   }
 
@@ -213,8 +249,7 @@ export const getAllStudentsService = async (filters) => {
     query.status = status;
   }
 
-  const currentPage = Number(page);
-  const pageSize = Number(limit);
+  const { page: currentPage, limit: pageSize } = pageParams({ page, limit }, { defaultLimit: 10, maxLimit: 1000 });
 
   const totalRecords = await Student.countDocuments(query);
 
@@ -262,6 +297,11 @@ export const updateStudentService = async (id, bodyData) => {
   delete bodyData.admissionNumber;
   delete bodyData.guardian;
   delete bodyData.yearId;
+  // Fields that have their own, more restricted endpoints (the per-student
+  // discount is admin-only; logins, guardians and deletion have their own flows).
+  for (const key of ['fee_discount', 'userId', 'isDeleted', 'deletedAt', 'guardians', 'familyId', '_id', 'createdAt', 'updatedAt']) {
+    delete bodyData[key];
+  }
 
   const currentStudent = await Student.findOne({ _id: id, isDeleted: false });
   if (!currentStudent) throw new AppError('Student not found.', 404);
@@ -270,7 +310,8 @@ export const updateStudentService = async (id, bodyData) => {
     ? bodyData.sectionId
     : currentStudent.sectionId;
   if (bodyData.classId || Object.prototype.hasOwnProperty.call(bodyData, 'sectionId')) {
-    bodyData.sectionId = await validateClassAndSection(nextClassId, nextSectionId);
+    const joining = String(nextSectionId ?? '') !== String(currentStudent.sectionId ?? '');
+    bodyData.sectionId = await validateClassAndSection(nextClassId, nextSectionId, null, { joining, movingStudentId: currentStudent._id });
   }
 
   if (bodyData.email) {
@@ -308,7 +349,38 @@ export const updateStudentService = async (id, bodyData) => {
     throw new AppError('Student not found.', 404);
   }
 
+  if (bodyData.status && bodyData.status !== currentStudent.status) await applyStatusChange(student, student.status);
+
+  // A class move also moves this year's enrolment, so the student shows up on
+  // the new class's attendance register (and leaves the old one).
+  if (String(currentStudent.classId) !== String(student.classId?._id ?? student.classId)
+    || String(currentStudent.sectionId ?? '') !== String(student.sectionId?._id ?? student.sectionId ?? '')) {
+    const yearId = await resolveCurrentYearId();
+    if (yearId) {
+      await StudentClass.updateMany(
+        { student: student._id, year: yearId },
+        { class: student.classId?._id ?? student.classId, section: student.sectionId?._id ?? student.sectionId ?? null },
+      );
+    }
+  }
+
   return student;
+};
+
+// Leaving the school (deletion, or a status other than Active) ends the
+// student's login and gives siblings the discount their family now qualifies for.
+const afterStudentLeaves = async (student) => {
+  if (student.userId) await User.updateOne({ _id: student.userId }, { status: false, refreshTokens: [] });
+  if (student.familyId) await recomputeFamilyDiscount(student.familyId);
+};
+
+const applyStatusChange = async (student, status) => {
+  if (status === 'Active') {
+    if (student.userId) await User.updateOne({ _id: student.userId }, { status: true });
+    if (student.familyId) await recomputeFamilyDiscount(student.familyId);
+  } else {
+    await afterStudentLeaves(student);
+  }
 };
 
 export const deleteStudentService = async (id) => {
@@ -335,6 +407,9 @@ export const deleteStudentService = async (id) => {
     );
   }
 
+  // Off every attendance register.
+  await StudentClass.deleteMany({ student: student._id });
+  await afterStudentLeaves(student);
   return student;
 };
 
@@ -357,6 +432,7 @@ export const updateStudentStatusService = async (id, status) => {
     throw new AppError('Student not found.', 404);
   }
 
+  await applyStatusChange(student, status);
   return student;
 };
 

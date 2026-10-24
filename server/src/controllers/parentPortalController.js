@@ -12,6 +12,8 @@ import StudentInvoice from '../models/StudentInvoice.js';
 import '../models/Period.js';
 import '../models/Subject.js';
 import '../models/User.js';
+import mongoose from 'mongoose';
+import { buildReportCard } from '../services/resultService.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 
@@ -120,6 +122,20 @@ export const getChildInvoices = async (req, res, next) => {
     }, { invoiced: 0, paid: 0, balance: 0 });
 
     res.status(200).json(new ApiResponse(200, { totals, invoices }, 'Invoices retrieved successfully'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/portal/parent/children/:studentId/results?termId=
+// A child's report card; parents only see exams the school has published.
+export const getChildResults = async (req, res, next) => {
+  try {
+    const guardian = await resolveGuardian(req);
+    const child = await getLinkedChild(guardian._id, req.params.studentId);
+    const termId = mongoose.isValidObjectId(req.query.termId) ? req.query.termId : undefined;
+    const publishedOnly = req.user?.role === 'parent';
+    res.status(200).json(new ApiResponse(200, await buildReportCard(child._id, termId, { publishedOnly }), 'Results retrieved'));
   } catch (error) {
     next(error);
   }

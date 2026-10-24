@@ -2,6 +2,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import { ThemeProvider } from './context/ThemeContext';
 import { Toaster } from '@/components/ui/sonner';
+import { ConfirmHost } from '@/components/common/ConfirmDialog';
 import './index.css';
 
 export default function App() {
@@ -9,6 +10,7 @@ export default function App() {
     <ThemeProvider>
       <RouterProvider router={router} />
       <Toaster />
+      <ConfirmHost />
     </ThemeProvider>
   );
 }
