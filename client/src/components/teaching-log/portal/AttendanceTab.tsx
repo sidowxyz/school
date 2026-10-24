@@ -14,6 +14,7 @@ import {
   weekdayForDate,
 } from './portalData';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 
@@ -156,12 +157,7 @@ export default function AttendanceTab({
             <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
               <div>
                 <label className="block text-sm font-medium text-foreground/80 mb-1.5">Lesson Date</label>
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  className="w-full border border-border rounded-lg px-4 py-2.5 text-sm text-foreground/80 focus:outline-none focus:ring-1 focus:ring-primary/40"
-                />
+                <DatePicker value={date} max={new Date().toLocaleDateString('en-CA')} onChange={(d) => d && setDate(d)} aria-label="Lesson date" />
               </div>
               <Select
                 label="Scheduled Period"
@@ -182,10 +178,9 @@ export default function AttendanceTab({
             )}
           </div>
           {!readOnly && (
-            <Button variant="plain"
+            <Button variant="default"
               onClick={saveAttendance}
               disabled={!selectedSession || students.length === 0 || loading || saving}
-              className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors"
             >
               {saving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
               {saving ? 'Saving...' : 'Save Attendance'}

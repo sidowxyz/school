@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Checks, FloppyDisk, MagnifyingGlass, SpinnerGap, UsersThree } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker, TimePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -103,7 +104,7 @@ export default function TakeStaffAttendanceTab() {
         <CardContent className="flex flex-wrap items-end gap-3 p-4">
           <div className="space-y-1.5">
             <Label htmlFor="sa-date" className="text-xs">Date</Label>
-            <Input id="sa-date" type="date" value={date} max={todayIso()} onChange={(e) => e.target.value && setDate(e.target.value)} className="w-44" />
+            <DatePicker id="sa-date" value={date} max={todayIso()} onChange={(v) => v && setDate(v)} className="w-52" />
           </div>
           <div className="relative w-full sm:w-64">
             <MagnifyingGlass size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -121,7 +122,7 @@ export default function TakeStaffAttendanceTab() {
             {alreadySaved && !dirty && <span className="text-muted-foreground">· saved</span>}
             {dirty && <span className="text-warning">· not saved yet</span>}
           </div>
-          <Button variant="outline" size="sm" onClick={markAllPresent} disabled={!staff.length} className="h-8 gap-1.5">
+          <Button variant="outline" size="xs" onClick={markAllPresent} disabled={!staff.length}>
             <Checks size={14} /> All present
           </Button>
         </div>
@@ -141,8 +142,8 @@ export default function TakeStaffAttendanceTab() {
                     <p className="text-xs text-muted-foreground">{[s.staffId, s.department].filter(Boolean).join(' · ')}</p>
                   </div>
                   {m?.status === 'Late' && (
-                    <Input type="time" value={m.time_in} onChange={(e) => setMark(s._id, { time_in: e.target.value })}
-                      className="h-8 w-28 text-xs" aria-label={`Time ${staffName(s)} arrived`} />
+                    <TimePicker value={m.time_in} onChange={(v) => setMark(s._id, { time_in: v })}
+                      className="w-32" aria-label={`Time ${staffName(s)} arrived`} placeholder="Arrived at" />
                   )}
                   {m && m.status !== 'Present' && (
                     <Input value={m.remarks} onChange={(e) => setMark(s._id, { remarks: e.target.value })}
@@ -169,7 +170,7 @@ export default function TakeStaffAttendanceTab() {
             <p className="text-xs text-muted-foreground">
               {new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
-            <Button onClick={save} disabled={saving} className="gap-2">
+            <Button onClick={save} disabled={saving}>
               {saving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
               {saving ? 'Saving…' : alreadySaved ? 'Update attendance' : 'Save attendance'}
             </Button>

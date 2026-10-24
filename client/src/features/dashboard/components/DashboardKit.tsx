@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { CHART_TOOLTIP } from '@/lib/chartTheme';
 import { cn } from '@/lib/utils';
 import { TILE_FILLS, TILE_HSL, sameDay, timeAgo } from './dashboardUtils';
+import { EmptyState } from '@/components/common/EmptyState';
 
 // Shared pieces for every role's dashboard: pastel number tiles, white panels,
 // a week calendar, quick actions, an activity feed and a donut breakdown.
@@ -118,19 +119,14 @@ export function Panel({ title, description, action, children, flush, className }
 export function PanelLink({ to, children }: { to: string; children: ReactNode }) {
   const navigate = useNavigate();
   return (
-    <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => navigate(to)}>
+    <Button variant="ghost" size="xs" onClick={() => navigate(to)}>
       {children} <ArrowRight size={13} />
     </Button>
   );
 }
 
-export function PanelEmpty({ text, action }: { text: string; action?: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center gap-3 py-10 text-center">
-      <p className="text-sm text-muted-foreground">{text}</p>
-      {action}
-    </div>
-  );
+export function PanelEmpty({ text, action, icon }: { text: string; action?: ReactNode; icon?: Icon }) {
+  return <EmptyState compact icon={icon} text={text} action={action} />;
 }
 
 export interface QuickAction { label: string; icon: Icon; to: string; state?: unknown }
@@ -192,9 +188,9 @@ export function WeekCalendar({ items }: { items: CalendarItem[] }) {
       description={rangeLabel}
       action={
         <div className="flex items-center gap-1">
-          {!isThisWeek && <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setWeekStart(startOfWeek(new Date()))}>Today</Button>}
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => shift(-1)} aria-label="Previous week"><CaretLeft size={14} /></Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => shift(1)} aria-label="Next week"><CaretRight size={14} /></Button>
+          {!isThisWeek && <Button variant="ghost" size="xs" onClick={() => setWeekStart(startOfWeek(new Date()))}>Today</Button>}
+          <Button variant="outline" size="icon-sm" onClick={() => shift(-1)} aria-label="Previous week"><CaretLeft size={14} /></Button>
+          <Button variant="outline" size="icon-sm" onClick={() => shift(1)} aria-label="Next week"><CaretRight size={14} /></Button>
         </div>
       }
     >
@@ -371,7 +367,7 @@ export function AttendancePanel({ weekly, rate }: { weekly: { day: string; prese
       {!hasData ? (
         <PanelEmpty
           text="No attendance has been taken this week."
-          action={<Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate('/attendance')}>Take attendance</Button>}
+          action={<Button variant="outline" size="xs" onClick={() => navigate('/attendance')}>Take attendance</Button>}
         />
       ) : (
         <ResponsiveContainer width="100%" height={240}>

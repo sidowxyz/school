@@ -42,14 +42,19 @@ describe('AcademicCalendar settings actions', () => {
   });
 
   it('creates a holiday from the Add Holiday dialog', async () => {
+    // The date picker opens on the current month; pin "today" so it shows October 2026.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 15));
     const user = userEvent.setup();
     renderCalendar();
 
     const [addHolidayButton] = await screen.findAllByRole('button', { name: /add holiday/i });
     await user.click(addHolidayButton);
     await user.type(screen.getByLabelText('Holiday name'), 'Independence Day');
-    await user.type(screen.getByLabelText('Start date'), '2026-10-01');
+    await user.click(screen.getByLabelText('Start date'));
+    await user.click(await screen.findByRole('button', { name: /^\w{3},? 1 Oct 2026$/ }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^add holiday$/i }));
+    vi.useRealTimers();
 
     await waitFor(() => expect(settingsApi.createHoliday).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Independence Day',

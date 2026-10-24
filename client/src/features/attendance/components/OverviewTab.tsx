@@ -8,6 +8,7 @@ import { CHART_TOOLTIP } from '@/lib/chartTheme';
 import { cn } from '@/lib/utils';
 import { attendanceService, type AttendanceSummary } from '../../../services/attendance.service';
 import { STATUS_STYLE, rateBar, rateTone } from '../statusStyles';
+import { EmptyState } from '@/components/common/EmptyState';
 
 const RANGES = [7, 30, 90];
 
@@ -55,7 +56,7 @@ export default function OverviewTab({ onTakeAttendance }: { onTakeAttendance?: (
       {data.classesInScope > 0 && notMarked > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
           <span>{notMarked} {notMarked === 1 ? 'class has' : 'classes have'} no attendance for today yet.</span>
-          {onTakeAttendance && <Button size="sm" onClick={onTakeAttendance} className="h-8">Take attendance</Button>}
+          {onTakeAttendance && <Button size="xs" onClick={onTakeAttendance}>Take attendance</Button>}
         </div>
       )}
 
@@ -123,7 +124,7 @@ export default function OverviewTab({ onTakeAttendance }: { onTakeAttendance?: (
         </CardHeader>
         <CardContent className="space-y-3">
           {data.byClass.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No attendance recorded yet.</p>
+            <EmptyState compact icon={CalendarCheck} tint="blue" title="No attendance yet" text="Class rates appear here once attendance is taken." />
           ) : data.byClass.map((c) => (
             <div key={c.name} className="grid grid-cols-[110px_1fr_auto] items-center gap-3 text-sm sm:grid-cols-[140px_1fr_170px]">
               <span className="truncate font-medium">{c.name}</span>

@@ -105,7 +105,7 @@ function ViewingBanner({ student, onChange }: { student: Student; onChange: () =
         Viewing the portal of <span className="font-semibold">{student.firstName} {student.lastName}</span>
         <span className="font-mono text-xs text-muted-foreground">{student.admissionNumber}</span>
       </p>
-      <Button variant="outline" size="sm" onClick={onChange} className="h-8 shrink-0 gap-1.5">
+      <Button variant="outline" size="xs" onClick={onChange} className="shrink-0">
         <CaretLeft size={14} /> <span className="hidden sm:inline">Change student</span><span className="sm:hidden">Change</span>
       </Button>
     </div>

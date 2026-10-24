@@ -62,7 +62,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
           variant="ghost"
           size="icon"
           onClick={onMobileMenuClick}
-          className="lg:hidden h-9 w-9 text-muted-foreground hover:text-foreground"
+          className="lg:hidden text-muted-foreground hover:text-foreground"
           aria-label="Toggle Navigation Menu"
         >
           <List size={20} />
@@ -78,7 +78,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
             variant="outline"
             size="sm"
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="h-10 gap-2 rounded-full px-4 text-xs font-medium text-foreground bg-card hover:bg-accent"
+            className="h-10 rounded-full px-4 font-medium text-foreground bg-card hover:bg-accent"
           >
             <Calendar size={13} className="text-muted-foreground" />
             <span className="max-w-[120px] sm:max-w-none truncate">
@@ -127,7 +127,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
             variant="ghost"
             type="button"
             onClick={() => setUserMenuOpen((o) => !o)}
-            className="flex h-auto items-center gap-2 rounded-full p-1 pr-2 text-left transition-colors hover:bg-muted"
+            className="flex h-auto rounded-full p-1 pr-2 text-left hover:bg-muted"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tile-pink text-sm font-semibold text-tile-foreground">
               {user?.name?.[0]?.toUpperCase() ?? "A"}
@@ -156,7 +156,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
                   setUserMenuOpen(false);
                   navigate(user?.role === 'student' ? '/student-portal?tab=settings' : '/account');
                 }}
-                className="w-full flex items-center justify-start gap-2 px-3 py-2 text-xs rounded-md text-foreground hover:bg-muted transition-colors h-auto"
+                className="w-full flex justify-start px-3 py-2 text-xs rounded-md text-foreground hover:bg-muted h-auto"
               >
                 <User size={14} className="text-muted-foreground" />
                 Account Settings
@@ -169,7 +169,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
                   clearAuth();
                   navigate("/login");
                 }}
-                className="w-full flex items-center justify-start gap-2 px-3 py-2 text-xs rounded-md text-destructive hover:bg-destructive/10 transition-colors h-auto"
+                className="w-full flex justify-start px-3 py-2 text-xs rounded-md text-destructive hover:bg-destructive/10 h-auto"
               >
                 <SignOut size={14} />
                 Sign out

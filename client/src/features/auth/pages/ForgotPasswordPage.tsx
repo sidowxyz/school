@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Key, UserGear } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
-import { useSchoolIdentity } from '../../settings/hooks/useSchoolIdentity';
+import { onLogoError, useSchoolIdentity } from '../../settings/hooks/useSchoolIdentity';
 
 /**
  * The school's accounts are created by staff and the app sends no email, so a
@@ -19,7 +19,7 @@ export default function ForgotPasswordPage() {
             src={logoSrc}
             alt=""
             className="mx-auto h-16 w-16 rounded-full object-cover shadow-md ring-4 ring-card"
-            onError={(e) => { if (!e.currentTarget.src.endsWith('/logo.png')) e.currentTarget.src = '/logo.png'; }}
+            onError={onLogoError}
           />
           <h1 className="text-2xl font-bold text-foreground">Forgot your password?</h1>
           <p className="text-sm text-muted-foreground">{schoolName} resets passwords in person, so nobody else can take over your account.</p>
@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
           </p>
         )}
 
-        <Button asChild variant="outline" className="w-full gap-2">
+        <Button asChild variant="outline" className="w-full">
           <Link to="/login"><ArrowLeft size={16} /> Back to sign in</Link>
         </Button>
       </div>

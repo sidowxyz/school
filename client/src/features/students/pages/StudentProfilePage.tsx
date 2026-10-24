@@ -5,6 +5,10 @@ import {
     CurrencyDollar, CheckCircle, WarningCircle,
     XCircle, Clock, FileText, UploadSimple, Shield, GraduationCap,
     Calendar, Trash, BookOpen, Stack, Monitor,
+  FileArrowUp,
+  PencilSimpleLine,
+  CalendarCheck,
+  Receipt,
 } from '@phosphor-icons/react';
 import { studentsApi } from "../api/studentsApi";
 import { academicApi } from "../../academic-structure/api/academicApi";
@@ -16,6 +20,7 @@ import type {
 import type { Subject } from "../../academic-structure/types";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -29,6 +34,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { EmptyState } from "@/components/common/EmptyState";
 
 // Types
 
@@ -266,9 +272,9 @@ function EditProfileModal({
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-                <DialogHeader className="border-b border-border bg-muted/30 px-6 py-5">
-                    <div className="flex items-center gap-2 mb-1">
+            <DialogContent className="max-w-2xl">
+                <DialogHeader icon={PencilSimpleLine} tint="blue">
+                    <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs font-semibold text-primary border-primary/20 bg-primary/5">
                             Student Information
                         </Badge>
@@ -276,13 +282,13 @@ function EditProfileModal({
                             {student.admissionNumber}
                         </Badge>
                     </div>
-                    <DialogTitle className="text-xl font-bold tracking-tight">Edit Profile</DialogTitle>
-                    <DialogDescription className="text-xs text-muted-foreground">
+                    <DialogTitle>Edit Profile</DialogTitle>
+                    <DialogDescription>
                         Update personal, academic, contact, and guardian details.
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-5">
                     {/* Section 1: Basic Information */}
                     <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4 shadow-2xs">
                         <div className="flex items-center gap-2 pb-2 border-b border-border/60">
@@ -316,7 +322,7 @@ function EditProfileModal({
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-medium text-foreground">Date of Birth <span className="text-destructive">*</span></Label>
-                                <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} required />
+                                <DatePicker value={dob} onChange={setDob} max={new Date().toLocaleDateString('en-CA')} placeholder="Pick date of birth" required aria-label="Date of birth" />
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-medium text-foreground">Blood Group</Label>
@@ -443,11 +449,11 @@ function EditProfileModal({
                         </div>
                     )}
 
-                    <DialogFooter className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
+                    <DialogFooter>
                         <Button variant="outline" type="button" onClick={onClose} disabled={submitting}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={submitting} className="min-w-32 shadow-xs">
+                        <Button type="submit" disabled={submitting} className="min-w-32">
                             {submitting ? "Saving..." : "Save Changes"}
                         </Button>
                     </DialogFooter>
@@ -491,8 +497,8 @@ function UploadDocumentModal({ onClose, onUpload }: { onClose: () => void; onUpl
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-md">
-                <DialogHeader>
+            <DialogContent>
+                <DialogHeader icon={FileArrowUp} tint="violet">
                     <DialogTitle>Upload Document</DialogTitle>
                     <DialogDescription>Add a new document to the student profile.</DialogDescription>
                 </DialogHeader>
@@ -513,7 +519,7 @@ function UploadDocumentModal({ onClose, onUpload }: { onClose: () => void; onUpl
                         </label>
                     </div>
                     {error && <p className="text-sm text-destructive">{error}</p>}
-                    <DialogFooter className="pt-2">
+                    <DialogFooter>
                         <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
                         <Button type="submit" disabled={submitting}>
                             {submitting ? "Uploading..." : "Upload"}
@@ -740,9 +746,7 @@ function AcademicTab({ student, subjects }: { student: StudentBase; subjects: Su
                                 ))}
                             </div>
                         ) : (
-                            <div className="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-                                No subjects mapped to this class level yet.
-                            </div>
+                            <EmptyState compact icon={BookOpen} tint="green" title="No subjects yet" text="No subjects are mapped to this class level yet." />
                         )}
                     </div>
 
@@ -865,7 +869,7 @@ function AttendanceTab({ records }: { records: AttendanceRecord[] }) {
                 </CardHeader>
                 <CardContent className="pt-4 p-0">
                     {byMonth.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">No attendance records found for this student.</p>
+                        <EmptyState icon={CalendarCheck} tint="blue" title="No attendance yet" text="Once teachers take attendance, this student's days show up here month by month." />
                     ) : (
                         <div className="overflow-x-auto">
                             <Table className="w-full text-sm">
@@ -994,7 +998,7 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                 </CardHeader>
                 <CardContent className="pt-4 p-0">
                     {invoices.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">No invoices generated for this student yet.</p>
+                        <EmptyState icon={Receipt} tint="yellow" title="No bills yet" text="Monthly fees appear here once the school charges this student's class." />
                     ) : (
                         <div className="overflow-x-auto">
                             <Table className="w-full text-sm">
@@ -1143,7 +1147,7 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                         <CardDescription className="text-xs">Certificates, national IDs, and medical files</CardDescription>
                     </div>
                     {canEdit && (
-                        <Button size="sm" onClick={() => setShowUpload(true)} className="gap-2 shadow-2xs">
+                        <Button size="sm" onClick={() => setShowUpload(true)}>
                             <UploadSimple size={14} /> Upload Document
                         </Button>
                     )}
@@ -1151,7 +1155,7 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                 {docError && <p className="mx-4 mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{docError}</p>}
                 <CardContent className="pt-4 p-0">
                     {docs.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-muted-foreground">No documents uploaded for this student yet.</p>
+                        <EmptyState icon={FileArrowUp} tint="violet" title="No documents yet" text="Upload birth certificates, report cards or other files for this student." />
                     ) : (
                         <div className="overflow-x-auto">
                             <Table className="w-full text-sm">
@@ -1190,30 +1194,30 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                                                     {doc.status === "Pending" && (
                                                         <Button
                                                             variant="outline"
-                                                            size="sm"
+                                                            size="xs"
                                                             onClick={() => handleVerify(doc._id)}
                                                             disabled={busyId === doc._id}
-                                                            className="h-8 gap-1 text-xs text-success hover:text-success hover:bg-success/10"
+                                                            className="text-success hover:text-success hover:bg-success/10"
                                                         >
                                                             <CheckCircle size={13} /> Verify
                                                         </Button>
                                                     )}
                                                     <Button
                                                         variant="outline"
-                                                        size="sm"
+                                                        size="xs"
                                                         onClick={() => handleOpen(doc._id)}
-                                                        className="h-8 gap-1 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                                                        className="px-2.5 font-medium text-muted-foreground hover:text-foreground"
                                                     >
                                                         <DownloadSimple size={13} /> Open
                                                     </Button>
                                                     {canEdit && (
                                                         <Button
                                                             variant="ghost"
-                                                            size="sm"
+                                                            size="icon-sm"
                                                             onClick={() => handleDelete(doc._id)}
                                                             disabled={busyId === doc._id}
                                                             aria-label="Delete document"
-                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                                            className="text-muted-foreground hover:text-destructive"
                                                         >
                                                             <Trash size={14} />
                                                         </Button>
@@ -1335,9 +1339,9 @@ export default function StudentProfilePage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
                 <div className="flex items-center gap-3">
-                    <Button variant="plain"
+                    <Button variant="outline" size="icon"
                         onClick={() => navigate("/students")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="shrink-0"
                     >
                         <ArrowLeft size={18} />
                     </Button>
@@ -1348,7 +1352,7 @@ export default function StudentProfilePage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     {canViewPortal && (
-                        <Button variant="outline" size="sm" asChild className="gap-2">
+                        <Button variant="outline" size="sm" asChild>
                             <Link to={`/student-portal?studentId=${student.id}`}>
                                 <Monitor size={15} />
                                 <span className="hidden sm:inline">View Portal</span>
@@ -1356,7 +1360,7 @@ export default function StudentProfilePage() {
                         </Button>
                     )}
                     {canEdit && (
-                        <Button size="sm" onClick={() => setShowEdit(true)} className="gap-2">
+                        <Button size="sm" onClick={() => setShowEdit(true)}>
                             <PencilSimple size={15} />
                             <span className="hidden sm:inline">Edit Profile</span>
                             <span className="sm:hidden">Edit</span>

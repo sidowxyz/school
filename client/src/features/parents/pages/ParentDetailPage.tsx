@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useCan } from "../../../hooks/usePermission";
-import { Percent, Plus, Trash, ArrowLeft, UserPlus } from '@phosphor-icons/react';
+import { Percent, Plus, Trash, ArrowLeft, UserPlus, Student } from '@phosphor-icons/react';
 
 import { parentsApi, siblingRulesApi } from "../api/parentsApi";
 import type { ParentDetail, UnassignedStudent, SiblingRule } from "../types";
@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { TableEmptyRow, EmptyState, ListLoading } from "@/components/common/EmptyState";
 
 function AssignStudentModal({ parentId, onClose, onAssigned }: { parentId: string; onClose: () => void; onAssigned: () => void }) {
   const [students, setStudents] = useState<UnassignedStudent[]>([]);
@@ -49,8 +50,8 @@ function AssignStudentModal({ parentId, onClose, onAssigned }: { parentId: strin
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent>
+        <DialogHeader icon={UserPlus} tint="pink">
           <DialogTitle>Assign a Student</DialogTitle>
           <DialogDescription>
             Only students without a parent already assigned are listed.
@@ -170,7 +171,7 @@ function SiblingRulesPanel() {
           <h3 className="text-sm font-semibold text-foreground">Sibling Discount Rules</h3>
         </div>
         {canEdit && (
-          <Button variant="plain" onClick={() => setShowAdd((v) => !v)} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary">
+          <Button variant="soft" size="xs" onClick={() => setShowAdd((v) => !v)}>
             <Plus size={14} /> Add Rule
           </Button>
         )}
@@ -190,7 +191,7 @@ function SiblingRulesPanel() {
             <Input required type="number" min={0} max={100} value={discountPct} onChange={(e) => setDiscountPct(e.target.value)}
               className="w-full border border-border rounded-lg px-3 py-2 text-sm" />
           </div>
-          <Button variant="plain" type="submit" disabled={submitting} className="self-end bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground text-sm font-semibold rounded-lg px-3 py-2">
+          <Button variant="default" type="submit" disabled={submitting} className="self-end">
             {submitting ? "Saving..." : "Save"}
           </Button>
         </form>
@@ -199,9 +200,9 @@ function SiblingRulesPanel() {
       {error && <p className="text-sm text-destructive mb-3">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <ListLoading rows={2} />
       ) : rules.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No sibling discount rules configured yet.</p>
+        <EmptyState compact icon={Percent} tint="green" title="No sibling discount rules" text="Add a rule to give families with several children a discount." />
       ) : (
         <div className="space-y-2">
           {rules.map((r) => (
@@ -214,7 +215,7 @@ function SiblingRulesPanel() {
                 <Button variant="plain" onClick={() => toggleActive(r)} disabled={!canEdit} className={`text-xs font-semibold px-2.5 py-1 rounded-full disabled:opacity-100 ${r.is_active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
                   {r.is_active ? "Active" : "Inactive"}
                 </Button>
-                {canEdit && <Button variant="plain" onClick={() => remove(r)} aria-label={`Delete ${r.rule_name}`} className="text-muted-foreground hover:text-destructive"><Trash size={15} /></Button>}
+                {canEdit && <Button variant="ghost" size="icon-sm" onClick={() => remove(r)} aria-label={`Delete ${r.rule_name}`} className="hover:bg-destructive/10 hover:text-destructive"><Trash size={15} /></Button>}
               </div>
             </div>
           ))}
@@ -266,7 +267,7 @@ export default function ParentDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Button variant="plain" onClick={() => navigate("/parents")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground/80">
+      <Button variant="ghost" size="sm" onClick={() => navigate("/parents")} className="-ml-2 w-fit">
         <ArrowLeft size={16} /> Back to Parents
       </Button>
 
@@ -280,9 +281,8 @@ export default function ParentDetailPage() {
             </span>
           )}
         </div>
-        {canEditParent && <Button variant="plain"
+        {canEditParent && <Button variant="default"
           onClick={() => setShowAssign(true)}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-semibold"
         >
           <UserPlus size={16} /> Assign a Student
         </Button>}
@@ -305,7 +305,14 @@ export default function ParentDetailPage() {
             </TableHeader>
             <TableBody>
               {children.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground text-sm">No students assigned yet.</TableCell></TableRow>
+                <TableEmptyRow
+                  colSpan={5}
+                  icon={Student}
+                  tint="pink"
+                  title="No children linked"
+                  text="Link this parent's children so their fees, attendance and sibling discount show up together."
+                  action={canEditParent && <Button variant="outline" size="sm" onClick={() => setShowAssign(true)}><UserPlus size={15} /> Assign a Student</Button>}
+                />
               ) : (
                 children.map((child) => (
                   <TableRow key={child._id} className="border-b border-border hover:bg-muted/50">
@@ -317,7 +324,7 @@ export default function ParentDetailPage() {
                     <TableCell className="px-4 py-4 text-muted-foreground whitespace-nowrap">{child.status}</TableCell>
                     <TableCell className="px-4 py-4 whitespace-nowrap">
                       {canEditParent && (
-                        <Button variant="plain" onClick={() => handleRemoveChild(child._id)} className="text-muted-foreground hover:text-destructive text-sm font-medium">
+                        <Button variant="ghost" size="xs" onClick={() => handleRemoveChild(child._id)} className="hover:bg-destructive/10 hover:text-destructive">
                           Remove
                         </Button>
                       )}

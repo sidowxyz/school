@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, FileText, SpinnerGap } from '@phosphor-icons/react';
+import { ArrowRight, FileText, SpinnerGap, BookOpen } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import type { TeacherAssignment } from '@/features/teachers/types';
 import type { TeachingLog } from '@/types/teachingLog.types';
@@ -10,7 +10,9 @@ import {
   weekdayForDate,
 } from './portalData';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/common/EmptyState';
 
 export default function LessonsTab({
   assignments,
@@ -59,12 +61,7 @@ export default function LessonsTab({
         <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-1.5">Lesson Date</label>
-            <Input
-              type="date"
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className="w-full border border-border rounded-lg px-4 py-2.5 text-sm text-foreground/80 focus:outline-none focus:ring-1 focus:ring-primary/40"
-            />
+            <DatePicker value={date} max={new Date().toLocaleDateString('en-CA')} onChange={(d) => d && setDate(d)} aria-label="Lesson date" />
           </div>
           <Select
             label="Scheduled Period"
@@ -96,10 +93,10 @@ export default function LessonsTab({
           />
         </div>
 
-        <Button variant="plain"
+        <Button variant="default"
           onClick={continueToLog}
           disabled={!selectedSession || !topic.trim()}
-          className="mt-4 w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground rounded-lg py-2.5 text-sm font-semibold transition-colors"
+          className="mt-4 w-full"
         >
           <FileText size={15} /> Continue to Lesson Details <ArrowRight size={15} />
         </Button>
@@ -114,7 +111,7 @@ export default function LessonsTab({
             <SpinnerGap size={20} className="animate-spin text-primary" /> Loading saved lessons...
           </div>
         ) : lessons.length === 0 ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">No lessons have been registered yet.</div>
+          <EmptyState compact icon={BookOpen} tint="yellow" title="No lessons yet" text="Lessons you register appear here." />
         ) : (
           <div className="space-y-3">
             {lessons.slice(0, 8).map((lesson) => (

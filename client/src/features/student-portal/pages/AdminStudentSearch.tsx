@@ -138,7 +138,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
   return (
     <div className="space-y-6 w-full">
       {/* Page Title & Subtitle */}
-      <PageHeader title="Student Portal" subtitle="Search for a student, or browse a class, to view their complete academic and portal profile." />
+      <PageHeader title="Student Portal" subtitle="Find a student to open their portal." />
 
       {/* Hairline Divided Summary KPI Strip */}
       <Card className="overflow-hidden border-border bg-border shadow-2xs">
@@ -220,7 +220,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
               variant="outline"
               size="sm"
               onClick={() => setActiveClass(null)}
-              className="gap-1.5 text-xs"
+              className="gap-1.5"
             >
               <CaretLeft size={14} /> Back to all classes
             </Button>

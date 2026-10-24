@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { homePathFor } from "../../../hooks/usePermission";
-import { useSchoolIdentity } from "../../settings/hooks/useSchoolIdentity";
+import { onLogoError, useSchoolIdentity } from "../../settings/hooks/useSchoolIdentity";
 
 export default function LoginPage() {
   const { schoolName, logoSrc, schoolEmail } = useSchoolIdentity();
@@ -68,7 +68,7 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/20" />
 
           <div className="absolute left-6 top-6 flex items-center gap-3 rounded-2xl bg-white/90 px-3 py-2 shadow-sm backdrop-blur-sm">
-            <img src={logoSrc} alt="" className="h-9 w-9 rounded-full object-cover" onError={(e) => { if (!e.currentTarget.src.endsWith('/logo.png')) e.currentTarget.src = '/logo.png'; }} />
+            <img src={logoSrc} alt="" className="h-9 w-9 rounded-full object-cover" onError={onLogoError} />
             <span className="text-sm font-semibold text-foreground">{schoolName}</span>
           </div>
 
@@ -187,10 +187,10 @@ export default function LoginPage() {
                 )}
 
                 {/* Submit Button */}
-                <Button
+                <Button size="lg"
                   type="submit"
                   disabled={loading}
-                  className="h-11 w-full mt-2 rounded-xl font-semibold shadow-sm"
+                  className="w-full mt-2"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">

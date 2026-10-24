@@ -5,7 +5,6 @@ import {
   Plus,
   MagnifyingGlass,
   DownloadSimple,
-  X,
   Eye,
   Users,
   UserCheck,
@@ -13,6 +12,14 @@ import {
   Warning,
   PencilSimple,
   Trash,
+  UserPlus,
+  UserList,
+  GraduationCap,
+  Phone,
+  UsersThree,
+  Key,
+  CheckCircle,
+  Student as StudentIcon,
 } from '@phosphor-icons/react';
 
 import { studentsApi } from "../api/studentsApi";
@@ -22,14 +29,18 @@ import { useAcademicYearStore } from "../../../store/academicYearStore";
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FormSection } from '@/components/ui/drawer-kit';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import PageHeader from '@/components/common/PageHeader';
 import StatStrip from '@/components/shared/StatStrip';
 import { downloadCSV } from '../../reports/utils/csv';
+import { TableEmptyRow, TableLoadingRows, ErrorState } from "@/components/common/EmptyState";
 
 // Helpers
 
@@ -159,25 +170,22 @@ function StudentFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex h-dvh justify-end bg-black/40" onClick={onClose}>
-      <Card className="w-full max-w-lg h-dvh rounded-none border-y-0 border-r-0 shadow-lg border-border animate-in slide-in-from-right duration-300 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <CardHeader className="flex flex-row items-start justify-between pb-4 border-b border-border">
-          <div>
-            <CardTitle className="text-lg font-bold">
-              {credentials.length ? "Registration Complete" : mode === "add" ? "Register Student" : "Edit Student Information"}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {credentials.length
-                ? "Save the generated portal credentials before closing."
-                : mode === "add" ? "Fill in the required academic and demographic details" : "Update student profile and status"}
-            </CardDescription>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-            <X size={16} />
-          </Button>
-        </CardHeader>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent>
+        <DialogHeader
+          icon={credentials.length ? CheckCircle : mode === "add" ? UserPlus : PencilSimple}
+          tint={credentials.length ? "green" : "blue"}
+        >
+          <DialogTitle>
+            {credentials.length ? "Registration Complete" : mode === "add" ? "Register Student" : "Edit Student Information"}
+          </DialogTitle>
+          <DialogDescription>
+            {credentials.length
+              ? "Save the generated portal credentials before closing."
+              : mode === "add" ? "Fill in the student's details, class and family contact." : "Update the student's details and status."}
+          </DialogDescription>
+        </DialogHeader>
 
-        <CardContent className="overflow-y-auto p-6 space-y-4 flex-1">
           {credentials.length ? (
             <CredentialsReveal
               title={credentials[credentialIndex].title}
@@ -189,7 +197,8 @@ function StudentFormModal({
               }}
             />
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-4">
+              <FormSection title="Personal details" icon={UserList}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">First Name</Label>
@@ -212,9 +221,12 @@ function StudentFormModal({
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Date of Birth</Label>
-                  <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required />
+                  <DatePicker value={birthDate} onChange={setBirthDate} max={new Date().toLocaleDateString('en-CA')} placeholder="Pick date of birth" required aria-label="Date of birth" />
                 </div>
               </div>
+              </FormSection>
+
+              <FormSection title="Class" icon={GraduationCap}>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -234,7 +246,9 @@ function StudentFormModal({
                   </NativeSelect>
                 </div>
               </div>
+              </FormSection>
 
+              <FormSection title="Contact" icon={Phone}>
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Phone Number</Label>
                 <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+252..." required />
@@ -244,30 +258,27 @@ function StudentFormModal({
                 <Label className="text-xs font-semibold">Residential Address</Label>
                 <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="City, District" required />
               </div>
+              </FormSection>
 
               {/* Guardian section */}
               {mode === "add" ? (
-                <div className="rounded-lg border border-border p-4 bg-muted/30 space-y-3">
-                  <div>
-                    <h3 className="text-xs font-bold text-foreground">Guardian / Family Contact</h3>
-                    <p className="text-[11px] text-muted-foreground">Attach a new guardian or link an existing family profile</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 bg-muted p-1 rounded-md">
+                <FormSection title="Guardian / family" description="Add a new guardian or link a family already registered." icon={UsersThree}>
+                  <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
                     <Button
                       variant={guardianMode === "new" ? "default" : "ghost"}
-                      size="sm"
+                      size="xs"
                       type="button"
                       onClick={() => { setGuardianMode("new"); setGuardianId(""); }}
-                      className="text-xs h-7"
+                      className="rounded-lg"
                     >
                       New Parent
                     </Button>
                     <Button
                       variant={guardianMode === "existing" ? "default" : "ghost"}
-                      size="sm"
+                      size="xs"
                       type="button"
                       onClick={() => setGuardianMode("existing")}
-                      className="text-xs h-7"
+                      className="rounded-lg"
                     >
                       Existing Parent
                     </Button>
@@ -285,7 +296,7 @@ function StudentFormModal({
                         ))}
                       </NativeSelect>
                       {selectedGuardian && (
-                        <p className="text-[11px] text-primary bg-primary/10 p-2 rounded-md mt-1">
+                        <p className="mt-1 rounded-xl bg-tile-green p-2.5 text-[11px] text-tile-foreground">
                           Enrolling into {selectedGuardian.name}'s family profile. Sibling discounts update automatically.
                         </p>
                       )}
@@ -308,9 +319,9 @@ function StudentFormModal({
                       </div>
                     </div>
                   )}
-                </div>
+                </FormSection>
               ) : (
-                <div className="rounded-lg border border-border p-3 bg-muted/20">
+                <div className="rounded-2xl border border-border/70 bg-muted/25 p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assigned Parent</p>
                   <p className="text-sm font-semibold text-foreground mt-0.5">{currentGuardian?.name || initial?.parentName || "—"}</p>
                   <p className="text-xs text-muted-foreground">{currentGuardian?.phone || initial?.parentPhoneNumber || "—"}</p>
@@ -330,7 +341,7 @@ function StudentFormModal({
               )}
 
               {mode === "add" && !initial?.userId && (
-                <div className="border-t border-border pt-3 space-y-2">
+                <FormSection title="Student portal" icon={Key}>
                   <div className="flex items-center gap-2">
                     <Checkbox id="createStudentAcc" checked={createAccount} onCheckedChange={(v) => setCreateAccount(v === true)} />
                     <Label htmlFor="createStudentAcc" className="text-xs font-medium text-foreground cursor-pointer">
@@ -349,7 +360,7 @@ function StudentFormModal({
                       />
                     </div>
                   )}
-                </div>
+                </FormSection>
               )}
 
               {error && (
@@ -359,19 +370,18 @@ function StudentFormModal({
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <DialogFooter>
                 <Button variant="outline" type="button" onClick={onClose}>
                   Cancel
                 </Button>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? "Saving..." : mode === "add" ? "Register Student" : "Save Changes"}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           )}
-        </CardContent>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -393,35 +403,23 @@ function DeleteModal({ name, onClose, onConfirm }: { name: string; onClose: () =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4" onClick={onClose}>
-      <Card className="w-full max-w-md shadow-xl border-border animate-in fade-in-50 zoom-in-95" onClick={(e) => e.stopPropagation()}>
-        <CardHeader className="flex flex-row items-start justify-between pb-3">
-          <div>
-            <CardTitle className="text-base font-bold text-destructive flex items-center gap-2">
-              <Warning size={18} /> Delete Student Record
-            </CardTitle>
-            <CardDescription className="text-xs mt-1">
-              This action is permanent and cannot be undone.
-            </CardDescription>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 text-muted-foreground hover:text-foreground">
-            <X size={15} />
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent centered className="max-w-md">
+        <DialogHeader icon={Trash} tint="pink">
+          <DialogTitle>Delete Student Record</DialogTitle>
+          <DialogDescription>
+            Permanently remove <span className="font-semibold text-foreground">{name}</span> from the student registry? This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        {error && <p className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="destructive" onClick={confirm} disabled={deleting}>
+            {deleting ? "Deleting..." : "Confirm Delete"}
           </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-xs text-muted-foreground">
-            Are you sure you want to permanently remove <span className="font-semibold text-foreground">{name}</span> from the student registry?
-          </p>
-          {error && <p className="text-xs text-destructive bg-destructive/10 p-2 rounded">{error}</p>}
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button variant="destructive" onClick={confirm} disabled={deleting}>
-              {deleting ? "Deleting..." : "Confirm Delete"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -523,15 +521,15 @@ export default function StudentListPage() {
       {/* Page Header */}
       <PageHeader
         title="Students"
-        subtitle="Manage enrolled students, academic placement, and portal credentials."
+        subtitle="Every enrolled student, their class and family."
         action={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={exportStudents} className="gap-2">
+            <Button variant="outline" onClick={exportStudents}>
               <DownloadSimple size={14} />
               <span className="hidden sm:inline">Export CSV</span>
             </Button>
             {canCreate && (
-              <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2">
+              <Button onClick={() => setShowAdd(true)}>
                 <Plus size={15} />
                 Register Student
               </Button>
@@ -600,23 +598,29 @@ export default function StudentListPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-xs text-muted-foreground">
-                    Loading student records...
-                  </TableCell>
-                </TableRow>
+                <TableLoadingRows columns={8} avatar />
               ) : error ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-xs text-destructive">
-                    {error}
-                  </TableCell>
-                </TableRow>
+                <TableEmptyRow colSpan={8}><ErrorState text={error} onRetry={load} /></TableEmptyRow>
               ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-xs text-muted-foreground">
-                    No students match the selected criteria.
-                  </TableCell>
-                </TableRow>
+                search || classFilter ? (
+                  <TableEmptyRow
+                    colSpan={8}
+                    icon={MagnifyingGlass}
+                    tint="violet"
+                    title="No students match"
+                    text="Try another name or admission number, or show all classes."
+                    action={<Button variant="outline" size="sm" onClick={() => { setSearch(""); setClassFilter(""); }}>Clear filters</Button>}
+                  />
+                ) : (
+                  <TableEmptyRow
+                    colSpan={8}
+                    icon={StudentIcon}
+                    tint="blue"
+                    title="No students yet"
+                    text="Register your first student to see them here with their class, guardian and status."
+                    action={canCreate && <Button onClick={() => setShowAdd(true)}><Plus size={16} /> Register Student</Button>}
+                  />
+                )
               ) : (
                 filtered.map((student) => (
                   <TableRow key={student._id}>
@@ -662,18 +666,18 @@ export default function StudentListPage() {
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="xs"
                           onClick={() => navigate(`/students/${student._id}`)}
-                          className="h-7 px-2 text-xs gap-1"
+                          className="px-2"
                         >
                           <Eye size={13} /> View
                         </Button>
                         {canEdit && (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="xs"
                             onClick={() => setEditTarget(student)}
-                            className="h-7 px-2 text-xs gap-1"
+                            className="px-2"
                           >
                             <PencilSimple size={13} /> Edit
                           </Button>
@@ -681,10 +685,10 @@ export default function StudentListPage() {
                         {canDelete && (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="xs"
                             onClick={() => setDeleteTarget(student)}
                             aria-label={`Delete ${student.firstName} ${student.lastName}`}
-                            className="h-7 px-2 text-xs gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            className="px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash size={13} />
                           </Button>

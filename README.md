@@ -131,7 +131,7 @@ app.
   password after signing in.
 - Teachers, parents and students get their accounts automatically when they are
   registered from their own pages. Admin creates staff accounts (principal,
-  accountant, academic officer, admin) in **User Management**. The one-time
+  accountant, academic officer, admin) in **User Accounts**. The one-time
   temporary password is shown once, right after creating the account.
 
 ## 6. Project structure

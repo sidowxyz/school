@@ -29,9 +29,24 @@ export function publishSchoolIdentity(patch: Partial<SchoolIdentity>) {
   window.dispatchEvent(new CustomEvent<SchoolIdentity>(UPDATE_EVENT, { detail: next }));
 }
 
+// The server's built-in default, used until a school uploads its own logo.
+const DEFAULT_SERVER_LOGO = '/uploads/branding/logo.png';
+
 /** Uploaded logos live on the API server, which may be on another domain than the website. */
 export function resolveSchoolLogo(url: string) {
+  if (!url || url === DEFAULT_SERVER_LOGO) return '/logo.png';
   return url.startsWith('/uploads/') ? `${fileBaseURL}${url}` : url;
+}
+
+/**
+ * <img onError>: show the app's own logo when the school's can't be loaded
+ * (e.g. the file was lost on a redeploy), and hide the image if even that fails.
+ */
+export function onLogoError(event: { currentTarget: HTMLImageElement }) {
+  const img = event.currentTarget;
+  const fallback = new URL('/logo.png', window.location.origin).href;
+  if (img.src !== fallback) img.src = fallback;
+  else img.style.visibility = 'hidden';
 }
 
 /** The school's name, logo and contact details. Works before sign-in too. */

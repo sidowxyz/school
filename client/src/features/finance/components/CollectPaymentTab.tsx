@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Users, Receipt, PencilSimple, X, CheckCircle, SpinnerGap, Printer } from '@phosphor-icons/react';
+import { Users, Receipt, PencilSimple, X, CheckCircle, SpinnerGap, Printer, Wallet } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -166,7 +166,7 @@ export default function CollectPaymentTab({ paymentMethods, initialStudentId, on
 
       <Sheet open={Boolean(studentId)} onOpenChange={(open) => { if (!open) backToList(); }}>
         <SheetContent className="sm:max-w-2xl">
-          <SheetHeader>
+          <SheetHeader icon={account?.family ? Users : Wallet} tint="green">
             <SheetTitle>
               {account ? (account.family ? `${account.family.name} family` : account.students[0]?.name) : 'Loading…'}
             </SheetTitle>
@@ -292,7 +292,7 @@ export default function CollectPaymentTab({ paymentMethods, initialStudentId, on
                 <span className="font-semibold tabular-nums">{money(due)}</span>
                 {ahead > 0 && <span className="text-xs text-muted-foreground"> (incl. {money(ahead)} ahead)</span>}
               </div>
-              <Button onClick={save} disabled={!canSave} className="h-11 w-full gap-2 sm:w-auto">
+              <Button size="lg" onClick={save} disabled={!canSave} className="w-full sm:w-auto">
                 {saving ? <SpinnerGap size={18} className="animate-spin" /> : <CheckCircle size={18} />}
                 {saving ? 'Saving…' : `Record ${amountNum > 0 ? money(amountNum) : 'payment'} & print receipt`}
               </Button>
@@ -366,7 +366,7 @@ function StudentCard({ student: s, checked, onToggle, canEditDiscount, editing, 
 
         {canEditDiscount && (
           <div>
-            <Button variant="ghost" size="sm" onClick={onEdit} className="h-7 gap-1.5 px-2 text-xs text-muted-foreground">
+            <Button variant="ghost" size="xs" onClick={onEdit} className="px-2 text-muted-foreground">
               {editing ? <X size={13} /> : <PencilSimple size={13} />}
               {editing ? 'Cancel' : s.feeDiscount ? 'Change discount' : 'Give a discount'}
             </Button>

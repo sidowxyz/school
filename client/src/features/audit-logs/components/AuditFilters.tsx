@@ -1,4 +1,5 @@
-import { MagnifyingGlass, CalendarBlank, Funnel } from '@phosphor-icons/react';
+import { MagnifyingGlass, Funnel } from '@phosphor-icons/react';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
@@ -28,12 +29,13 @@ export default function AuditFilters({
   actionOptions,
 }: AuditFiltersProps) {
   return (
-    <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-10">
+    <div className="rounded-2xl border border-border/70 bg-card p-5">
+      {/* Search gets the most room; Clear sizes to its label. */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto]">
 
         {/* Search */}
-        <div className="xl:col-span-3">
-          <label className="mb-2 block text-sm font-medium text-foreground/80">
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-foreground/80">
             Search Logs
           </label>
 
@@ -49,68 +51,59 @@ export default function AuditFilters({
 onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by user, module or action..."
               
-              className="h-11 w-full rounded-lg border border-border pl-10 pr-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary"
+              className="pl-10"
             />
           </div>
         </div>
 
         {/* User */}
-        <div className="xl:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-foreground/80">
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-foreground/80">
             User
           </label>
 
           <NativeSelect
   value={user}
   onChange={(e) => setUser(e.target.value)}
-  className="h-11 w-full rounded-lg border border-border px-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary"
+  className="w-full"
 >
             <option>All Users</option>
             {userOptions.map((u) => <option key={u}>{u}</option>)}
           </NativeSelect>
         </div>
         {/* Action */}
-        <div className="xl:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-foreground/80">
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-foreground/80">
             Action
           </label>
 
           <NativeSelect 
           value={action}
           onChange={(e) => setAction(e.target.value)}
-          className="h-11 w-full rounded-lg border border-border px-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary">
+          className="w-full">
             <option>All Actions</option>
             {actionOptions.map((a) => <option key={a}>{a}</option>)}
           </NativeSelect>
         </div>
 
         {/* Date */}
-        <div className="xl:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-foreground/80">
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-foreground/80">
             Date
           </label>
 
-          <div className="relative">
-            <CalendarBlank
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-
-            <Input
-              type="date"
-              
-  value={date}
-  onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full rounded-lg border border-border pl-10 pr-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary"
-            />
-          </div>
+          <DatePicker value={date} onChange={setDate} max={new Date().toLocaleDateString('en-CA')} placeholder="Any date" clearable aria-label="Date" />
         </div>
 
-        {/* Apply */}
-        <div className="lg:col-span-1 flex items-end">
-          <Button variant="plain" className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-primary-foreground transition hover:bg-primary/90">
-            <Funnel size={18} />
-            Apply
+        {/* Filters apply as you change them; this resets them all. */}
+        <div className="flex items-end">
+          <Button
+            variant="outline"
+            onClick={() => { setSearch(''); setUser('All Users'); setAction('All Actions'); setDate(''); }}
+            className="w-full lg:w-auto"
+          >
+            <Funnel size={16} />
+            Clear
           </Button>
         </div>
 

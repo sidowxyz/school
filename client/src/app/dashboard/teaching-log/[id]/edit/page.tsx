@@ -53,9 +53,8 @@ export default function TeachingLogEditPage() {
       <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-xl p-6 text-center max-w-xl mx-auto my-12">
         <h3 className="font-bold text-base mb-2">Error Loading Details</h3>
         <p className="text-sm mb-4">{error || 'Teaching log entry not found'}</p>
-        <Button variant="plain"
+        <Button variant="outline" size="sm"
           onClick={() => navigate('/teaching-log')}
-          className="bg-card hover:bg-muted/50 border border-border text-foreground/80 font-bold px-4 py-2 rounded-lg text-xs"
         >
           Return to Dashboard
         </Button>
@@ -68,7 +67,7 @@ export default function TeachingLogEditPage() {
       {/* Page Header */}
       <PageHeader
         title="Edit Teaching Log"
-        subtitle="Modify lesson outcomes, academic progress, and student participation details"
+        subtitle="Update what you taught and how the lesson went."
       />
 
       {/* validated Form with populated data */}

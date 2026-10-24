@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Printer } from '@phosphor-icons/react';
+import { Printer, Receipt } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -121,17 +121,17 @@ export default function FeeReceiptDialog({ receipt, onClose, autoPrint = false }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-6 print:hidden">
+      <DialogContent className="max-w-2xl">
+        <DialogHeader icon={Receipt} tint="green" className="print:hidden">
           <DialogTitle>{autoPrint ? 'Payment recorded' : `Receipt ${receipt.receipt_no}`}</DialogTitle>
           <DialogDescription>Print this receipt and give it to the family.</DialogDescription>
         </DialogHeader>
-        <div ref={ref}>
+        <div ref={ref} className="overflow-hidden rounded-2xl border border-border">
           <FeeReceiptView receipt={receipt} />
         </div>
-        <DialogFooter className="px-6 pb-6 print:hidden">
+        <DialogFooter className="print:hidden">
           <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button onClick={print} className="gap-2"><Printer size={15} /> Print receipt</Button>
+          <Button onClick={print}><Printer size={15} /> Print receipt</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -95,10 +95,10 @@ export default function AssignmentUploadForm({ busy, onSubmit, onCancel }: Props
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
       />
 
-      <Button variant="plain"
+      <Button variant="default" size="xs"
         type="submit"
         disabled={!canSubmit}
-        className="w-full rounded-lg bg-primary py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full"
       >
         {busy ? 'Reviewing…' : 'Review assignment'}
       </Button>

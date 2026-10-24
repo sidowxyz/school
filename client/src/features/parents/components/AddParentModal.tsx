@@ -1,3 +1,4 @@
+import { UsersThree, CheckCircle } from "@phosphor-icons/react";
 import { useState } from "react";
 import { parentsApi } from "../api/parentsApi";
 import CredentialsReveal from "../../../components/common/CredentialsReveal";
@@ -57,8 +58,8 @@ export default function AddParentModal({ onClose, onCreated }: Props) {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent>
+        <DialogHeader icon={created ? CheckCircle : UsersThree} tint={created ? "green" : "pink"}>
           <DialogTitle>
             {created ? "Parent Registered" : "Add New Parent"}
           </DialogTitle>
@@ -154,7 +155,7 @@ export default function AddParentModal({ onClose, onCreated }: Props) {
               </div>
             )}
 
-            <DialogFooter className="pt-2">
+            <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>

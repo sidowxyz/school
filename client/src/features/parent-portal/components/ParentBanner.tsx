@@ -30,9 +30,9 @@ export default function ParentBanner({ onChildChange }: Props) {
         subtitle={
           children.length > 0
             ? `${children.length} ${children.length === 1 ? 'child' : 'children'} linked${
-                child ? ` • viewing ${fullName(child)}` : ''
+                child ? ` · Viewing ${fullName(child)}` : ''
               }`
-            : 'Access student academics, attendance, and fee status.'
+            : "Your children's attendance, timetable and fees."
         }
       />
 
@@ -55,7 +55,7 @@ export default function ParentBanner({ onChildChange }: Props) {
                   variant="outline"
                   onClick={() => setOpen((o) => !o)}
                   aria-expanded={open}
-                  className="w-full flex items-center justify-between px-3.5 py-2.5 h-auto text-xs bg-background border-border hover:bg-muted/50 rounded-xl shadow-2xs"
+                  className="w-full flex justify-between px-3.5 py-2.5 h-auto text-xs bg-background border-border hover:bg-muted/50"
                 >
                   <span className="flex items-center gap-2.5 min-w-0">
                     <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[11px] font-bold shrink-0">

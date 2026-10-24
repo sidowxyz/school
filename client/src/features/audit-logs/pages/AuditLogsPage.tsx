@@ -10,7 +10,8 @@ import AuditTable from "../components/AuditTable";
 import { useAuditLogs } from "../hooks/useAuditLogs";
 import { Button } from '@/components/ui/button';
 
-export default function AuditLogsPage() {
+/** Lives as a tab in Settings (embedded); kept usable on its own too. */
+export default function AuditLogsPage({ embedded = false }: { embedded?: boolean }) {
 const { logs: auditLogs, loading, error, reload } = useAuditLogs();
 
 const [search, setSearch] = useState("");
@@ -91,27 +92,26 @@ const handleExportCSV = () => {
 };
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Audit Logs"
-        subtitle="Track all administrative actions and system activity."
-        action={
+      {(() => {
+        const actions = (
           <div className="flex items-center gap-2">
-            <Button variant="plain"
+            <Button variant="outline"
               onClick={reload}
-              disabled={loading}
-              className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-muted-foreground hover:bg-muted/50 disabled:opacity-50">
+              disabled={loading}>
               <ArrowsClockwise size={18} className={loading ? "animate-spin" : undefined} />
               Refresh
             </Button>
-            <Button variant="plain"
-             onClick={handleExportCSV}
-             className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90">
+            <Button variant="default"
+             onClick={handleExportCSV}>
               <DownloadSimple size={18} />
               Export CSV
             </Button>
           </div>
-        }
-      />
+        );
+        return embedded
+          ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Every change made in the system, newest first.</p>{actions}</div>
+          : <PageHeader title="Audit Logs" subtitle="Every change made in the system, newest first." action={actions} />;
+      })()}
 
       {error && (
         <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">

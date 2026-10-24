@@ -1,3 +1,4 @@
+import { ClockCounterClockwise } from "@phosphor-icons/react";
 import { AuditLog } from "../types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +26,8 @@ export default function AuditDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader icon={ClockCounterClockwise} tint="violet">
           <div className="flex items-center gap-2 mb-1">
             <DialogTitle>Audit Log Details</DialogTitle>
             <Badge
@@ -54,7 +55,7 @@ export default function AuditDetailModal({
             <Info title="Module" value={log.module} />
             <Info title="Action" value={log.action} />
             <Info title="IP Address" value={log.ip} />
-            <Info title="Date" value={log.timestamp} />
+            <Info title="Date" value={new Date(log.timestamp).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "medium" })} />
           </div>
 
           {/* Before / After Diff */}
@@ -111,7 +112,7 @@ export default function AuditDetailModal({
           </div>
         </div>
 
-        <DialogFooter className="pt-2">
+        <DialogFooter>
           <Button onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>

@@ -102,7 +102,7 @@ const DASHBOARDS: Record<string, string> = {
 const PAGE_PATHS: [string, string][] = [
   ['attendance', '/attendance'],
   ['timetable', '/timetable'],
-  ['academic-structure', '/academic-structure'],
+  ['academic-structure', '/settings?tab=structure'],
   ['students', '/students'],
   ['teachers', '/teachers'],
   ['teacher-attendance', '/teacher-attendance'],

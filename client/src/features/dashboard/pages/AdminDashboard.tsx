@@ -78,7 +78,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <DashboardHeader actions={
-        <Button variant="outline" size="sm" onClick={exportCsv} className="h-9 gap-2 bg-card"><DownloadSimple size={15} /> Export</Button>
+        <Button variant="outline" size="sm" onClick={exportCsv} className="bg-card"><DownloadSimple size={15} /> Export</Button>
       } />
       <DashboardError message={loadError} />
 
@@ -145,7 +145,7 @@ export default function AdminDashboard() {
                               : <span className="text-xs text-muted-foreground">No class</span>}
                           </TableCell>
                           <TableCell className="pr-6">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label={`Open ${st.name}`}
+                            <Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label={`Open ${st.name}`}
                               onClick={(e) => { e.stopPropagation(); navigate(`/students/${st._id}`); }}>
                               <PencilSimple size={15} />
                             </Button>

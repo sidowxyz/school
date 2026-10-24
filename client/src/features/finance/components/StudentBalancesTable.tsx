@@ -144,10 +144,10 @@ export default function StudentBalancesTable({ onPick, refreshKey }: { onPick: (
               <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-muted-foreground">
                 <span>Page {data.page} of {data.pages}</span>
                 <div className="flex gap-1">
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={data.page <= 1} onClick={() => setPage(data.page - 1)} aria-label="Previous page">
+                  <Button variant="outline" size="icon-sm" disabled={data.page <= 1} onClick={() => setPage(data.page - 1)} aria-label="Previous page">
                     <CaretLeft size={14} />
                   </Button>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={data.page >= data.pages} onClick={() => setPage(data.page + 1)} aria-label="Next page">
+                  <Button variant="outline" size="icon-sm" disabled={data.page >= data.pages} onClick={() => setPage(data.page + 1)} aria-label="Next page">
                     <CaretRight size={14} />
                   </Button>
                 </div>

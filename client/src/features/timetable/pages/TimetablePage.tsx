@@ -168,9 +168,9 @@ export default function TimetablePage() {
     <div className="space-y-5">
       <PageHeader
         title="Timetable"
-        subtitle={isTeacher ? "Your lessons for the week." : "Who teaches what, and when, for every class."}
+        subtitle={isTeacher ? "Your lessons for the week." : "Each class's weekly lessons and teachers."}
         action={canEdit ? (
-          <Button onClick={() => openAdd()} disabled={!termId || !canCreate} className="gap-2">
+          <Button onClick={() => openAdd()} disabled={!termId || !canCreate}>
             <Plus size={16} /> Add lesson
           </Button>
         ) : undefined}

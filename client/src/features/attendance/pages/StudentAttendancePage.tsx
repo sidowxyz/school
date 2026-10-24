@@ -70,7 +70,7 @@ export default function StudentAttendancePage() {
     <div className="space-y-6">
       <PageHeader
         title="Attendance"
-        subtitle="Take daily attendance and see who is missing school."
+        subtitle="Mark daily attendance and see who is absent."
       />
 
       <Tabs value={tab} onValueChange={openTab} className="space-y-5">

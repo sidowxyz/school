@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EmptyState } from '@/components/common/EmptyState';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: SquaresFour },
@@ -94,16 +95,8 @@ function ParentPortalContent({ guardianId }: { guardianId?: string }) {
         <ParentBanner onChildChange={setChildId} />
 
         {children.length === 0 ? (
-          <Card className="py-16 text-center border-dashed border-border bg-card/60">
-            <div className="max-w-sm mx-auto space-y-2">
-              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
-                <Users size={18} />
-              </div>
-              <h3 className="font-semibold text-sm text-foreground">No students linked yet</h3>
-              <p className="text-xs text-muted-foreground">
-                There are currently no active students associated with this parent or guardian profile.
-              </p>
-            </div>
+          <Card className="border-border">
+            <EmptyState icon={Users} tint="pink" title="No students linked yet" text="No active students are linked to this parent or guardian yet. The school links children when they register them." />
           </Card>
         ) : (
           <>
@@ -162,9 +155,9 @@ function ViewingBanner({ parent, onChange }: { parent: Parent; onChange: () => v
 
         <Button
           variant="outline"
-          size="sm"
+          size="xs"
           onClick={onChange}
-          className="shrink-0 text-xs font-medium h-8 gap-1.5 shadow-2xs"
+          className="shrink-0 font-medium"
         >
           <CaretLeft size={13} /> Change Parent
         </Button>

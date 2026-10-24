@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, WarningCircle, Clock, Users, Lightning, SpinnerGap, HandCoins, CurrencyDollar } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { MonthPicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Card, CardContent } from '@/components/ui/card';
@@ -127,9 +127,9 @@ export default function ClassFeesStatusTab({ paymentMethods, onCollect }: Props)
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cs-month" className="text-xs">Month</Label>
-            <Input id="cs-month" type="month" value={period} max={thisPeriod()} onChange={(e) => e.target.value && setPeriod(e.target.value)} className="w-44" />
+            <MonthPicker id="cs-month" value={period} max={thisPeriod()} onChange={(v) => v && setPeriod(v)} className="w-48" />
           </div>
-          {canCharge && <Button variant="outline" onClick={charge} disabled={charging || !classId || selectedClass?.monthly_fee === null} className="gap-2">
+          {canCharge && <Button variant="outline" onClick={charge} disabled={charging || !classId || selectedClass?.monthly_fee === null}>
             {charging ? <SpinnerGap size={15} className="animate-spin" /> : <Lightning size={15} />}
             Charge {periodLabel(period, true)}
           </Button>}
@@ -213,14 +213,13 @@ export default function ClassFeesStatusTab({ paymentMethods, onCollect }: Props)
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1.5">
                           {r.month && r.month.balance > 0 && cash && (
-                            <Button size="sm" variant={confirming === r.studentId ? 'default' : 'outline'} disabled={paying === r.studentId}
-                              onClick={() => markPaid(r)} onBlur={() => setConfirming((c) => (c === r.studentId ? null : c))}
-                              className="h-8 gap-1.5 text-xs">
+                            <Button size="xs" variant={confirming === r.studentId ? 'default' : 'outline'} disabled={paying === r.studentId}
+                              onClick={() => markPaid(r)} onBlur={() => setConfirming((c) => (c === r.studentId ? null : c))}>
                               {paying === r.studentId ? <SpinnerGap size={13} className="animate-spin" /> : <CheckCircle size={13} />}
                               {confirming === r.studentId ? `Confirm ${money(r.month.balance)}` : 'Mark paid'}
                             </Button>
                           )}
-                          {canCharge && <Button size="sm" variant="ghost" onClick={() => onCollect(r.studentId)} className="h-8 text-xs">Collect…</Button>}
+                          {canCharge && <Button size="xs" variant="ghost" onClick={() => onCollect(r.studentId)}>Collect…</Button>}
                         </div>
                       </TableCell>
                     </TableRow>

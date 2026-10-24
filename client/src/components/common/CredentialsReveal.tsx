@@ -39,18 +39,17 @@ export default function CredentialsReveal({ title = "Account created", email, pa
       </div>
 
       <div className="flex justify-end gap-3">
-        <Button variant="plain"
+        <Button variant="outline" size="lg"
           type="button"
           onClick={copy}
-          className="h-12 px-6 rounded-xl border border-border hover:bg-muted/50 transition font-medium flex items-center gap-2"
         >
           {copied ? <Check size={16} /> : <Copy size={16} />}
           {copied ? "Copied" : "Copy"}
         </Button>
-        <Button variant="plain"
+        <Button variant="default" size="lg"
           type="button"
           onClick={onDone}
-          className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition"
+          className="px-8"
         >
           Done
         </Button>

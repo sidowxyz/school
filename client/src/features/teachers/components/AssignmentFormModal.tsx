@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash } from '@phosphor-icons/react';
+import { Plus, Trash, Books } from '@phosphor-icons/react';
 import { teachersApi } from "../api/teachersApi";
 import type { TimetableSlotInput, Weekday, RefSubject, RefClass, RefSection, RefTerm, TimetableSlot } from "../types";
 import { academicApi } from "../../academic-structure/api/academicApi";
@@ -193,8 +193,8 @@ export default function AssignmentFormModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent>
+        <DialogHeader icon={Books} tint="yellow">
           <DialogTitle>
             {mode === "add" ? "Add Assignment" : "Edit Assignment"}
           </DialogTitle>
@@ -303,10 +303,10 @@ export default function AssignmentFormModal({
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
+                size="xs"
                 onClick={addSlot}
                 disabled={!termId}
-                className="h-7 text-xs text-primary hover:text-primary"
+                className="text-primary hover:text-primary"
               >
                 <Plus size={13} className="mr-1" /> Add slot
               </Button>
@@ -346,7 +346,7 @@ export default function AssignmentFormModal({
                         variant="ghost"
                         size="icon"
                         onClick={() => removeSlot(i)}
-                        className="h-9 w-9 text-destructive hover:text-destructive shrink-0"
+                        className="text-destructive hover:text-destructive shrink-0"
                       >
                         <Trash size={15} />
                       </Button>

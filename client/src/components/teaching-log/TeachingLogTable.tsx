@@ -1,4 +1,4 @@
-import { Eye, PencilSimple, Trash, Calendar, FileText, CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { Eye, PencilSimple, Trash, Calendar, FileText, CaretLeft, CaretRight, NotePencil } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { TeachingLog } from '../../types/teachingLog.types';
 import StatusBadge from './StatusBadge';
@@ -6,6 +6,7 @@ import { formatDate } from '../../lib/utils';
 import { Button } from '../ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Button as UiButton } from '@/components/ui/button';
+import { TableEmptyRow } from '@/components/common/EmptyState';
 
 interface TeachingLogTableProps {
   logs: TeachingLog[];
@@ -50,11 +51,7 @@ export default function TeachingLogTable({
           </TableHeader>
           <TableBody>
             {logs.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="py-12 text-center text-[var(--school-muted)]">
-                  No teaching logs found.
-                </TableCell>
-              </TableRow>
+              <TableEmptyRow colSpan={9} icon={NotePencil} tint="green" title="No teaching logs" text="Logs you write after each lesson appear here." />
             ) : (
               logs.map((log) => (
                 <TableRow key={log._id}>
@@ -96,7 +93,7 @@ export default function TeachingLogTable({
                       <Button
                         variant="ghost" size="icon"
                         onClick={() => navigate(`/teaching-log/${log._id}${readOnly ? '?readonly=1' : ''}`)}
-                        className="text-muted-foreground hover:text-primary p-1 rounded hover:bg-muted transition-colors"
+                        className="text-muted-foreground hover:text-primary p-1 rounded hover:bg-muted"
                         title="View Details"
                       >
                         <Eye size={15} />
@@ -105,14 +102,14 @@ export default function TeachingLogTable({
                         <>
                           <Button variant="ghost" size="icon"
                             onClick={() => navigate(`/teaching-log/${log._id}/edit`)}
-                            className="text-muted-foreground hover:text-info p-1 rounded hover:bg-muted transition-colors"
+                            className="text-muted-foreground hover:text-info p-1 rounded hover:bg-muted"
                             title="Edit Log"
                           >
                             <PencilSimple size={15} />
                           </Button>
                           <Button variant="ghost" size="icon"
                             onClick={() => onDeleteClick(log._id)}
-                            className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-muted transition-colors"
+                            className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-muted"
                             title="Delete Log"
                           >
                             <Trash size={15} />
@@ -138,10 +135,9 @@ export default function TeachingLogTable({
           </p>
 
           <div className="flex gap-2">
-            <UiButton variant="plain"
+            <UiButton variant="outline" size="icon-sm"
               onClick={handlePrevPage}
               disabled={page === 1}
-              className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <CaretLeft size={16} />
             </UiButton>
@@ -162,10 +158,9 @@ export default function TeachingLogTable({
                 </UiButton>
               );
             })}
-            <UiButton variant="plain"
+            <UiButton variant="outline" size="icon-sm"
               onClick={handleNextPage}
               disabled={page === totalPages}
-              className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <CaretRight size={16} />
             </UiButton>

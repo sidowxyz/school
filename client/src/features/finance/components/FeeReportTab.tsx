@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DownloadSimple, Printer, SpinnerGap, CurrencyDollar, CheckCircle, Clock, Percent } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { MonthPicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,11 +79,11 @@ export default function FeeReportTab() {
         <CardContent className="flex flex-wrap items-end gap-3 pt-6">
           <div className="space-y-1.5">
             <Label htmlFor="rp-from" className="text-xs">From</Label>
-            <Input id="rp-from" type="month" value={from} onChange={(e) => e.target.value && setFrom(e.target.value)} className="w-40" />
+            <MonthPicker id="rp-from" value={from} max={to || undefined} onChange={(v) => v && setFrom(v)} className="w-44" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="rp-to" className="text-xs">To</Label>
-            <Input id="rp-to" type="month" value={to} onChange={(e) => e.target.value && setTo(e.target.value)} className="w-40" />
+            <MonthPicker id="rp-to" value={to} min={from || undefined} onChange={(v) => v && setTo(v)} className="w-44" />
           </div>
           <div className="min-w-[150px] space-y-1.5">
             <Label htmlFor="rp-level" className="text-xs">Level</Label>
@@ -100,8 +100,8 @@ export default function FeeReportTab() {
             </NativeSelect>
           </div>
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" onClick={exportCsv} disabled={!report?.byStudent.length} className="gap-2"><DownloadSimple size={15} /> CSV</Button>
-            <Button variant="outline" onClick={print} disabled={!report} className="gap-2"><Printer size={15} /> Print</Button>
+            <Button variant="outline" onClick={exportCsv} disabled={!report?.byStudent.length}><DownloadSimple size={15} /> CSV</Button>
+            <Button variant="outline" onClick={print} disabled={!report}><Printer size={15} /> Print</Button>
           </div>
         </CardContent>
       </Card>

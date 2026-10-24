@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowsClockwise, CaretLeft, CaretRight, Key, MagnifyingGlass, Plus, ShieldCheck, UserCheck, UserMinus, Users,
+  CheckCircle,
+  UserPlus,
+  UsersThree,
 } from '@phosphor-icons/react';
 
 import PageHeader from "../../../components/common/PageHeader";
@@ -26,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TableEmptyRow, TableLoadingRows } from "@/components/common/EmptyState";
 
 // Roles come from the Roles page (built-in ones first, then the school's own).
 type RoleOption = Pick<AppRole, "key" | "name" | "color" | "builtIn" | "userCount">;
@@ -113,8 +117,8 @@ function AddUserModal({ roles, onClose, onCreated }: { roles: RoleOption[]; onCl
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent>
+        <DialogHeader icon={created ? CheckCircle : UserPlus} tint={created ? "green" : "blue"}>
           <DialogTitle>{created ? "User Created" : "Add New User"}</DialogTitle>
           <DialogDescription>
             {created
@@ -170,10 +174,10 @@ function AddUserModal({ roles, onClose, onCreated }: { roles: RoleOption[]; onCl
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} className="h-10 rounded-xl">
+              <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting} className="h-10 rounded-xl">
+              <Button type="submit" disabled={submitting}>
                 {submitting ? "Saving..." : "Create User"}
               </Button>
             </DialogFooter>
@@ -347,18 +351,18 @@ export default function UserListPage() {
   return (
     <div className="space-y-5 pb-8">
       <PageHeader
-        title="User Management"
-        subtitle="Manage system accounts and roles. Teachers, parents and students get accounts from their own pages; use this for staff accounts."
+        title="User Accounts"
+        subtitle="Sign-in accounts for office staff and custom roles."
         action={
           <div className="flex items-center gap-2">
             <span className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
               <span className={cn("h-2 w-2 rounded-full", refreshing ? "animate-pulse bg-warning" : "bg-success")} />
               {updatedAt ? `Live · updated ${timeAgo(updatedAt.toISOString())}` : "Connecting…"}
             </span>
-            <Button variant="outline" size="icon" onClick={() => void load(true)} disabled={refreshing || loading} aria-label="Refresh users" className="h-10 w-10 rounded-xl">
+            <Button variant="outline" size="icon" onClick={() => void load(true)} disabled={refreshing || loading} aria-label="Refresh users" className="h-10 w-10">
               <ArrowsClockwise size={16} className={refreshing ? "animate-spin" : ""} />
             </Button>
-            <Button onClick={() => setShowAdd(true)} className="h-10 gap-2 rounded-xl">
+            <Button onClick={() => setShowAdd(true)}>
               <Plus size={16} /> Add User
             </Button>
           </div>
@@ -405,7 +409,7 @@ export default function UserListPage() {
             <option value="inactive">Deactivated</option>
           </NativeSelect>
           {filtered && (
-            <Button variant="ghost" className="h-10 rounded-xl text-muted-foreground" onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); setPage(1); }}>
+            <Button variant="ghost" className="text-muted-foreground" onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); setPage(1); }}>
               Clear
             </Button>
           )}
@@ -448,9 +452,20 @@ export default function UserListPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={6} className="py-16 text-center text-xs text-muted-foreground">Loading users...</TableCell></TableRow>
+                <TableLoadingRows columns={6} avatar />
               ) : users.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="py-16 text-center text-sm text-muted-foreground">{filtered ? "No users match your filters." : "No users found."}</TableCell></TableRow>
+                filtered ? (
+                  <TableEmptyRow
+                    colSpan={6}
+                    icon={MagnifyingGlass}
+                    tint="violet"
+                    title="No users match"
+                    text="Try another name or email, or clear the role and status filters."
+                    action={<Button variant="outline" size="sm" onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); setPage(1); }}>Clear filters</Button>}
+                  />
+                ) : (
+                  <TableEmptyRow colSpan={6} icon={UsersThree} tint="blue" title="No users yet" text="Staff accounts you add here appear in this list." />
+                )
               ) : (
                 users.map((user) => {
                   const isMe = !!me && me.id === user._id;
@@ -512,7 +527,7 @@ export default function UserListPage() {
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
                       </TableCell>
                       <TableCell className="whitespace-nowrap px-6 py-3.5 text-right">
-                        <Button variant="ghost" size="sm" onClick={() => void handleResetPassword(user)} disabled={resettingId === user._id} className="h-8 gap-1.5 text-xs">
+                        <Button variant="ghost" size="xs" onClick={() => void handleResetPassword(user)} disabled={resettingId === user._id}>
                           <Key size={14} /> Reset password
                         </Button>
                       </TableCell>
@@ -529,11 +544,11 @@ export default function UserListPage() {
             {total === 0 ? "0 users" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total}`}
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">
+            <Button variant="outline" size="icon-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">
               <CaretLeft size={14} />
             </Button>
             <span className="min-w-16 text-center font-medium text-foreground">Page {page} of {pageCount}</span>
-            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)} aria-label="Next page">
+            <Button variant="outline" size="icon-sm" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)} aria-label="Next page">
               <CaretRight size={14} />
             </Button>
           </div>
@@ -543,8 +558,8 @@ export default function UserListPage() {
       {showAdd && <AddUserModal roles={roles} onClose={() => setShowAdd(false)} onCreated={() => void load(true)} />}
       {resetFor && (
         <Dialog open onOpenChange={(open) => !open && setResetFor(null)}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
+          <DialogContent>
+            <DialogHeader icon={Key} tint="yellow">
               <DialogTitle>Password reset</DialogTitle>
               <DialogDescription>Give these sign-in details to the person. They can change the password under My account.</DialogDescription>
             </DialogHeader>

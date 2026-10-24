@@ -47,7 +47,7 @@ export default function StaffOverviewTab({ onTakeAttendance }: { onTakeAttendanc
       {data.staff > 0 && t.notMarked > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
           <span>{t.notMarked} of {data.staff} staff have no attendance for today yet.</span>
-          {onTakeAttendance && <Button size="sm" onClick={onTakeAttendance} className="h-8">Take attendance</Button>}
+          {onTakeAttendance && <Button size="xs" onClick={onTakeAttendance}>Take attendance</Button>}
         </div>
       )}
 

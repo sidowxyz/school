@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as SheetPrimitive from '@radix-ui/react-dialog';
 import { X } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
+import { DrawerIcon, type DrawerTint } from './drawer-kit';
 
 // shadcn/ui Sheet: a Radix dialog that slides in from the side. Same focus
 // trapping, Escape-to-close and overlay as Dialog.
@@ -36,7 +37,9 @@ const SheetContent = React.forwardRef<
       ref={ref}
       aria-describedby={undefined}
       className={cn(
-        'fixed right-0 top-0 z-[100] flex h-dvh w-full flex-col border-l border-border bg-background shadow-2xl sm:max-w-xl',
+        // Same floating panel as the Dialog drawer.
+        'fixed right-0 top-0 z-[100] flex h-dvh w-full flex-col overflow-hidden bg-card shadow-2xl sm:max-w-xl',
+        'sm:right-3 sm:top-3 sm:h-[calc(100dvh-1.5rem)] sm:rounded-3xl sm:border sm:border-border',
         'transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:duration-300',
         'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
         className,
@@ -44,7 +47,7 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 opacity-70 transition-opacity hover:bg-muted hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+      <SheetPrimitive.Close className="absolute right-5 top-5 z-20 flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>
@@ -53,18 +56,27 @@ const SheetContent = React.forwardRef<
 ));
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
-const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex flex-col space-y-1 border-b border-border px-6 py-4 pr-12 text-left', className)} {...props} />
+const SheetHeader = ({
+  className,
+  icon,
+  tint,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { icon?: React.ElementType; tint?: DrawerTint }) => (
+  <div className={cn('flex items-start gap-3.5 border-b border-border px-6 pb-5 pt-6 pr-16 text-left', className)} {...props}>
+    {icon && <DrawerIcon icon={icon} tint={tint} />}
+    <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">{children}</div>
+  </div>
 );
 SheetHeader.displayName = 'SheetHeader';
 
 const SheetBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex-1 overflow-y-auto px-6 py-5', className)} {...props} />
+  <div className={cn('flex-1 space-y-5 overflow-y-auto px-6 py-5', className)} {...props} />
 );
 SheetBody.displayName = 'SheetBody';
 
 const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex flex-col-reverse gap-2 border-t border-border px-6 py-4 sm:flex-row sm:justify-end', className)} {...props} />
+  <div className={cn('flex flex-col-reverse gap-2 border-t border-border bg-card/95 px-6 py-4 backdrop-blur sm:flex-row sm:justify-end', className)} {...props} />
 );
 SheetFooter.displayName = 'SheetFooter';
 
@@ -72,7 +84,7 @@ const SheetTitle = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <SheetPrimitive.Title ref={ref} className={cn('text-lg font-semibold text-foreground', className)} {...props} />
+  <SheetPrimitive.Title ref={ref} className={cn('text-lg font-semibold leading-tight tracking-tight text-foreground', className)} {...props} />
 ));
 SheetTitle.displayName = SheetPrimitive.Title.displayName;
 

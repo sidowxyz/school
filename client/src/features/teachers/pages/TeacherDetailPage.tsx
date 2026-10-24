@@ -135,7 +135,7 @@ export default function TeacherDetailPage() {
             variant="outline"
             size="icon"
             onClick={() => navigate("/teachers")}
-            className="h-9 w-9 shrink-0"
+            className="shrink-0"
           >
             <ArrowLeft size={16} />
           </Button>
@@ -153,7 +153,7 @@ export default function TeacherDetailPage() {
         </div>
 
         {canEditTimetable && (
-          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2 shrink-0">
+          <Button size="sm" onClick={() => setShowAdd(true)} className="shrink-0">
             <Plus size={15} />
             Add Assignment
           </Button>
@@ -266,7 +266,7 @@ export default function TeacherDetailPage() {
               Assigned classes, sections, and scheduled timetable periods
             </CardDescription>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setShowAdd(true)} className="gap-2 text-xs">
+          <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
             <Plus size={14} /> New Assignment
           </Button>
         </CardHeader>
@@ -278,7 +278,7 @@ export default function TeacherDetailPage() {
               <p className="text-xs text-muted-foreground/80 max-w-sm mx-auto">
                 Assign this teacher to classes and subjects to generate their instructional timetable.
               </p>
-              <Button size="sm" onClick={() => setShowAdd(true)} className="mt-3 gap-2">
+              <Button size="sm" onClick={() => setShowAdd(true)} className="mt-3">
                 <Plus size={14} /> Assign Course
               </Button>
             </div>
@@ -332,20 +332,20 @@ export default function TeacherDetailPage() {
                       <div className="flex items-center gap-1 shrink-0">
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onClick={() => setEditTarget(a)}
                           aria-label="Edit assignment"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          className="text-muted-foreground hover:text-foreground"
                         >
                           <PencilSimple size={15} />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onClick={() => handleRemove(a)}
                           disabled={removingId === a._id}
                           aria-label="Remove assignment"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          className="text-muted-foreground hover:text-destructive"
                         >
                           <Trash size={15} />
                         </Button>

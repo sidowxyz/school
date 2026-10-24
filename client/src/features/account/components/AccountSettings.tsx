@@ -80,7 +80,7 @@ export default function AccountSettings() {
               className={cn(mismatch && 'border-destructive')} />
             {mismatch && <p className="text-xs text-destructive">The passwords don't match.</p>}
           </div>
-          <Button type="submit" disabled={!canSave} className="gap-2">
+          <Button type="submit" disabled={!canSave}>
             {saving ? <SpinnerGap size={15} className="animate-spin" /> : <Lock size={15} />} Change password
           </Button>
         </form>

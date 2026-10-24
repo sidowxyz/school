@@ -25,8 +25,8 @@ export default function TeachingLogCreatePage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Page Header */}
       <PageHeader
-        title="Create Teaching Log"
-        subtitle="Log lesson outcomes, academic progress, and student participation details"
+        title="New Teaching Log"
+        subtitle="Record what you taught and how the lesson went."
       />
 
       {/* Renders validated Form */}

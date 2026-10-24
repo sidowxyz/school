@@ -9,8 +9,8 @@ export default function AccountPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="My account"
-        subtitle={user ? `${user.name} · ${roleLabel(user)}` : 'Your sign-in and how the app looks'}
+        title="My Account"
+        subtitle={user ? `${user.name} · ${roleLabel(user)}` : 'Your sign-in details and how the app looks.'}
       />
       <AccountSettings />
     </div>

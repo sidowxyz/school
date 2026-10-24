@@ -31,7 +31,7 @@ export default function TeacherAttendancePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Staff Attendance" subtitle="Mark who is at work each day and see who is missing." />
+      <PageHeader title="Staff Attendance" subtitle="Mark staff present each day and see who is away." />
 
       <Tabs value={tab} onValueChange={openTab} className="space-y-5">
         <TabsList className="h-auto w-full justify-start overflow-x-auto sm:w-auto">

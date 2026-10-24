@@ -22,7 +22,6 @@ import StudentDashboard from '../features/dashboard/pages/StudentDashboard';
 import ParentDashboard from '../features/dashboard/pages/ParentDashboard';
 
 // Academic Structure
-import AcademicStructurePage from '../features/academic-structure/pages/AcademicStructurePage';
 
 // Attendance
 import StudentAttendancePage from '../features/attendance/pages/StudentAttendancePage';
@@ -57,7 +56,6 @@ import ReportsPage from '../features/reports/pages/ReportsPage';
 import SettingsPage from '../features/settings/pages/SettingsPage';
 
 // Audit Logs
-import AuditLogsPage from '../features/audit-logs/pages/AuditLogsPage';
 
 // Parent Portal
 import ParentPortalPage from '../features/parent-portal/pages/ParentPortalPage';
@@ -72,7 +70,7 @@ import TeachingLogDetailPage from '../app/dashboard/teaching-log/[id]/page';
 import TeachingLogEditPage from '../app/dashboard/teaching-log/[id]/edit/page';
 
 import { useAuthStore } from '../store/authStore';
-import { homePathFor } from '../hooks/usePermission';
+import { homePathFor, userCanAccess } from '../hooks/usePermission';
 import RolesPage from '../features/roles/pages/RolesPage';
 import AccountPage from '../features/account/pages/AccountPage';
 import RouteErrorPage from '../components/common/RouteErrorPage';
@@ -80,6 +78,15 @@ import RouteErrorPage from '../components/common/RouteErrorPage';
 function HomeRedirect() {
   const user = useAuthStore((s) => s.user);
   return <Navigate to={homePathFor(user)} replace />;
+}
+
+// Settings holds several tabs with different owners (school details for admins,
+// academic structure for the academic office, ...), so it opens for anyone who
+// can use at least one of them.
+function SettingsRoute() {
+  const user = useAuthStore((s) => s.user);
+  const canOpen = ['settings', 'academic-structure', 'audit-logs'].some((m) => userCanAccess(user, m));
+  return canOpen ? <SettingsPage /> : <Navigate to="/403" replace />;
 }
 
 // Each role has its own dashboard; opening another role's (e.g. by typing the
@@ -137,9 +144,9 @@ export const router = createBrowserRouter([
             { path: '/dashboard/parent', element: <OwnDashboard path="/parent-portal"><ParentDashboard /></OwnDashboard> },
           ]),
 
-          moduleGated('academic-structure', [
-            { path: '/academic-structure', element: <AcademicStructurePage /> },
-          ]),
+          // Academic Structure and Audit Logs now live in Settings.
+          { path: '/academic-structure', element: <Navigate to="/settings?tab=structure" replace /> },
+          { path: '/audit-logs', element: <Navigate to="/settings?tab=audit" replace /> },
 
           moduleGated('attendance', [
             { path: '/attendance', element: <StudentAttendancePage /> },
@@ -187,13 +194,7 @@ export const router = createBrowserRouter([
           // Settings & Audit Logs have no Sidebar entry (no module grants them to
           // non-admin roles), so only 'admin' (which matches every module via '*')
           // passes ModuleRoute here.
-          moduleGated('settings', [
-            { path: '/settings', element: <SettingsPage /> },
-          ]),
-
-          moduleGated('audit-logs', [
-            { path: '/audit-logs', element: <AuditLogsPage /> },
-          ]),
+          { path: '/settings', element: <SettingsRoute /> },
 
           moduleGated('parent-portal', [
             { path: '/parent-portal', element: <ParentPortalPage /> },

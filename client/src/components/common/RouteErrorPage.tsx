@@ -20,7 +20,7 @@ export default function RouteErrorPage() {
         This page hit a problem. Reloading usually fixes it. If it keeps happening, tell the school office what you were doing.
       </p>
       <div className="mt-6 flex gap-3">
-        <Button onClick={() => window.location.reload()} className="gap-2"><ArrowClockwise size={16} /> Reload</Button>
+        <Button onClick={() => window.location.reload()}><ArrowClockwise size={16} /> Reload</Button>
         <Button variant="outline" onClick={() => { window.location.href = '/'; }}>Go to my home page</Button>
       </div>
     </div>

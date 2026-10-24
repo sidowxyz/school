@@ -89,7 +89,7 @@ export default function DashboardTab({ onNavigate }: Props) {
         </KpiRow>
 
         <Panel title="Today's classes" description={new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          action={<Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => onNavigate('timetable')}>Timetable <ArrowRight size={13} /></Button>}>
+          action={<Button variant="ghost" size="xs" onClick={() => onNavigate('timetable')}>Timetable <ArrowRight size={13} /></Button>}>
           {todaysClasses.length === 0 ? (
             <PanelEmpty text={`No lessons on your timetable for ${today}.`} />
           ) : (
@@ -125,7 +125,7 @@ export default function DashboardTab({ onNavigate }: Props) {
           centerLabel="Sessions" emptyText="No attendance recorded yet." />
 
         <Panel title="Fee summary" description="Invoice totals and balance"
-          action={<Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => onNavigate('fees')}>Details <ArrowRight size={13} /></Button>}>
+          action={<Button variant="ghost" size="xs" onClick={() => onNavigate('fees')}>Details <ArrowRight size={13} /></Button>}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <MiniStat label="Invoiced" value={formatUSD(invoiced)} fill="bg-tile-blue" />

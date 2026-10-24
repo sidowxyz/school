@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCan } from "../../../hooks/usePermission";
 import {
-  SpinnerGap,
   MagnifyingGlass,
   Users,
   UserCheck,
@@ -12,6 +11,7 @@ import {
   Phone,
   CaretRight,
   X,
+  UsersThree,
 } from '@phosphor-icons/react';
 
 import PageHeader from "../../../components/common/PageHeader";
@@ -25,6 +25,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { downloadCSV } from "../../reports/utils/csv";
+import { EmptyState, ErrorState, ListLoading } from "@/components/common/EmptyState";
 
 type ChildrenFilter = "all" | "with" | "without";
 
@@ -102,13 +103,13 @@ export default function ParentListPage() {
     <div className="space-y-6">
       <PageHeader
         title="Parents"
-        subtitle="Parents and guardians, their children, and sibling discounts."
+        subtitle="Families, their children and sibling discounts."
         action={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={exportParents} disabled={loading || filtered.length === 0} className="gap-2">
+            <Button variant="outline" onClick={exportParents} disabled={loading || filtered.length === 0}>
               <DownloadSimple size={14} /> <span className="hidden sm:inline">Export</span>
             </Button>
-            {canCreate && <Button size="sm" onClick={() => setOpenAddModal(true)} className="gap-2">
+            {canCreate && <Button onClick={() => setOpenAddModal(true)}>
               <UserPlus size={15} /> Add parent
             </Button>}
           </div>
@@ -152,27 +153,30 @@ export default function ParentListPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-16"><SpinnerGap size={24} className="animate-spin text-primary" /></div>
+          <ListLoading rows={5} />
         ) : error ? (
-          <div className="space-y-3 py-12 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" onClick={load}>Try again</Button>
-          </div>
+          <ErrorState text={error} onRetry={load} />
         ) : filtered.length === 0 ? (
-          <div className="mx-auto max-w-sm space-y-3 px-4 py-14 text-center">
-            <p className="text-sm font-medium text-foreground">{filtering ? "No parents match" : "No parents yet"}</p>
-            <p className="text-sm text-muted-foreground">
-              {filtering
-                ? "Try a different search or filter."
-                : "Parents are added when you register a student, or here. For brothers and sisters, pick the same parent so they share one family and its sibling discount."}
-            </p>
+          <div>
             {filtering ? (
-              <Button variant="outline" size="sm" onClick={clearFilters}>Clear filters</Button>
+              <EmptyState
+                icon={MagnifyingGlass}
+                tint="violet"
+                title="No parents match"
+                text="Try a different search or filter."
+                action={<Button variant="outline" size="sm" onClick={clearFilters}>Clear filters</Button>}
+              />
             ) : (
-              <div className="flex justify-center gap-2">
-                {canCreate && <Button size="sm" onClick={() => setOpenAddModal(true)} className="gap-1.5"><UserPlus size={14} /> Add parent</Button>}
-                <Button variant="outline" size="sm" onClick={() => navigate("/students", { state: { openCreate: true } })}>Register a student</Button>
-              </div>
+              <EmptyState
+                icon={UsersThree}
+                tint="pink"
+                title="No parents yet"
+                text="Parents are added when you register a student, or here. For brothers and sisters, pick the same parent so they share one family and its sibling discount."
+                action={<>
+                  {canCreate && <Button onClick={() => setOpenAddModal(true)}><UserPlus size={16} /> Add parent</Button>}
+                  <Button variant="outline" onClick={() => navigate("/students", { state: { openCreate: true } })}>Register a student</Button>
+                </>}
+              />
             )}
           </div>
         ) : (

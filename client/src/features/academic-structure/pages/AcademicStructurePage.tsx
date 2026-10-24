@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCan, usePermission } from "../../../hooks/usePermission";
+import type { DrawerTint } from "@/components/ui/drawer-kit";
 import {
   Calendar,
   CalendarBlank,
   PencilSimple,
   Trash,
   Plus,
-  X,
   BookOpen,
   Buildings,
   GraduationCap,
@@ -15,7 +15,6 @@ import {
   Stack,
   Clock,
   Check,
-  SpinnerGap,
   type Icon,
 } from '@phosphor-icons/react';
 
@@ -26,6 +25,7 @@ import type { Teacher } from "../../teachers/types";
 import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker, TimePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -39,6 +39,7 @@ import {
 import PageHeader from '@/components/common/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { EmptyState, ErrorState, ListLoading } from "@/components/common/EmptyState";
 
 type Tab = "Academic Years" | "Terms" | "Levels" | "Periods" | "Classes" | "Sections" | "Subjects";
 
@@ -76,9 +77,9 @@ function AddButton({ label, onClick, disabled, title }: { label: string; onClick
 function ListState({ loading, error, empty, emptyText, children }: {
   loading: boolean; error: string; empty: boolean; emptyText: string; children: React.ReactNode;
 }) {
-  if (loading) return <div className="flex justify-center py-12"><SpinnerGap size={22} className="animate-spin text-primary" /></div>;
-  if (error) return <p className="px-5 py-10 text-center text-sm text-destructive">{error}</p>;
-  if (empty) return <p className="px-5 py-12 text-center text-sm text-muted-foreground">{emptyText}</p>;
+  if (loading) return <ListLoading rows={3} />;
+  if (error) return <ErrorState text={error} compact />;
+  if (empty) return <EmptyState icon={Stack} tint="violet" title="Nothing here yet" text={emptyText} />;
   return <>{children}</>;
 }
 
@@ -105,12 +106,12 @@ function ItemRow({ icon: RowIcon, tint, title, meta, badges, onEdit, onDelete }:
       {badges && <div className="hidden shrink-0 items-center gap-2 sm:flex">{badges}</div>}
       <div className="flex shrink-0 items-center gap-1">
         {canEdit && (
-          <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Edit">
+          <Button variant="ghost" size="icon-sm" onClick={onEdit} className="text-muted-foreground hover:text-foreground" aria-label="Edit">
             <PencilSimple size={15} />
           </Button>
         )}
         {canDelete && (
-          <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Delete">
+          <Button variant="ghost" size="icon-sm" onClick={onDelete} className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Delete">
             <Trash size={15} />
           </Button>
         )}
@@ -167,19 +168,19 @@ function SelectField({
   );
 }
 
-function ModalWrapper({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+function ModalWrapper({ onClose, children, centered }: { onClose: () => void; children: React.ReactNode; centered?: boolean }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent centered={centered} className={centered ? "max-w-md" : undefined}>
         {children}
       </DialogContent>
     </Dialog>
   );
 }
 
-function ModalHeader({ title, subtitle }: { title: string; subtitle: string; onClose?: () => void }) {
+function ModalHeader({ title, subtitle, icon, tint }: { title: string; subtitle: string; onClose?: () => void; icon?: Icon; tint?: DrawerTint }) {
   return (
-    <DialogHeader className="mb-2">
+    <DialogHeader icon={icon ?? Stack} tint={tint}>
       <DialogTitle>{title}</DialogTitle>
       {subtitle && <DialogDescription>{subtitle}</DialogDescription>}
     </DialogHeader>
@@ -188,7 +189,7 @@ function ModalHeader({ title, subtitle }: { title: string; subtitle: string; onC
 
 function ModalActions({ onClose, submitLabel, submitting }: { onClose: () => void; submitLabel: string; submitting?: boolean }) {
   return (
-    <DialogFooter className="pt-3">
+    <DialogFooter>
       <Button
         type="button"
         variant="outline"
@@ -219,13 +220,19 @@ function TextField({
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium">{label}</Label>
-      <Input
-        type={type}
-        required={required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
+      {type === "date" ? (
+        <DatePicker value={value} onChange={onChange} required={required} aria-label={label} />
+      ) : type === "time" ? (
+        <TimePicker value={value} onChange={onChange} required={required} aria-label={label} />
+      ) : (
+        <Input
+          type={type}
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+      )}
     </div>
   );
 }
@@ -253,33 +260,21 @@ function DeleteModal({
   };
 
   return (
-    <ModalWrapper onClose={onClose}>
-      <div className="flex items-start justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-        <Button variant="plain" onClick={onClose} className="text-muted-foreground hover:text-foreground">
-          <X size={20} />
-        </Button>
-      </div>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Are you sure you want to delete{" "}
-        <span className="font-medium text-foreground">{itemName}</span>? This action cannot be undone.
-      </p>
+    <ModalWrapper onClose={onClose} centered>
+      <DialogHeader icon={Trash} tint="pink">
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>
+          Are you sure you want to delete{" "}
+          <span className="font-medium text-foreground">{itemName}</span>? This action cannot be undone.
+        </DialogDescription>
+      </DialogHeader>
       <FormError message={error} />
-      <div className="flex justify-end gap-3 mt-4">
-        <Button variant="plain"
-          onClick={onClose}
-          className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-        >
-          Cancel
-        </Button>
-        <Button variant="plain"
-          onClick={confirm}
-          disabled={deleting}
-          className="rounded-lg bg-destructive px-5 py-2.5 text-sm font-semibold text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:opacity-60"
-        >
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button variant="destructive" onClick={confirm} disabled={deleting}>
           {deleting ? "Deleting..." : "Delete"}
         </Button>
-      </div>
+      </DialogFooter>
     </ModalWrapper>
   );
 }
@@ -377,6 +372,8 @@ function YearFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Academic Year" : "Edit Academic Year"}
+        icon={Calendar}
+        tint="blue"
         subtitle={mode === "add" ? "Create a new academic year" : "Update the academic year information"}
         onClose={onClose}
       />
@@ -485,6 +482,8 @@ function TermFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Term" : "Edit Term"}
+        icon={CalendarBlank}
+        tint="green"
         subtitle={mode === "add" ? "Create a new term" : "Update the term information"}
         onClose={onClose}
       />
@@ -614,6 +613,8 @@ function LevelFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Level" : "Edit Level"}
+        icon={Stack}
+        tint="violet"
         subtitle={mode === "add" ? "Create a new level (e.g. Primary, Middle, Secondary)" : "Update the level information"}
         onClose={onClose}
       />
@@ -710,6 +711,8 @@ function PeriodFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Period" : "Edit Period"}
+        icon={Clock}
+        tint="yellow"
         subtitle={mode === "add" ? "Define a teaching period for this term" : "Update the period information"}
         onClose={onClose}
       />
@@ -846,6 +849,8 @@ function ClassFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Class" : "Edit Class"}
+        icon={Buildings}
+        tint="pink"
         subtitle={mode === "add" ? "Create a new class" : "Update the class information"}
         onClose={onClose}
       />
@@ -956,6 +961,8 @@ function SectionFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Section" : "Edit Section"}
+        icon={SquaresFour}
+        tint="blue"
         subtitle={mode === "add" ? "Create a new section" : "Update the section information"}
         onClose={onClose}
       />
@@ -1072,6 +1079,8 @@ function SubjectFormModal({
     <ModalWrapper onClose={onClose}>
       <ModalHeader
         title={mode === "add" ? "Add Subject" : "Edit Subject"}
+        icon={BookOpen}
+        tint="green"
         subtitle={mode === "add" ? "Create a new subject" : "Update the subject information"}
         onClose={onClose}
       />
@@ -1168,17 +1177,22 @@ const TABS: { value: Tab; count?: keyof OverviewCounts }[] = [
   { value: "Subjects", count: "subjects" },
 ];
 
-export default function AcademicStructurePage() {
-  const canOpenCalendar = usePermission("settings");
+/** Lives as a tab in Settings (embedded); kept usable on its own too. */
+export default function AcademicStructurePage({ embedded = false }: { embedded?: boolean }) {
+  const canSettings = usePermission("settings");
+  const canStructure = usePermission("academic-structure");
+  const canOpenCalendar = canSettings || canStructure;
   const [activeTab, setActiveTab] = useState<Tab>("Academic Years");
   const counts = useOverviewCounts(activeTab);
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Academic Structure"
-        subtitle="Set up the school year step by step: years, terms, levels, periods, classes, sections and subjects."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Academic Structure"
+          subtitle="Years, terms, levels, periods, classes and subjects."
+        />
+      )}
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
@@ -1215,7 +1229,7 @@ export default function AcademicStructurePage() {
         </div>
         {canOpenCalendar && (
           <Button variant="outline" size="sm" asChild>
-            <Link to="/settings?tab=Academic" className="gap-2"><Calendar size={14} /> Open calendar</Link>
+            <Link to="/settings?tab=calendar" className="gap-2"><Calendar size={14} /> Open calendar</Link>
           </Button>
         )}
       </div>

@@ -1,40 +1,48 @@
 import { useRef, useState } from 'react';
-import { ImageSquare, Moon, Palette, SpinnerGap, Sun } from '@phosphor-icons/react';
+import { CheckCircle, ImageSquare, Laptop, Moon, SpinnerGap, Sun, UploadSimple, WarningCircle, type Icon } from '@phosphor-icons/react';
 import { settingsApi, type SystemSettings } from '../api/settingsApi';
 import type { Theme } from '../../../context/ThemeContext';
-import { publishSchoolIdentity, resolveSchoolLogo } from '../hooks/useSchoolIdentity';
-import { Input } from '@/components/ui/input';
+import { onLogoError, publishSchoolIdentity, resolveSchoolLogo } from '../hooks/useSchoolIdentity';
 import { Button } from '@/components/ui/button';
-import { NativeSelect } from '@/components/ui/native-select';
-import { SettingsField, SettingsHeading, SettingsSection, settingsInput } from './SettingsSection';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { SettingsSection } from './SettingsSection';
 
 interface Props {
   value: SystemSettings;
-  onChange: (patch: Partial<SystemSettings>) => void;
+  /** Called after a new logo has been uploaded (it is saved straight away). */
+  onLogoChange: (logoUrl: string) => void;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
 }
 
-const imageSource = (url?: string) => resolveSchoolLogo(url || '/logo.png');
+const THEMES: { id: Theme; label: string; hint: string; icon: Icon; fill: string }[] = [
+  { id: 'light', label: 'Light', hint: 'Bright, for daytime', icon: Sun, fill: 'bg-tile-yellow' },
+  { id: 'dark', label: 'Dark', hint: 'Easy on the eyes', icon: Moon, fill: 'bg-tile-violet' },
+  { id: 'system', label: 'Same as device', hint: 'Follows this computer', icon: Laptop, fill: 'bg-tile-blue' },
+];
 
-export default function BrandingSettings({ value, onChange, theme, onThemeChange }: Props) {
+const MAX_MB = 2;
+
+export default function BrandingSettings({ value, onLogoChange, theme, onThemeChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const upload = async (file?: File) => {
     if (!file) return;
-    setMessage('');
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return setMessage('Choose a PNG, JPG, or WEBP image.');
-    if (file.size > 2 * 1024 * 1024) return setMessage('Logo must be 2 MB or smaller.');
+    setMessage(null);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return setMessage({ ok: false, text: 'Choose a PNG, JPG or WEBP image.' });
+    if (file.size > MAX_MB * 1024 * 1024) return setMessage({ ok: false, text: `The logo must be ${MAX_MB} MB or smaller.` });
     setUploading(true);
     try {
       const result = await settingsApi.uploadLogo(file);
-      onChange({ logoUrl: result.logoUrl });
+      onLogoChange(result.logoUrl);
       publishSchoolIdentity({ logoUrl: result.logoUrl });
-      setMessage('Logo uploaded and saved successfully.');
+      setMessage({ ok: true, text: 'New logo saved. It now shows across the app.' });
     } catch (error) {
-      setMessage((error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Logo upload failed.');
+      setMessage({ ok: false, text: (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'The logo could not be uploaded.' });
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -42,70 +50,53 @@ export default function BrandingSettings({ value, onChange, theme, onThemeChange
   };
 
   return (
-    <div className="space-y-5">
-      <SettingsHeading title="Branding & Appearance" description="Manage the school logo, brand colors, and portal theme." />
-
-      <SettingsSection icon={ImageSquare} title="School Logo" description="Shown in the sidebar, login page and printed documents.">
-        <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-          <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/40">
-            <img src={imageSource(value.logoUrl)} alt="School Logo" className="h-20 w-20 object-contain" />
+    <div className="grid gap-6 xl:grid-cols-2">
+      <SettingsSection icon={ImageSquare} tint="green" title="School logo" description="Shown in the sidebar, the sign-in page and on receipts">
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => { e.preventDefault(); setDragging(false); void upload(e.dataTransfer.files?.[0]); }}
+          className={cn('flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed p-6 text-center transition-colors sm:flex-row sm:text-left',
+            dragging ? 'border-primary bg-primary/5' : 'border-border bg-muted/30')}
+        >
+          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-card shadow-sm">
+            <img
+              src={resolveSchoolLogo(value.logoUrl || '/logo.png')}
+              onError={onLogoError}
+              alt="Current school logo"
+              className="h-20 w-20 object-contain"
+            />
           </div>
-          <div className="space-y-2.5">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Drop a new logo here, or</p>
             <Input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => void upload(event.target.files?.[0])} />
-            <Button type="button" onClick={() => inputRef.current?.click()} disabled={uploading} className="h-11 gap-2 rounded-xl px-5">
-              {uploading ? <SpinnerGap size={18} className="animate-spin" /> : <ImageSquare size={18} />}
-              {uploading ? 'Uploading…' : 'Upload Logo'}
+            <Button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}>
+              {uploading ? <SpinnerGap size={16} className="animate-spin" /> : <UploadSimple size={16} />}
+              {uploading ? 'Uploading…' : 'Choose an image'}
             </Button>
-            <p className="text-xs text-muted-foreground">PNG, JPG or WEBP · Maximum 2 MB</p>
-            {message && <p className={`text-sm ${message.includes('successfully') ? 'text-primary' : 'text-destructive'}`}>{message}</p>}
+            <p className="text-xs text-muted-foreground">PNG, JPG or WEBP, up to {MAX_MB} MB. A square image looks best.</p>
           </div>
         </div>
+        {message && (
+          <p className={cn('mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-sm', message.ok ? 'bg-tile-green text-tile-foreground' : 'bg-destructive/10 text-destructive')}>
+            {message.ok ? <CheckCircle size={16} /> : <WarningCircle size={16} />} {message.text}
+          </p>
+        )}
       </SettingsSection>
 
-      <SettingsSection icon={Palette} title="Brand Colors" description="Pick the colors that represent your school.">
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <ColorField label="Primary Color" value={value.brandingColors.primary} onChange={(primary) => onChange({ brandingColors: { ...value.brandingColors, primary } })} />
-          <ColorField label="Secondary Color" value={value.brandingColors.secondary} onChange={(secondary) => onChange({ brandingColors: { ...value.brandingColors, secondary } })} />
+      <SettingsSection icon={Sun} tint="yellow" title="Theme" description="Applies straight away, on this device only">
+        <div role="radiogroup" aria-label="Theme" className="grid gap-3 sm:grid-cols-3">
+          {THEMES.map(({ id, label, hint, icon: ThemeIcon, fill }) => (
+            <Button key={id} variant="plain" type="button" role="radio" aria-checked={theme === id} onClick={() => onThemeChange(id)}
+              className={cn('flex h-auto flex-col items-start gap-2 whitespace-normal rounded-2xl p-4 text-left text-tile-foreground transition', fill,
+                theme === id ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : 'opacity-80 hover:opacity-100')}>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 dark:bg-white/10"><ThemeIcon size={18} /></span>
+              <span className="text-sm font-semibold">{label}</span>
+              <span className="text-xs opacity-75">{hint}</span>
+            </Button>
+          ))}
         </div>
-        <div className="mt-5 flex items-center gap-3 rounded-xl bg-muted/40 p-3">
-          <span className="text-xs font-semibold text-foreground/80">Preview</span>
-          <span className="h-8 flex-1 rounded-lg" style={{ background: value.brandingColors.primary }} />
-          <span className="h-8 flex-1 rounded-lg" style={{ background: value.brandingColors.secondary }} />
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        icon={theme === 'dark' ? Moon : Sun}
-        title="Theme"
-        description="The selected theme applies immediately and is remembered on this device."
-      >
-        <NativeSelect aria-label="Portal theme" value={theme} onChange={(event) => onThemeChange(event.target.value as Theme)} className={settingsInput}>
-          <option value="light">Light Theme</option>
-          <option value="dark">Dark Theme</option>
-          <option value="system">System Default</option>
-        </NativeSelect>
       </SettingsSection>
     </div>
-  );
-}
-
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <SettingsField label={label}>
-      <div className="flex items-center gap-3">
-        <input
-          type="color"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="h-11 w-14 cursor-pointer rounded-xl border border-border bg-transparent p-1"
-        />
-        <Input
-          aria-label={`${label} hex value`}
-          value={value.toUpperCase()}
-          onChange={(event) => /^#[0-9a-fA-F]{0,6}$/.test(event.target.value) && onChange(event.target.value)}
-          className={`${settingsInput} font-mono`}
-        />
-      </div>
-    </SettingsField>
   );
 }

@@ -124,9 +124,9 @@ export default function DashboardTab({ onNavigate }: Props) {
             action={
               <Button
                 variant="ghost"
-                size="sm"
+                size="xs"
                 onClick={() => onNavigate('attendance')}
-                className="text-xs font-semibold text-primary hover:text-primary gap-1 h-7 px-2"
+                className="text-primary hover:text-primary px-2"
               >
                 View all <ArrowRight size={13} />
               </Button>
@@ -164,9 +164,9 @@ export default function DashboardTab({ onNavigate }: Props) {
           action={
             <Button
               variant="ghost"
-              size="sm"
+              size="xs"
               onClick={() => onNavigate('fees')}
-              className="text-xs font-semibold text-primary hover:text-primary gap-1 h-7 px-2"
+              className="text-primary hover:text-primary px-2"
             >
               Details <ArrowRight size={13} />
             </Button>
@@ -201,9 +201,9 @@ export default function DashboardTab({ onNavigate }: Props) {
 
           <Button
             variant="outline"
-            size="sm"
+            size="xs"
             onClick={() => onNavigate('fees')}
-            className="w-full mt-4 text-xs h-8 font-medium gap-1.5 shadow-2xs"
+            className="w-full mt-4 font-medium"
           >
             <Receipt size={13} />
             View Complete Fee Statement

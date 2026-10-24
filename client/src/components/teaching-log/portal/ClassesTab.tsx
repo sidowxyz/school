@@ -1,5 +1,6 @@
 import type { TeacherAssignment } from '@/features/teachers/types';
-import { SpinnerGap } from '@phosphor-icons/react';
+import { SpinnerGap, UsersThree } from '@phosphor-icons/react';
+import { EmptyState } from '@/components/common/EmptyState';
 
 export default function ClassesTab({
   assignments,
@@ -18,9 +19,7 @@ export default function ClassesTab({
           <SpinnerGap size={18} className="animate-spin text-primary" /> Loading your assigned classes...
         </div>
       ) : assignments.length === 0 ? (
-        <div className="text-center py-10 text-muted-foreground text-sm">
-          No classes assigned yet — an admin needs to assign you to a class and subject.
-        </div>
+        <EmptyState icon={UsersThree} tint="green" title="No classes yet" text="An admin needs to assign you to a class and subject first." />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {assignments.map((a) => (

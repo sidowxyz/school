@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, CaretLeft, SpinnerGap, MagnifyingGlass, UserCircle, Users } from '@phosphor-icons/react';
+import { ArrowRight, CaretLeft, SpinnerGap, MagnifyingGlass, UserCircle, Users, UsersThree } from '@phosphor-icons/react';
 import { parentsApi } from '../../parents/api/parentsApi';
 import type { Parent } from '../../parents/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
 
 interface Props {
   onSelect: (parent: Parent) => void;
@@ -91,7 +92,7 @@ export default function AdminParentSearch({ onSelect }: Props) {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <PageHeader title="Parent Portal" subtitle="Search for a parent, or browse guardians by relationship, to view their family portal." />
+      <PageHeader title="Parent Portal" subtitle="Find a parent to open their family's portal." />
 
       <div className="relative">
         <MagnifyingGlass size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -143,7 +144,7 @@ export default function AdminParentSearch({ onSelect }: Props) {
               <span className="text-sm">Loading guardian groups…</span>
             </div>
           ) : relationshipGroups.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">No parents found.</div>
+            <EmptyState icon={UsersThree} tint="violet" title="No parents found" text="Try another search." />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {relationshipGroups.map(({ relationship, count }) => (

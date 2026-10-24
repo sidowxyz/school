@@ -61,7 +61,7 @@ export default function FeeManagementPage() {
     <div className="space-y-6">
       <PageHeader
         title="Fees & Payments"
-        subtitle="Take monthly fee payments, see who has paid in each class, and report on what is collected."
+        subtitle="Collect fees, see who has paid and track totals."
       />
 
       <Tabs value={tab} onValueChange={openTab} className="space-y-5">

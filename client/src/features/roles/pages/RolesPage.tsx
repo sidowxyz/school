@@ -8,6 +8,7 @@ import StatStrip from '@/components/shared/StatStrip';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -50,22 +51,105 @@ function RoleAvatar({ role, size = 'md' }: { role: Pick<AppRole, 'name' | 'color
   );
 }
 
-function RoleRow({ role, selected, onSelect }: { role: AppRole; selected: boolean; onSelect: () => void }) {
+/** What a role can reach: a pill for admin/portal roles, otherwise pages plus how many allow each action. */
+function AccessSummary({ role, actions }: { role: AppRole; actions: RoleAction[] }) {
+  if (role.allAccess) return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-tile-pink px-2.5 py-1 text-xs font-medium text-tile-foreground"><Crown size={12} /> Every page</span>;
+  if (role.portal) return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-tile-blue px-2.5 py-1 text-xs font-medium text-tile-foreground"><UserCircle size={12} /> Own portal only</span>;
+  const pages = pageCount(role.permissions);
+  const count = (a: RoleAction) => Object.values(role.permissions).filter((list) => list.includes(a)).length;
   return (
-    <Button variant="plain" type="button" onClick={onSelect} aria-current={selected ? 'true' : undefined}
-      className={cn('flex h-auto w-full items-center justify-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors',
-        selected ? 'bg-tile-blue text-tile-foreground' : 'hover:bg-muted')}>
-      <RoleAvatar role={role} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold">{role.name}</span>
-        <span className={cn('block truncate text-xs', selected ? 'opacity-75' : 'text-muted-foreground')}>
-          {role.allAccess ? 'Every page' : role.portal ? 'Own portal only' : `${pageCount(role.permissions)} page${pageCount(role.permissions) === 1 ? '' : 's'}`}
+    <div className="space-y-1.5">
+      <p className="text-sm font-medium text-foreground">{pages} page{pages === 1 ? '' : 's'}</p>
+      <div className="flex gap-1">
+        {actions.filter((a) => a !== 'view').map((a) => (
+          <span key={a} className={cn('whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-medium', count(a) ? 'bg-muted text-foreground/80' : 'bg-muted/40 text-muted-foreground/60 line-through')}>
+            {ACTION_LABEL[a]} {count(a) || ''}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Every role in one table: custom roles first, then the built-in ones. */
+function RolesTable({ roles, actions, onOpen, onDuplicate, onNew }: {
+  roles: AppRole[]; actions: RoleAction[]; onOpen: (role: AppRole) => void; onDuplicate: (role: AppRole) => void; onNew: () => void;
+}) {
+  const custom = roles.filter((r) => !r.builtIn);
+  const builtIn = roles.filter((r) => r.builtIn);
+  const row = (r: AppRole) => (
+    <TableRow key={r.key} className="cursor-pointer" onClick={() => onOpen(r)}>
+      <TableCell className="py-3.5 pl-5">
+        <div className="flex items-center gap-3">
+          <RoleAvatar role={r} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">{r.name}</p>
+            <p className="max-w-xs truncate text-xs text-muted-foreground">{r.description || 'No description'}</p>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        {r.builtIn
+          ? <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><LockSimple size={11} /> Built-in</span>
+          : <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-tile-green px-2.5 py-1 text-xs font-medium text-tile-foreground"><ShieldCheck size={11} /> Custom</span>}
+      </TableCell>
+      <TableCell><AccessSummary role={r} actions={actions} /></TableCell>
+      <TableCell className="text-right">
+        <span className="inline-flex items-center gap-1.5 text-sm font-medium tabular-nums text-foreground">
+          <Users size={14} className="text-muted-foreground" /> {r.userCount}
         </span>
-      </span>
-      <span className={cn('flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium', selected ? 'bg-white/60' : 'bg-muted text-muted-foreground')}>
-        <Users size={11} /> {role.userCount}
-      </span>
-    </Button>
+      </TableCell>
+      <TableCell className="pr-5 text-right" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-end gap-1">
+          {!r.allAccess && !r.portal && (
+            <Button variant="ghost" size="icon-sm" onClick={() => onDuplicate(r)} aria-label={`Duplicate ${r.name}`} title="Duplicate"><Copy size={15} /></Button>
+          )}
+          <Button variant="outline" size="xs" onClick={() => onOpen(r)}>{r.builtIn ? 'View' : 'Edit'}</Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+  const group = (label: string, icon: Icon) => {
+    const GroupIcon = icon;
+    return (
+      <TableRow className="hover:bg-transparent">
+        <TableCell colSpan={5} className="bg-muted/30 py-2 pl-5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5"><GroupIcon size={12} /> {label}</span>
+        </TableCell>
+      </TableRow>
+    );
+  };
+  return (
+    <Card className="overflow-hidden rounded-2xl">
+      <div className="overflow-x-auto">
+        <Table className="min-w-[760px]">
+          <TableHeader>
+            <TableRow className="bg-muted/50 text-[11px] uppercase tracking-wider hover:bg-muted/50">
+              <TableHead className="pl-5 font-semibold">Role</TableHead>
+              <TableHead className="font-semibold">Type</TableHead>
+              <TableHead className="min-w-[190px] font-semibold">Access</TableHead>
+              <TableHead className="text-right font-semibold">People</TableHead>
+              <TableHead className="pr-5 text-right font-semibold"><span className="sr-only">Actions</span></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {group('Custom roles', ShieldCheck)}
+            {custom.length ? custom.map(row) : (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={5} className="py-5 pl-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border px-4 py-3">
+                    <p className="text-sm text-muted-foreground">No custom roles yet. Create one, or duplicate a built-in role below.</p>
+                    <Button size="xs" variant="soft" onClick={onNew}><Plus size={13} /> New role</Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+            {group('Built-in roles', LockSimple)}
+            {builtIn.map(row)}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
   );
 }
 
@@ -177,8 +261,8 @@ export default function RolesPage() {
       const res = await rolesApi.list();
       setData(res);
       setError('');
-      const fallback = res.roles.find((r) => !r.builtIn)?.key ?? res.roles[0]?.key ?? '';
-      setSelectedKey((current) => select || (current && current !== '__new' ? current : fallback));
+      // The drawer stays on the role it shows (e.g. after "Undo changes").
+      if (select !== undefined) setSelectedKey(select);
     } catch (err) {
       setError(apiError(err, 'Could not load roles.'));
     }
@@ -229,7 +313,7 @@ export default function RolesPage() {
       const input: RoleInput = { name: draft.name.trim(), description: draft.description.trim(), color: draft.color, permissions: draft.permissions };
       const saved = draft.id ? await rolesApi.update(draft.id, input) : await rolesApi.create(input);
       showToast(draft.id ? `${saved.name} saved. Changes apply right away.` : `${saved.name} created. Give it to people on User Accounts.`);
-      await load(saved.key);
+      await load('');
     } catch (err) {
       showToast(apiError(err, 'Could not save the role.'), 'error');
     } finally {
@@ -257,8 +341,8 @@ export default function RolesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Roles & Access"
-        subtitle="Decide which pages each role can open and what it can do there. Give roles to people on User Accounts."
-        action={<Button onClick={() => startNew()} className="gap-2"><Plus size={16} /> New role</Button>}
+        subtitle="Choose what each role can see and change."
+        action={<Button onClick={() => startNew()}><Plus size={16} /> New role</Button>}
       />
 
       <StatStrip items={[
@@ -267,43 +351,24 @@ export default function RolesPage() {
         { label: 'People on custom roles', value: peopleOnCustom, icon: Users, tone: 'emerald', hint: 'Using a custom role' },
       ]} />
 
-      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <Card className="h-fit space-y-4 rounded-2xl p-3">
-          <div className="space-y-1">
-            <p className="px-3 pt-1 text-[11px] font-medium text-muted-foreground">Custom roles</p>
-            {custom.length === 0 && selectedKey !== '__new' && (
-              <p className="px-3 py-2 text-xs text-muted-foreground">None yet. Create one, or duplicate a built-in role.</p>
-            )}
-            {selectedKey === '__new' && (
-              <div className="flex items-center gap-3 rounded-xl bg-tile-blue px-3 py-2.5 text-tile-foreground">
-                <RoleAvatar role={{ name: draft?.name || 'New', color: draft?.color ?? 'blue' }} />
-                <span className="truncate text-sm font-semibold">{draft?.name || 'New role'}</span>
-              </div>
-            )}
-            {custom.map((r) => <RoleRow key={r.key} role={r} selected={r.key === selectedKey} onSelect={() => setSelectedKey(r.key)} />)}
-          </div>
-          <div className="space-y-1 border-t border-border pt-3">
-            <p className="flex items-center gap-1.5 px-3 text-[11px] font-medium text-muted-foreground"><LockSimple size={11} /> Built-in roles</p>
-            {builtIn.map((r) => <RoleRow key={r.key} role={r} selected={r.key === selectedKey} onSelect={() => setSelectedKey(r.key)} />)}
-          </div>
-        </Card>
+      <RolesTable roles={data.roles} actions={data.actions} onOpen={(r) => setSelectedKey(r.key)} onDuplicate={startNew} onNew={() => startNew()} />
 
+      {/* Details (built-in) or the editor (custom / new) open in the side drawer. */}
+      <Dialog open={!!selectedKey && (!!draft || !!selected)} onOpenChange={(open) => { if (!open) setSelectedKey(''); }}>
+        <DialogContent className="max-w-3xl">
         {draft ? (
-          <Card className="space-y-6 rounded-2xl p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <RoleAvatar role={{ name: draft.name || 'New', color: draft.color }} size="lg" />
-                <div>
-                  <h2 className="text-lg font-semibold">{draft.id ? draft.name || 'Role' : 'New role'}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {draft.id && selected ? `${selected.userCount} ${selected.userCount === 1 ? 'person has' : 'people have'} this role` : 'Choose its pages, then save'}
-                  </p>
-                </div>
-              </div>
+          <>
+            <DialogHeader icon={draft.id ? Key : Plus} tint={draft.color}>
+              <DialogTitle>{draft.id ? draft.name || 'Role' : 'New role'}</DialogTitle>
+              <DialogDescription>
+                {draft.id && selected ? `${selected.userCount} ${selected.userCount === 1 ? 'person has' : 'people have'} this role. Changes apply right away.` : 'Name it, choose its pages, then save.'}
+              </DialogDescription>
               {draft.id && selected && (
-                <Button variant="outline" size="sm" onClick={() => startNew(selected)} className="gap-1.5"><Copy size={14} /> Duplicate</Button>
+                <div className="pt-2">
+                  <Button variant="outline" size="xs" onClick={() => startNew(selected)}><Copy size={13} /> Duplicate</Button>
+                </div>
               )}
-            </div>
+            </DialogHeader>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -345,7 +410,7 @@ export default function RolesPage() {
               <PermissionMatrix data={data} permissions={draft.permissions} onChange={(permissions) => setDraft({ ...draft, permissions })} />
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+            <DialogFooter className="items-center sm:justify-between">
               <div>
                 {draft.id && (confirmDelete ? (
                   <div className="flex items-center gap-2">
@@ -362,29 +427,26 @@ export default function RolesPage() {
                 ))}
               </div>
               <div className="flex gap-2">
-                {selectedKey === '__new' && <Button variant="outline" onClick={() => { setSelectedKey(''); void load(); }}>Cancel</Button>}
+                {selectedKey === '__new' && <Button variant="outline" onClick={() => setSelectedKey('')}>Cancel</Button>}
                 {draft.id && dirty && <Button variant="outline" onClick={() => void load(selectedKey)}>Undo changes</Button>}
                 <Button onClick={save} disabled={saving || !dirty}>{saving ? 'Saving…' : draft.id ? 'Save changes' : 'Create role'}</Button>
               </div>
-            </div>
-          </Card>
+            </DialogFooter>
+          </>
         ) : selected ? (
-          <Card className="space-y-6 rounded-2xl p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <RoleAvatar role={selected} size="lg" />
-                <div>
-                  <h2 className="flex items-center gap-2 text-lg font-semibold">
-                    {selected.name}
-                    <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"><LockSimple size={11} /> Built-in</span>
-                  </h2>
-                  <p className="text-sm text-muted-foreground">{selected.description}</p>
-                </div>
-              </div>
+          <>
+            <DialogHeader icon={selected.allAccess ? Crown : selected.portal ? UserCircle : LockSimple} tint={selected.color}>
+              <DialogTitle className="flex items-center gap-2">
+                {selected.name}
+                <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"><LockSimple size={11} /> Built-in</span>
+              </DialogTitle>
+              <DialogDescription>{selected.description}</DialogDescription>
               {!selected.allAccess && !selected.portal && (
-                <Button variant="outline" size="sm" onClick={() => startNew(selected)} className="gap-1.5"><Copy size={14} /> Duplicate as custom role</Button>
+                <div className="pt-2">
+                  <Button variant="outline" size="xs" onClick={() => startNew(selected)}><Copy size={13} /> Duplicate as custom role</Button>
+                </div>
               )}
-            </div>
+            </DialogHeader>
 
             {selected.allAccess ? (
               <Notice icon={Crown} fill="bg-tile-pink">
@@ -407,12 +469,16 @@ export default function RolesPage() {
               </>
             )}
 
-            <p className="text-xs text-muted-foreground">
-              {selected.userCount} {selected.userCount === 1 ? 'person has' : 'people have'} this role. <Link to="/users" className="font-medium text-primary hover:underline">Manage user accounts</Link>
-            </p>
-          </Card>
+            <DialogFooter className="items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {selected.userCount} {selected.userCount === 1 ? 'person has' : 'people have'} this role.
+              </p>
+              <Button asChild variant="outline"><Link to="/users">Manage user accounts</Link></Button>
+            </DialogFooter>
+          </>
         ) : null}
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

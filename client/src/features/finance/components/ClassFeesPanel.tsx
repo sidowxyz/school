@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FloppyDisk, SpinnerGap, Check } from '@phosphor-icons/react';
+import { FloppyDisk, SpinnerGap, Check, Buildings } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { useCan } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
 import { monthlyFeesApi, apiError } from '../api/monthlyFeesApi';
 import { money, type ClassFee } from '../monthlyTypes';
+import { TableEmptyRow, TableLoadingRows } from '@/components/common/EmptyState';
 
 /** Setup → the monthly fee each class (grade) pays. */
 export default function ClassFeesPanel() {
@@ -64,12 +65,9 @@ export default function ClassFeesPanel() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(loading || classes.length === 0) && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                  {loading ? 'Loading classes…' : 'No classes yet. Add classes under Academic Structure first.'}
-                </TableCell>
-              </TableRow>
+            {loading && classes.length === 0 && <TableLoadingRows columns={5} rows={4} />}
+            {!loading && classes.length === 0 && (
+              <TableEmptyRow colSpan={5} icon={Buildings} tint="yellow" title="No classes yet" text="Add classes under Settings › Academic structure, then set their monthly fee here." />
             )}
             {classes.map((c) => {
               const dirty = drafts[c._id] !== (c.monthly_fee === null ? '' : String(c.monthly_fee));
@@ -88,7 +86,7 @@ export default function ClassFeesPanel() {
                             className="h-9 pl-6 tabular-nums" aria-label={`Monthly fee for ${c.name}`} />
                         </div>
                         {dirty && (
-                          <Button type="submit" size="sm" disabled={saving === c._id} className="h-9 gap-1.5">
+                          <Button type="submit" size="sm" disabled={saving === c._id} className="gap-1.5">
                             {saving === c._id ? <SpinnerGap size={14} className="animate-spin" /> : <FloppyDisk size={14} />} Save
                           </Button>
                         )}
