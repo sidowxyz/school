@@ -4,7 +4,6 @@ import { AreaChart, Area, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell, Tool
 import { ArrowRight, CaretLeft, CaretRight, CheckSquareOffset, ClockCounterClockwise, Coins, GearSix, SpinnerGap, Student, UserCircle, WarningCircle, type Icon } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/hooks/useAuth';
 import { CHART_TOOLTIP } from '@/lib/chartTheme';
 import { cn } from '@/lib/utils';
 import { TILE_FILLS, TILE_HSL, sameDay, timeAgo } from './dashboardUtils';
@@ -13,25 +12,11 @@ import { EmptyState } from '@/components/common/EmptyState';
 // Shared pieces for every role's dashboard: pastel number tiles, white panels,
 // a week calendar, quick actions, an activity feed and a donut breakdown.
 
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-}
-
-/** "Dashboard" title with a greeting and today's date. */
-export function DashboardHeader({ title = 'Dashboard', actions }: { title?: string; actions?: ReactNode }) {
-  const { user } = useAuth();
-  const firstName = user?.name?.split(' ')[0];
+/** Optional right-aligned actions above a dashboard; the page opens straight on its tiles. */
+export function DashboardHeader({ actions }: { actions?: ReactNode }) {
+  if (!actions) return null;
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{title}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {greeting()}{firstName ? `, ${firstName}` : ''} · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-        </p>
-      </div>
-      {actions && <div className="flex items-center gap-2 self-start sm:self-auto">{actions}</div>}
-    </div>
+    <div className="flex items-center justify-end gap-2">{actions}</div>
   );
 }
 
@@ -89,18 +74,20 @@ export function KpiTile({ label, value, fill, icon: TileIcon, note, to, onClick 
   );
 }
 
-export function KpiRow({ children }: { children: ReactNode }) {
-  return <div className="grid gap-4 sm:grid-cols-3">{children}</div>;
+export function KpiRow({ children, columns = 3 }: { children: ReactNode; columns?: 3 | 4 }) {
+  return <div className={cn('grid gap-4', columns === 4 ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-3')}>{children}</div>;
 }
 
 /** The white rounded panel every dashboard section sits in. */
-export function Panel({ title, description, action, children, flush, className }: {
+export function Panel({ title, description, action, children, flush, fill, className }: {
   title?: string; description?: string; action?: ReactNode; children: ReactNode;
   /** Let a table run edge to edge under the header. */
-  flush?: boolean; className?: string;
+  flush?: boolean;
+  /** Stretch the body to the panel's full height (when it sits beside a taller panel). */
+  fill?: boolean; className?: string;
 }) {
   return (
-    <Card className={cn('overflow-hidden rounded-2xl border-border/70 shadow-none', className)}>
+    <Card className={cn('overflow-hidden rounded-2xl border-border/70 shadow-none', fill && 'flex flex-col', className)}>
       {(title || action) && (
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-4">
           <div>
@@ -110,7 +97,7 @@ export function Panel({ title, description, action, children, flush, className }
           {action}
         </CardHeader>
       )}
-      {flush ? <div className="border-t border-border">{children}</div> : <CardContent className={cn(!title && !action && 'pt-6')}>{children}</CardContent>}
+      {flush ? <div className="border-t border-border">{children}</div> : <CardContent className={cn(!title && !action && 'pt-6', fill && 'flex-1')}>{children}</CardContent>}
     </Card>
   );
 }
@@ -129,27 +116,27 @@ export function PanelEmpty({ text, action, icon }: { text: string; action?: Reac
   return <EmptyState compact icon={icon} text={text} action={action} />;
 }
 
-export interface QuickAction { label: string; icon: Icon; to: string; state?: unknown }
+export interface QuickAction { label: string; icon: Icon; to?: string; state?: unknown; onClick?: () => void }
 
-/** Two-by-two action buttons; the first is the pastel "main" action. */
-export function QuickActions({ actions }: { actions: QuickAction[] }) {
+/** Two-column action buttons; the first is the pastel "main" action. With a title it sits in a panel. */
+export function QuickActions({ actions, title, description }: { actions: QuickAction[]; title?: string; description?: string }) {
   const navigate = useNavigate();
-  return (
-    <Card className="rounded-2xl border-border/70 shadow-none">
-      <CardContent className="grid grid-cols-2 gap-3 p-4">
-        {actions.map(({ label, icon: ActionIcon, to, state }, i) => (
-          <Button
-            key={label}
-            variant={i === 0 ? 'default' : 'outline'}
-            onClick={() => navigate(to, { state })}
-            className={cn('h-12 justify-between rounded-xl px-4', i === 0 && 'bg-tile-pink text-tile-foreground shadow-none hover:bg-tile-pink/80')}
-          >
-            <span className="truncate">{label}</span> <ActionIcon size={16} weight="bold" className="shrink-0" />
-          </Button>
-        ))}
-      </CardContent>
-    </Card>
+  const grid = (
+    <div className={cn('grid grid-cols-2 gap-3', title && 'h-full auto-rows-fr')}>
+      {actions.map(({ label, icon: ActionIcon, to, state, onClick }, i) => (
+        <Button
+          key={label}
+          variant={i === 0 ? 'default' : 'outline'}
+          onClick={onClick ?? (() => to && navigate(to, { state }))}
+          className={cn('justify-between rounded-xl px-4', title ? 'h-full min-h-12' : 'h-12', i === 0 && 'bg-tile-pink text-tile-foreground shadow-none hover:bg-tile-pink/80')}
+        >
+          <span className="truncate">{label}</span> <ActionIcon size={16} weight="bold" className="shrink-0" />
+        </Button>
+      ))}
+    </div>
   );
+  if (title) return <Panel title={title} description={description} fill>{grid}</Panel>;
+  return <Card className="rounded-2xl border-border/70 shadow-none"><CardContent className="p-4">{grid}</CardContent></Card>;
 }
 
 // ─── Calendar ──────────────────────────────────────────────────────────────────
