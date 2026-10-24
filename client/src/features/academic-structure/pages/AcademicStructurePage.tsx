@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useCan, usePermission } from "../../../hooks/usePermission";
 import type { DrawerTint } from "@/components/ui/drawer-kit";
 import {
@@ -1271,7 +1271,9 @@ export default function AcademicStructurePage() {
   const canSettings = usePermission("settings");
   const canStructure = usePermission("academic-structure");
   const canOpenCalendar = canSettings || canStructure;
-  const [activeTab, setActiveTab] = useState<Tab>("Academic Years");
+  // ?step=Periods opens a step directly (e.g. from the Timetable's "no periods" message).
+  const [params] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<Tab>(() => TABS.find((t) => t.value === params.get("step"))?.value ?? "Academic Years");
   const counts = useOverviewCounts(activeTab);
 
   return (
