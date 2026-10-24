@@ -16,8 +16,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { homePathFor } from "../../../hooks/usePermission";
+import { useSchoolIdentity } from "../../settings/hooks/useSchoolIdentity";
 
 export default function LoginPage() {
+  const { schoolName, logoSrc, schoolEmail } = useSchoolIdentity();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShow] = useState(false);
@@ -66,8 +68,8 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/20" />
 
           <div className="absolute left-6 top-6 flex items-center gap-3 rounded-2xl bg-white/90 px-3 py-2 shadow-sm backdrop-blur-sm">
-            <img src="/logo.png" alt="Sobet School" className="h-9 w-9 rounded-full object-cover" />
-            <span className="text-sm font-semibold text-foreground">Horn of Africa Academy</span>
+            <img src={logoSrc} alt="" className="h-9 w-9 rounded-full object-cover" onError={(e) => { if (!e.currentTarget.src.endsWith('/logo.png')) e.currentTarget.src = '/logo.png'; }} />
+            <span className="text-sm font-semibold text-foreground">{schoolName}</span>
           </div>
 
           <div className="absolute inset-x-0 bottom-0 p-8 xl:p-10 text-white">
@@ -75,7 +77,7 @@ export default function LoginPage() {
               Every student, every lesson, in one place.
             </h2>
             <p className="mt-2 max-w-md text-sm text-white/80">
-              Manage classes, attendance, results and fees with the school management system.
+              Classes, attendance, timetables and fees, all in one place.
             </p>
           </div>
         </div>
@@ -85,8 +87,8 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-muted/40">
         <div className="w-full max-w-md space-y-7 rounded-2xl border border-border bg-card p-8 shadow-sm sm:p-10">
           <img
-            src="/logo.png"
-            alt="Sobet School"
+            src={logoSrc}
+            alt=""
             className="mx-auto h-16 w-16 rounded-full object-cover shadow-md ring-4 ring-card"
           />
 
@@ -207,13 +209,8 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
-            Having trouble logging in?{" "}
-            <a
-              href="mailto:support@sobet.edu"
-              className="text-primary hover:underline font-medium"
-            >
-              Contact IT Support
-            </a>
+            Having trouble signing in? Ask the school office{schoolEmail ? <> or email{" "}
+              <a href={`mailto:${schoolEmail}`} className="text-primary hover:underline font-medium">{schoolEmail}</a></> : null}.
           </p>
         </div>
       </div>

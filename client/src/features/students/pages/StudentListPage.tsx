@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useCan } from "../../../hooks/usePermission";
 import {
   Plus,
   MagnifyingGlass,
@@ -38,8 +39,8 @@ function refId(ref: string | { _id: string } | null | undefined): string {
 }
 
 function refLabel(ref: string | { _id: string } | null | undefined, field: string): string {
-  if (!ref || typeof ref === "string") return "â€”";
-  return (ref as unknown as Record<string, string>)[field] ?? "â€”";
+  if (!ref || typeof ref === "string") return "—";
+  return (ref as unknown as Record<string, string>)[field] ?? "—";
 }
 
 function assignedGuardian(student: Student) {
@@ -279,7 +280,7 @@ function StudentFormModal({
                         <option value="">Select registered guardian</option>
                         {guardians.map((guardian) => (
                           <option key={guardian._id} value={guardian._id}>
-                            {guardian.name} Â· {guardian.phone} ({guardian.childrenCount} children)
+                            {guardian.name} · {guardian.phone} ({guardian.childrenCount} children)
                           </option>
                         ))}
                       </NativeSelect>
@@ -311,8 +312,8 @@ function StudentFormModal({
               ) : (
                 <div className="rounded-lg border border-border p-3 bg-muted/20">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assigned Parent</p>
-                  <p className="text-sm font-semibold text-foreground mt-0.5">{currentGuardian?.name || initial?.parentName || "â€”"}</p>
-                  <p className="text-xs text-muted-foreground">{currentGuardian?.phone || initial?.parentPhoneNumber || "â€”"}</p>
+                  <p className="text-sm font-semibold text-foreground mt-0.5">{currentGuardian?.name || initial?.parentName || "—"}</p>
+                  <p className="text-xs text-muted-foreground">{currentGuardian?.phone || initial?.parentPhoneNumber || "—"}</p>
                 </div>
               )}
 
@@ -428,6 +429,9 @@ function DeleteModal({ name, onClose, onConfirm }: { name: string; onClose: () =
 
 export default function StudentListPage() {
   const navigate = useNavigate();
+  const canCreate = useCan("students", "create");
+  const canEdit = useCan("students", "edit");
+  const canDelete = useCan("students", "delete");
   const location = useLocation();
   const selectedYearId = useAcademicYearStore((s) => s.selectedYearId);
   const [students, setStudents] = useState<Student[]>([]);
@@ -446,7 +450,7 @@ export default function StudentListPage() {
     try {
       setLoading(true);
       const [{ students: list }, refData] = await Promise.all([
-        studentsApi.getAll({ limit: 200, yearId: selectedYearId || undefined }),
+        studentsApi.getAll({ limit: 1000, yearId: selectedYearId || undefined }),
         studentsApi.getReferenceData(),
       ]);
       setStudents(list);
@@ -508,7 +512,7 @@ export default function StudentListPage() {
       Gender: s.gender,
       Class: refLabel(s.classId, "cl_name"),
       Phone: s.phoneNumber,
-      Parent: s.parentName || "â€”",
+      Parent: s.parentName || "—",
       Status: s.status,
     }));
     downloadCSV(`students-list-${new Date().toISOString().slice(0, 10)}`, rows);
@@ -526,10 +530,12 @@ export default function StudentListPage() {
               <DownloadSimple size={14} />
               <span className="hidden sm:inline">Export CSV</span>
             </Button>
-            <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2">
-              <Plus size={15} />
-              Register Student
-            </Button>
+            {canCreate && (
+              <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2">
+                <Plus size={15} />
+                Register Student
+              </Button>
+            )}
           </div>
         }
       />
@@ -662,22 +668,27 @@ export default function StudentListPage() {
                         >
                           <Eye size={13} /> View
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditTarget(student)}
-                          className="h-7 px-2 text-xs gap-1"
-                        >
-                          <PencilSimple size={13} /> Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteTarget(student)}
-                          className="h-7 px-2 text-xs gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash size={13} />
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditTarget(student)}
+                            className="h-7 px-2 text-xs gap-1"
+                          >
+                            <PencilSimple size={13} /> Edit
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(student)}
+                            aria-label={`Delete ${student.firstName} ${student.lastName}`}
+                            className="h-7 px-2 text-xs gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash size={13} />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

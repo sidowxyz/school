@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useCan } from "../../../hooks/usePermission";
 import { Percent, Plus, Trash, ArrowLeft, UserPlus } from '@phosphor-icons/react';
 
 import { parentsApi, siblingRulesApi } from "../api/parentsApi";
@@ -91,7 +92,9 @@ function AssignStudentModal({ parentId, onClose, onAssigned }: { parentId: strin
   );
 }
 
+// Sibling discount rules are a fee policy: admins change them, others see them.
 function SiblingRulesPanel() {
+  const canEdit = useCan("fees-setup", "edit");
   const [rules, setRules] = useState<SiblingRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -139,13 +142,24 @@ function SiblingRulesPanel() {
   }
 
   async function toggleActive(rule: SiblingRule) {
-    await siblingRulesApi.update(rule._id, { is_active: !rule.is_active });
-    load();
+    setError("");
+    try {
+      await siblingRulesApi.update(rule._id, { is_active: !rule.is_active });
+      load();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not change the rule.");
+    }
   }
 
   async function remove(rule: SiblingRule) {
-    await siblingRulesApi.remove(rule._id);
-    load();
+    if (!window.confirm(`Delete the rule "${rule.rule_name}"?`)) return;
+    setError("");
+    try {
+      await siblingRulesApi.remove(rule._id);
+      load();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not delete the rule.");
+    }
   }
 
   return (
@@ -155,9 +169,11 @@ function SiblingRulesPanel() {
           <Percent size={16} className="text-warning" />
           <h3 className="text-sm font-semibold text-foreground">Sibling Discount Rules</h3>
         </div>
-        <Button variant="plain" onClick={() => setShowAdd((v) => !v)} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary">
-          <Plus size={14} /> Add Rule
-        </Button>
+        {canEdit && (
+          <Button variant="plain" onClick={() => setShowAdd((v) => !v)} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary">
+            <Plus size={14} /> Add Rule
+          </Button>
+        )}
       </div>
 
       {showAdd && (
@@ -195,10 +211,10 @@ function SiblingRulesPanel() {
                 <p className="text-xs text-muted-foreground">{r.minimum_siblings}+ siblings → {r.discount_percentage}% off</p>
               </div>
               <div className="flex items-center gap-3">
-                <Button variant="plain" onClick={() => toggleActive(r)} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${r.is_active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                <Button variant="plain" onClick={() => toggleActive(r)} disabled={!canEdit} className={`text-xs font-semibold px-2.5 py-1 rounded-full disabled:opacity-100 ${r.is_active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
                   {r.is_active ? "Active" : "Inactive"}
                 </Button>
-                <Button variant="plain" onClick={() => remove(r)} className="text-muted-foreground hover:text-destructive"><Trash size={15} /></Button>
+                {canEdit && <Button variant="plain" onClick={() => remove(r)} aria-label={`Delete ${r.rule_name}`} className="text-muted-foreground hover:text-destructive"><Trash size={15} /></Button>}
               </div>
             </div>
           ))}
@@ -211,6 +227,7 @@ function SiblingRulesPanel() {
 export default function ParentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const canEditParent = useCan("parents", "edit");
   const [detail, setDetail] = useState<ParentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -233,8 +250,13 @@ export default function ParentDetailPage() {
 
   async function handleRemoveChild(studentId: string) {
     if (!id) return;
-    await parentsApi.unassignStudent(id, studentId);
-    load();
+    if (!window.confirm("Remove this child from the parent? The student record stays.")) return;
+    try {
+      await parentsApi.unassignStudent(id, studentId);
+      load();
+    } catch (err: any) {
+      window.alert(err?.response?.data?.message || "Could not remove the child.");
+    }
   }
 
   if (loading) return <div className="text-center py-12 text-muted-foreground text-sm">Loading...</div>;
@@ -258,12 +280,12 @@ export default function ParentDetailPage() {
             </span>
           )}
         </div>
-        <Button variant="plain"
+        {canEditParent && <Button variant="plain"
           onClick={() => setShowAssign(true)}
           className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-semibold"
         >
           <UserPlus size={16} /> Assign a Student
-        </Button>
+        </Button>}
       </div>
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -294,9 +316,11 @@ export default function ParentDetailPage() {
                     <TableCell className="px-4 py-4 text-muted-foreground whitespace-nowrap">{child.classId?.cl_name || "—"}</TableCell>
                     <TableCell className="px-4 py-4 text-muted-foreground whitespace-nowrap">{child.status}</TableCell>
                     <TableCell className="px-4 py-4 whitespace-nowrap">
-                      <Button variant="plain" onClick={() => handleRemoveChild(child._id)} className="text-muted-foreground hover:text-destructive text-sm font-medium">
-                        Remove
-                      </Button>
+                      {canEditParent && (
+                        <Button variant="plain" onClick={() => handleRemoveChild(child._id)} className="text-muted-foreground hover:text-destructive text-sm font-medium">
+                          Remove
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

@@ -12,6 +12,8 @@ interface AuditFiltersProps {
   setAction: React.Dispatch<React.SetStateAction<string>>;
   date: string;
   setDate: React.Dispatch<React.SetStateAction<string>>;
+  userOptions: string[];
+  actionOptions: string[];
 }
 export default function AuditFilters({
   search,
@@ -22,6 +24,8 @@ export default function AuditFilters({
   setAction,
   date,
   setDate,
+  userOptions,
+  actionOptions,
 }: AuditFiltersProps) {
   return (
     <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
@@ -62,11 +66,7 @@ onChange={(e) => setSearch(e.target.value)}
   className="h-11 w-full rounded-lg border border-border px-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary"
 >
             <option>All Users</option>
-            <option>Admin</option>
-            <option>Registrar</option>
-            <option>Finance Admin</option>
-            <option>System Admin</option>
-            <option>Librarian</option>
+            {userOptions.map((u) => <option key={u}>{u}</option>)}
           </NativeSelect>
         </div>
         {/* Action */}
@@ -80,10 +80,7 @@ onChange={(e) => setSearch(e.target.value)}
           onChange={(e) => setAction(e.target.value)}
           className="h-11 w-full rounded-lg border border-border px-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary">
             <option>All Actions</option>
-            <option>Created</option>
-            <option>Updated</option>
-            <option>Deleted</option>
-            <option>Viewed</option>
+            {actionOptions.map((a) => <option key={a}>{a}</option>)}
           </NativeSelect>
         </div>
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useCan, usePermission } from "../../../hooks/usePermission";
 import {
   Calendar,
   CalendarBlank,
@@ -62,6 +63,8 @@ function TabPanel({ title, description, action, toolbar, children }: {
 }
 
 function AddButton({ label, onClick, disabled, title }: { label: string; onClick: () => void; disabled?: boolean; title?: string }) {
+  const canCreate = useCan("academic-structure", "create");
+  if (!canCreate) return null;
   return (
     <Button size="sm" onClick={onClick} disabled={disabled} title={title} className="gap-1.5">
       <Plus size={15} weight="bold" /> {label}
@@ -88,6 +91,8 @@ function ItemRow({ icon: RowIcon, tint, title, meta, badges, onEdit, onDelete }:
   icon: Icon; tint: keyof typeof ICON_TINTS; title: React.ReactNode; meta?: React.ReactNode; badges?: React.ReactNode;
   onEdit: () => void; onDelete: () => void;
 }) {
+  const canEdit = useCan("academic-structure", "edit");
+  const canDelete = useCan("academic-structure", "delete");
   return (
     <li className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40">
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-tile-foreground ${ICON_TINTS[tint]}`}>
@@ -99,12 +104,16 @@ function ItemRow({ icon: RowIcon, tint, title, meta, badges, onEdit, onDelete }:
       </div>
       {badges && <div className="hidden shrink-0 items-center gap-2 sm:flex">{badges}</div>}
       <div className="flex shrink-0 items-center gap-1">
-        <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Edit">
-          <PencilSimple size={15} />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Delete">
-          <Trash size={15} />
-        </Button>
+        {canEdit && (
+          <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Edit">
+            <PencilSimple size={15} />
+          </Button>
+        )}
+        {canDelete && (
+          <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Delete">
+            <Trash size={15} />
+          </Button>
+        )}
       </div>
     </li>
   );
@@ -1160,6 +1169,7 @@ const TABS: { value: Tab; count?: keyof OverviewCounts }[] = [
 ];
 
 export default function AcademicStructurePage() {
+  const canOpenCalendar = usePermission("settings");
   const [activeTab, setActiveTab] = useState<Tab>("Academic Years");
   const counts = useOverviewCounts(activeTab);
 
@@ -1203,9 +1213,11 @@ export default function AcademicStructurePage() {
             <p className="text-xs text-muted-foreground">Term dates appear in the calendar automatically. Add holidays and school events there.</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/settings?tab=Academic" className="gap-2"><Calendar size={14} /> Open calendar</Link>
-        </Button>
+        {canOpenCalendar && (
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/settings?tab=Academic" className="gap-2"><Calendar size={14} /> Open calendar</Link>
+          </Button>
+        )}
       </div>
     </div>
   );

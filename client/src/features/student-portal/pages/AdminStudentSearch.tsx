@@ -41,7 +41,7 @@ export default function AdminStudentSearch({ onSelect }: Props) {
         setLoading(true);
         setError('');
         const [roster, refData] = await Promise.all([
-          studentsApi.getAll({ limit: 500 }),
+          studentsApi.getAll({ limit: 1000 }),
           studentsApi.getReferenceData(),
         ]);
         if (!cancelled) {

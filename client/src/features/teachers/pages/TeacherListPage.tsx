@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useCan } from "../../../hooks/usePermission";
 import { SpinnerGap,
   Plus,
   MagnifyingGlass,
@@ -31,6 +32,7 @@ import { downloadCSV } from "../../reports/utils/csv";
 
 export default function TeacherListPage() {
   const navigate = useNavigate();
+  const canCreate = useCan("teachers", "create");
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All");
@@ -60,7 +62,7 @@ export default function TeacherListPage() {
   }, [loadTeachers]);
 
   useEffect(() => {
-    if ((location.state as { openCreate?: boolean } | null)?.openCreate) {
+    if (canCreate && (location.state as { openCreate?: boolean } | null)?.openCreate) {
       setOpenModal(true);
     }
   }, [location.state]);
@@ -114,10 +116,10 @@ export default function TeacherListPage() {
   const exportTeachers = () => {
     const rows = filteredTeachers.map((t) => ({
       StaffID: t.staffId,
-      Name: t.userId?.name || "â€”",
-      Email: t.userId?.email || "â€”",
-      Department: t.department || "â€”",
-      Qualifications: t.qualifications || "â€”",
+      Name: t.userId?.name || "—",
+      Email: t.userId?.email || "—",
+      Department: t.department || "—",
+      Qualifications: t.qualifications || "—",
       Status: t.status,
     }));
     downloadCSV(`teachers-list-${new Date().toISOString().slice(0, 10)}`, rows);
@@ -166,10 +168,12 @@ export default function TeacherListPage() {
               <DownloadSimple size={14} />
               <span className="hidden sm:inline">Export CSV</span>
             </Button>
-            <Button size="sm" onClick={() => setOpenModal(true)} className="gap-2 shadow-xs">
-              <Plus size={15} />
-              Add Teacher
-            </Button>
+            {canCreate && (
+              <Button size="sm" onClick={() => setOpenModal(true)} className="gap-2 shadow-xs">
+                <Plus size={15} />
+                Add Teacher
+              </Button>
+            )}
           </div>
         }
       />
@@ -328,9 +332,9 @@ export default function TeacherListPage() {
               {filteredTeachers.map((teacher) => (
                 <TeacherCard
                   key={teacher._id}
-                  name={teacher.userId?.name || "â€”"}
+                  name={teacher.userId?.name || "—"}
                   staffId={teacher.staffId}
-                  email={teacher.userId?.email || "â€”"}
+                  email={teacher.userId?.email || "—"}
                   department={teacher.department}
                   qualifications={teacher.qualifications}
                   status={teacher.status}
@@ -354,7 +358,7 @@ export default function TeacherListPage() {
               </TableHeader>
               <TableBody>
                 {filteredTeachers.map((teacher) => {
-                  const name = teacher.userId?.name || "â€”";
+                  const name = teacher.userId?.name || "—";
                   const initials = name
                     .split(" ")
                     .map((n) => n[0])
@@ -396,14 +400,14 @@ export default function TeacherListPage() {
                       <TableCell className="text-xs">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                           <Envelope size={13} className="shrink-0 opacity-70" />
-                          <span className="truncate max-w-[180px]">{teacher.userId?.email || "â€”"}</span>
+                          <span className="truncate max-w-[180px]">{teacher.userId?.email || "—"}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         <div className="flex items-center gap-1.5">
                           <GraduationCap size={13} className="shrink-0 opacity-70" />
                           <span className="truncate max-w-[160px]">
-                            {teacher.qualifications || "â€”"}
+                            {teacher.qualifications || "—"}
                           </span>
                         </div>
                       </TableCell>

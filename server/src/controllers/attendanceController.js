@@ -6,6 +6,7 @@ import Student from '../models/Student.js';
 import Term from '../models/Term.js';
 import Teacher from '../models/Teacher.js';
 import TeacherAssignment from '../models/TeacherAssignment.js';
+import { schoolTodayUTC } from '../utils/schoolTime.js';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -64,6 +65,23 @@ export const markAttendance = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Period not found' });
     }
 
+    if (Number.isNaN(formattedDate.getTime())) {
+      return res.status(400).json({ success: false, message: 'Pick a valid date.' });
+    }
+    if (formattedDate > schoolTodayUTC()) {
+      return res.status(400).json({ success: false, message: "Attendance can't be taken for a future date." });
+    }
+
+    // One register is one class (and section): every student in it must be an
+    // enrolled pupil of that same class, so nobody's marks can be slipped in
+    // for another class.
+    const ids = [...new Set(attendance.map((r) => String(r.studentId)))];
+    const students = await Student.find({ _id: { $in: ids }, isDeleted: { $ne: true } }).select('classId sectionId').lean();
+    const pairs = new Set(students.map((s) => `${s.classId}_${s.sectionId ?? ''}`));
+    if (students.length !== ids.length || pairs.size !== 1) {
+      return res.status(400).json({ success: false, message: 'All students on one register must be enrolled in the same class and section.' });
+    }
+
     // Admin/principal/academic_officer can override (e.g. to fix a mistake or log a
     // makeup session); a 'teacher' is locked to their own working days and assignments.
     if (req.user?.role === 'teacher') {
@@ -74,10 +92,7 @@ export const markAttendance = async (req, res) => {
         return res.status(403).json({ success: false, message: `${dayName} is not a teaching day for this term.` });
       }
 
-      const firstStudent = await Student.findById(attendance[0].studentId).select('classId sectionId');
-      if (!firstStudent) {
-        return res.status(404).json({ success: false, message: 'Student not found' });
-      }
+      const firstStudent = students[0];
 
       const teacher = await Teacher.findOne({ userId: req.user.id });
       if (!teacher) {
@@ -398,8 +413,7 @@ const rate = (present, total) => (total > 0 ? Math.round((present / total) * 100
 export const getAttendanceSummary = async (req, res) => {
   try {
     const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 7), 120);
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    const today = schoolTodayUTC();
     const from = new Date(today.getTime() - (days - 1) * DAY_MS);
 
     // Which students are in scope: everyone, or a teacher's own classes/sections.

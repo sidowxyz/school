@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import AppliesTo from '../models/AppliesTo.js';
+import PaymentMethod from '../models/PaymentMethod.js';
 import connectDB from '../config/db.js';
 
 /*
@@ -14,6 +15,8 @@ import connectDB from '../config/db.js';
  *     so a fresh install can be signed into. Set ADMIN_EMAIL and
  *     ADMIN_PASSWORD; in development they default to admin@gmail.com / admin.
  *     Existing accounts are never modified.
+ *  3. A "Cash" payment method when there is none, so fees can be collected
+ *     on day one (more can be added under Fees & Payments → Setup).
  */
 
 const DEV_ADMIN = { email: 'admin@gmail.com', password: 'admin' };
@@ -62,6 +65,9 @@ export const bootstrap = async () => {
     { upsert: true }
   );
   await ensureFirstAdmin();
+  if (!(await PaymentMethod.exists({}))) {
+    await PaymentMethod.create({ payment_method_no: 'PM-CASH', payment_method_name: 'Cash' }).catch(() => {});
+  }
 };
 
 // Allow running this script directly:  node src/seed/bootstrap.js

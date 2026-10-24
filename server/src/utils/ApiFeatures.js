@@ -1,47 +1,44 @@
+import { searchRegex } from './query.js';
+
+// Builds a find() from the query string: exact-match filters on the fields the
+// caller allows, a literal "contains" search, sort, and a bounded page size.
 class ApiFeatures {
-  constructor(query, queryString) {
+  constructor(query, queryString, { filters = [], defaultLimit = 10, maxLimit = 1000 } = {}) {
     this.query = query;
     this.queryString = queryString;
+    this.allowedFilters = filters;
+    this.defaultLimit = defaultLimit;
+    this.maxLimit = maxLimit;
   }
 
   filter() {
-    const queryObj = { ...this.queryString };
-    const excludedFields = ['page', 'sort', 'limit', 'fields', 'search'];
-    excludedFields.forEach((el) => delete queryObj[el]);
-
-    // Advanced filtering for gte, gt, lte, lt
-    let queryStr = JSON.stringify(queryObj);
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
-
-    this.query = this.query.find(JSON.parse(queryStr));
+    const criteria = {};
+    for (const field of this.allowedFilters) {
+      const value = this.queryString[field];
+      if (typeof value === 'string' && value !== '') criteria[field] = value;
+    }
+    this.query = this.query.find(criteria);
     return this;
   }
 
   search(searchFields) {
-    if (this.queryString.search) {
-      const searchRegex = new RegExp(this.queryString.search, 'i');
-      const searchConditions = searchFields.map(field => ({ [field]: searchRegex }));
-      this.query = this.query.find({ $or: searchConditions });
+    const regex = searchRegex(this.queryString.search);
+    if (regex) {
+      this.query = this.query.find({ $or: searchFields.map((field) => ({ [field]: regex })) });
     }
     return this;
   }
 
   sort() {
-    if (this.queryString.sort) {
-      const sortBy = this.queryString.sort.split(',').join(' ');
-      this.query = this.query.sort(sortBy);
-    } else {
-      this.query = this.query.sort('-createdAt');
-    }
+    const sortBy = typeof this.queryString.sort === 'string' ? this.queryString.sort.split(',').join(' ') : '-createdAt';
+    this.query = this.query.sort(sortBy);
     return this;
   }
 
   paginate() {
-    const page = this.queryString.page * 1 || 1;
-    const limit = this.queryString.limit * 1 || 10;
-    const skip = (page - 1) * limit;
-
-    this.query = this.query.skip(skip).limit(limit);
+    const page = Math.max(1, Math.floor(Number(this.queryString.page)) || 1);
+    const limit = Math.min(this.maxLimit, Math.max(1, Math.floor(Number(this.queryString.limit)) || this.defaultLimit));
+    this.query = this.query.skip((page - 1) * limit).limit(limit);
     return this;
   }
 }

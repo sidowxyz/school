@@ -15,6 +15,7 @@ import {
 import {
   uploadStudentDocument,
   getStudentDocuments,
+  downloadStudentDocument,
   verifyStudentDocument,
   deleteStudentDocument
 } from '../controllers/studentDocumentController.js';
@@ -84,6 +85,7 @@ router.post('/:id/documents',                authenticate, staffOnly, uploadStud
 
 // GET    /api/students/:id/documents               - List a student's documents
 router.get('/:id/documents',                 authenticate, staffOnly, getStudentDocuments);
+router.get('/:id/documents/:docId/file',     authenticate, staffOnly, downloadStudentDocument);
 
 // PATCH  /api/students/:id/documents/:docId/verify  - Mark a document as Verified
 router.patch('/:id/documents/:docId/verify', authenticate, staffOnly, verifyStudentDocument);

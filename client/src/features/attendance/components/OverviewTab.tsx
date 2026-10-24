@@ -12,7 +12,7 @@ import { STATUS_STYLE, rateBar, rateTone } from '../statusStyles';
 const RANGES = [7, 30, 90];
 
 /** Today at a glance, the daily trend and which classes need attention. */
-export default function OverviewTab({ onTakeAttendance }: { onTakeAttendance: () => void }) {
+export default function OverviewTab({ onTakeAttendance }: { onTakeAttendance?: () => void }) {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<AttendanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ export default function OverviewTab({ onTakeAttendance }: { onTakeAttendance: ()
       {data.classesInScope > 0 && notMarked > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
           <span>{notMarked} {notMarked === 1 ? 'class has' : 'classes have'} no attendance for today yet.</span>
-          <Button size="sm" onClick={onTakeAttendance} className="h-8">Take attendance</Button>
+          {onTakeAttendance && <Button size="sm" onClick={onTakeAttendance} className="h-8">Take attendance</Button>}
         </div>
       )}
 

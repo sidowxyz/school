@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/usePermission';
 import { cn } from '@/lib/utils';
 import { monthlyFeesApi, apiError } from '../api/monthlyFeesApi';
 import FeeReceiptDialog from './FeeReceiptDialog';
@@ -46,8 +46,7 @@ const aheadCost = (s: AccountStudent, current: string, payThrough: string) => {
 };
 
 export default function CollectPaymentTab({ paymentMethods, initialStudentId, onPaid }: Props) {
-  const { role } = useAuth();
-  const canEditDiscount = role === 'admin';
+  const canEditDiscount = useCan('fees-setup', 'edit');
 
   const [studentId, setStudentId] = useState<string | null>(initialStudentId ?? null);
   const [account, setAccount] = useState<FeeAccount | null>(null);

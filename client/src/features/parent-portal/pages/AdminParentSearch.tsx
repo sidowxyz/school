@@ -24,7 +24,7 @@ export default function AdminParentSearch({ onSelect }: Props) {
       try {
         setLoading(true);
         setError('');
-        const result = await parentsApi.getAll({ limit: 500 });
+        const result = await parentsApi.getAll({ limit: 1000 });
         if (!cancelled) setParents(result.parents);
       } catch {
         if (!cancelled) setError('Failed to load parents. Is the server running?');

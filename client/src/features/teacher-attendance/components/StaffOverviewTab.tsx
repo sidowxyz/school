@@ -12,7 +12,7 @@ import { STATUS_STYLE, rateTone } from '../../attendance/statusStyles';
 const RANGES = [7, 30, 90];
 
 /** Today at a glance, the daily trend and who has missed the most days. */
-export default function StaffOverviewTab({ onTakeAttendance }: { onTakeAttendance: () => void }) {
+export default function StaffOverviewTab({ onTakeAttendance }: { onTakeAttendance?: () => void }) {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<StaffSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,7 @@ export default function StaffOverviewTab({ onTakeAttendance }: { onTakeAttendanc
       {data.staff > 0 && t.notMarked > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
           <span>{t.notMarked} of {data.staff} staff have no attendance for today yet.</span>
-          <Button size="sm" onClick={onTakeAttendance} className="h-8">Take attendance</Button>
+          {onTakeAttendance && <Button size="sm" onClick={onTakeAttendance} className="h-8">Take attendance</Button>}
         </div>
       )}
 

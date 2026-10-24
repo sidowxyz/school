@@ -12,6 +12,7 @@ import ApiFeatures from '../utils/ApiFeatures.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { CONFLICT, findConflict, slotsOverlap } from '../utils/assignmentConflict.js';
 import { withTransaction } from '../utils/transaction.js';
+import { escapeRegex } from '../utils/query.js';
 
 const generateStaffId = async () => {
   const count = await Teacher.countDocuments();
@@ -242,9 +243,9 @@ export const createTeacher = async (req, res, next) => {
 
       // Auto-create teacher assignment if subject & class are passed
       if (subject && assignedClass) {
-        const foundSub = await Subject.findOne({ sub_name: { $regex: new RegExp(subject.trim(), 'i') } }).session(session);
+        const foundSub = await Subject.findOne({ sub_name: { $regex: new RegExp(`^${escapeRegex(subject.trim())}$`, 'i') } }).session(session);
         const classQuery = assignedClass.split('-')[0].trim();
-        const foundClass = await Class.findOne({ cl_name: { $regex: new RegExp(classQuery, 'i') } }).session(session);
+        const foundClass = await Class.findOne({ cl_name: { $regex: new RegExp(escapeRegex(classQuery), 'i') } }).session(session);
 
         if (foundSub && foundClass) {
           await TeacherAssignment.create([{
@@ -275,7 +276,7 @@ export const createTeacher = async (req, res, next) => {
 
 export const getTeachers = async (req, res, next) => {
   try {
-    const features = new ApiFeatures(Teacher.find().populate('userId', 'firstName lastName email role'), req.query)
+    const features = new ApiFeatures(Teacher.find().populate('userId', 'firstName lastName email role'), req.query, { filters: ['status', 'department'], defaultLimit: 1000 })
       .filter()
       .sort()
       .search(['staffId', 'department'])
@@ -392,6 +393,10 @@ export const deleteTeacher = async (req, res, next) => {
   try {
     const teacher = await Teacher.findByIdAndUpdate(req.params.id, { isDeleted: true }, { new: true });
     if (!teacher) return next(new AppError('Teacher not found', 404));
+    // A removed teacher can no longer sign in, and their lessons leave the
+    // timetable so the slots are free for whoever takes over.
+    if (teacher.userId) await User.updateOne({ _id: teacher.userId }, { status: false, refreshTokens: [] });
+    await TeacherAssignment.deleteMany({ teacherId: teacher._id });
 
     res.status(200).json(new ApiResponse(200, null, 'Teacher soft deleted successfully'));
   } catch (error) {

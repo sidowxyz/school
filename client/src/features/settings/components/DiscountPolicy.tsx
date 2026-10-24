@@ -1,6 +1,7 @@
 import { Percent, CheckCircle, Stack, Info } from '@phosphor-icons/react';
 import type { SystemSettings } from '../api/settingsApi';
 import { SettingsHeading, SettingsSection } from './SettingsSection';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   value: SystemSettings['discountRule'];
@@ -27,12 +28,13 @@ export default function DiscountPolicy({ value, onChange }: Props) {
 
 function PolicyOption({ selected, icon: Icon, title, description, onClick }: { selected: boolean; icon: React.ElementType; title: string; description: string; onClick: () => void }) {
   return (
-    <button
+    <Button
+      variant="plain"
       type="button"
       role="radio"
       aria-checked={selected}
       onClick={onClick}
-      className={`flex items-start gap-3 rounded-2xl border-2 p-5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`flex h-auto items-start gap-3 whitespace-normal rounded-2xl border-2 p-5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         selected ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/40'
       }`}
     >
@@ -46,6 +48,6 @@ function PolicyOption({ selected, icon: Icon, title, description, onClick }: { s
       <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${selected ? 'border-primary' : 'border-border'}`}>
         {selected && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
       </span>
-    </button>
+    </Button>
   );
 }

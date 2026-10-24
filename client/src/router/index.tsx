@@ -11,7 +11,6 @@ import NotFoundPage from '../components/common/NotFoundPage';
 // Authentication
 import LoginPage from '../features/auth/pages/LoginPage';
 import ForgotPasswordPage from '../features/auth/pages/ForgotPasswordPage';
-import ResetPasswordPage from '../features/auth/pages/ResetPasswordPage';
 
 // Dashboards
 import AdminDashboard from '../features/dashboard/pages/AdminDashboard';
@@ -75,9 +74,19 @@ import TeachingLogEditPage from '../app/dashboard/teaching-log/[id]/edit/page';
 import { useAuthStore } from '../store/authStore';
 import { homePathFor } from '../hooks/usePermission';
 import RolesPage from '../features/roles/pages/RolesPage';
+import AccountPage from '../features/account/pages/AccountPage';
+import RouteErrorPage from '../components/common/RouteErrorPage';
 
 function HomeRedirect() {
   const user = useAuthStore((s) => s.user);
+  return <Navigate to={homePathFor(user)} replace />;
+}
+
+// Each role has its own dashboard; opening another role's (e.g. by typing the
+// address) goes to your own instead. Admins may look at any of them.
+function OwnDashboard({ path, children }: { path: string; children: React.ReactNode }) {
+  const user = useAuthStore((s) => s.user);
+  if (user?.role === 'admin' || homePathFor(user) === path) return <>{children}</>;
   return <Navigate to={homePathFor(user)} replace />;
 }
 
@@ -91,6 +100,7 @@ export const router = createBrowserRouter([
   // Public authentication routes
   {
     element: <AuthLayout />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         path: '/login',
@@ -100,32 +110,31 @@ export const router = createBrowserRouter([
         path: '/forgot-password',
         element: <ForgotPasswordPage />,
       },
-      {
-        path: '/reset-password',
-        element: <ResetPasswordPage />,
-      },
     ],
   },
 
   // Protected application routes
   {
     element: <ProtectedRoute />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         element: <AppLayout />,
         children: [
           { path: '/', element: <HomeRedirect /> },
           { path: '/403', element: <ForbiddenPage /> },
+          // Every signed-in person: appearance and their own password.
+          { path: '/account', element: <AccountPage /> },
 
           // Dashboards — any authenticated role, per rolePermissions' 'dashboard' entry
           moduleGated('dashboard', [
-            { path: '/dashboard/admin', element: <AdminDashboard /> },
-            { path: '/dashboard/principal', element: <PrincipalDashboard /> },
-            { path: '/dashboard/academic-officer', element: <AcademicOfficerDashboard /> },
-            { path: '/dashboard/teacher', element: <TeacherDashboard /> },
-            { path: '/dashboard/accountant', element: <AccountantDashboard /> },
-            { path: '/dashboard/student', element: <StudentDashboard /> },
-            { path: '/dashboard/parent', element: <ParentDashboard /> },
+            { path: '/dashboard/admin', element: <OwnDashboard path="/dashboard/admin"><AdminDashboard /></OwnDashboard> },
+            { path: '/dashboard/principal', element: <OwnDashboard path="/dashboard/principal"><PrincipalDashboard /></OwnDashboard> },
+            { path: '/dashboard/academic-officer', element: <OwnDashboard path="/dashboard/academic-officer"><AcademicOfficerDashboard /></OwnDashboard> },
+            { path: '/dashboard/teacher', element: <OwnDashboard path="/dashboard/teacher"><TeacherDashboard /></OwnDashboard> },
+            { path: '/dashboard/accountant', element: <OwnDashboard path="/dashboard/accountant"><AccountantDashboard /></OwnDashboard> },
+            { path: '/dashboard/student', element: <OwnDashboard path="/student-portal"><StudentDashboard /></OwnDashboard> },
+            { path: '/dashboard/parent', element: <OwnDashboard path="/parent-portal"><ParentDashboard /></OwnDashboard> },
           ]),
 
           moduleGated('academic-structure', [

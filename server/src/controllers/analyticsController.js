@@ -2,7 +2,6 @@ import Student from '../models/Student.js';
 import Teacher from '../models/Teacher.js';
 import Class from '../models/Class.js';
 import StudentAttendance from '../models/StudentAttendance.js';
-import User from '../models/User.js';
 import StudentInvoice from '../models/StudentInvoice.js';
 import StudentFee from '../models/StudentFee.js';
 import Term from '../models/Term.js';
@@ -11,6 +10,8 @@ import TeacherAssignment from '../models/TeacherAssignment.js';
 import TeachingLog from '../models/TeachingLog.js';
 import AuditLog from '../models/auditLog.model.js';
 import AppError from '../utils/AppError.js';
+import Guardian from '../models/Guardian.js';
+import { schoolTodayUTC } from '../utils/schoolTime.js';
 
 const formatShortDate = (date) =>
   date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -25,17 +26,19 @@ export const getAdminDashboardKPIs = async (req, res, next) => {
     const now = new Date();
 
     // 1. Top summary cards
+    // Removed (soft-deleted) records never count. Parents are the guardians on
+    // record, with or without a portal login.
     const [totalStudents, totalTeachers, totalClasses, totalParents] = await Promise.all([
-      Student.countDocuments({ status: 'Active' }),
-      Teacher.countDocuments(),
+      Student.countDocuments({ status: 'Active', isDeleted: { $ne: true } }),
+      Teacher.countDocuments({ isDeleted: { $ne: true } }),
       Class.countDocuments(),
-      User.countDocuments({ role: 'parent' })
+      Guardian.countDocuments()
     ]);
 
     // 2. Student distribution by class
     // Student has no `grade` field — grade level is expressed via classId → Class.cl_name.
     const distributionData = await Student.aggregate([
-      { $match: { status: 'Active' } },
+      { $match: { status: 'Active', isDeleted: { $ne: true } } },
       { $lookup: { from: 'classes', localField: 'classId', foreignField: '_id', as: 'cls' } },
       { $unwind: { path: '$cls', preserveNullAndEmptyArrays: true } },
       { $group: { _id: '$cls.cl_name', count: { $sum: 1 } } },
@@ -46,17 +49,15 @@ export const getAdminDashboardKPIs = async (req, res, next) => {
       value: item.count
     }));
 
-    // 3. Weekly attendance overview (Mon - Fri, current week)
-    const currentDay = now.getDay();
-    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() + distanceToMonday);
-    startOfWeek.setHours(0, 0, 0, 0);
+    // 3. This school week's attendance (Saturday to Thursday, Friday only if
+    // someone took attendance on it). Late counts as attended, like on the
+    // Attendance page; removed students are left out.
+    const today = schoolTodayUTC();
+    const startOfWeek = new Date(today.getTime() - ((today.getUTCDay() + 1) % 7) * 24 * 60 * 60 * 1000);
+    const activeIds = await Student.find({ isDeleted: { $ne: true } }).distinct('_id');
 
-    // StudentAttendance.status is a plain string enum ('Present' | 'Absent' | 'Late' | 'Excused'),
-    // read directly off the doc — no lookup needed.
     const attendanceRaw = await StudentAttendance.aggregate([
-      { $match: { att_date: { $gte: startOfWeek } } },
+      { $match: { att_date: { $gte: startOfWeek, $lte: today }, studentId: { $in: activeIds } } },
       {
         $group: {
           _id: { dayOfWeek: { $dayOfWeek: '$att_date' }, statusName: { $toLower: '$status' } },
@@ -65,27 +66,26 @@ export const getAdminDashboardKPIs = async (req, res, next) => {
       }
     ]);
 
-    const daysMap = { 2: 'Mon', 3: 'Tue', 4: 'Wed', 5: 'Thu', 6: 'Fri' };
-    const attendanceFormatted = {
-      Mon: { day: 'Mon', present: 0, absent: 0 },
-      Tue: { day: 'Tue', present: 0, absent: 0 },
-      Wed: { day: 'Wed', present: 0, absent: 0 },
-      Thu: { day: 'Thu', present: 0, absent: 0 },
-      Fri: { day: 'Fri', present: 0, absent: 0 }
-    };
+    // $dayOfWeek: 1 = Sunday ... 7 = Saturday.
+    const daysMap = { 7: 'Sat', 1: 'Sun', 2: 'Mon', 3: 'Tue', 4: 'Wed', 5: 'Thu', 6: 'Fri' };
+    const attendanceFormatted = Object.fromEntries(
+      ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day) => [day, { day, present: 0, absent: 0, excused: 0 }]),
+    );
 
     attendanceRaw.forEach(item => {
-      const dayName = daysMap[item._id.dayOfWeek];
-      if (!dayName) return;
-      if (item._id.statusName === 'present') attendanceFormatted[dayName].present = item.count;
-      else if (item._id.statusName === 'absent') attendanceFormatted[dayName].absent = item.count;
+      const day = attendanceFormatted[daysMap[item._id.dayOfWeek]];
+      if (!day) return;
+      if (item._id.statusName === 'present' || item._id.statusName === 'late') day.present += item.count;
+      else if (item._id.statusName === 'absent') day.absent += item.count;
+      else day.excused += item.count;
     });
 
-    const weeklyData = Object.values(attendanceFormatted);
+    const weeklyData = Object.values(attendanceFormatted)
+      .filter((d) => d.day !== 'Fri' || d.present + d.absent + d.excused > 0);
     const totalPresent = weeklyData.reduce((sum, d) => sum + d.present, 0);
-    const totalAbsent = weeklyData.reduce((sum, d) => sum + d.absent, 0);
-    const attendanceRate = totalPresent + totalAbsent > 0
-      ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 1000) / 10
+    const totalMarked = weeklyData.reduce((sum, d) => sum + d.present + d.absent + d.excused, 0);
+    const attendanceRate = totalMarked > 0
+      ? Math.round((totalPresent / totalMarked) * 1000) / 10
       : 0;
 
     // 4. Fee collection summary (from the active StudentInvoice ledger)
@@ -172,9 +172,9 @@ export const getAdminDashboardKPIs = async (req, res, next) => {
         .limit(6)
         .select('firstName lastName admissionNumber email parentName status classId createdAt')
         .populate('classId', 'cl_name'),
-      Student.countDocuments({ status: 'Active', createdAt: { $gte: weekAgo } }),
-      Teacher.countDocuments({ createdAt: { $gte: weekAgo } }),
-      User.countDocuments({ role: 'parent', createdAt: { $gte: weekAgo } })
+      Student.countDocuments({ status: 'Active', isDeleted: { $ne: true }, createdAt: { $gte: weekAgo } }),
+      Teacher.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: weekAgo } }),
+      Guardian.countDocuments({ createdAt: { $gte: weekAgo } })
     ]);
     const recentStudents = recentStudentDocs.map(s => ({
       _id: s._id,
@@ -220,7 +220,9 @@ export const getTeacherDashboardKPIs = async (req, res, next) => {
     const teacher = await Teacher.findOne({ userId: req.user._id });
     if (!teacher) return next(new AppError('No teacher profile is linked to this account.', 400));
 
-    const assignments = await TeacherAssignment.find({ teacherId: teacher._id })
+    // This term's lessons only (older terms' assignments stay for history).
+    const activeTerm = await Term.findOne({ status: 'active' }).sort({ startDate: -1 }).select('_id').lean();
+    const assignments = await TeacherAssignment.find({ teacherId: teacher._id, ...(activeTerm && { termId: activeTerm._id }) })
       .populate('subjectId', 'sub_name')
       .populate('classId', 'cl_name')
       .populate('timetableSlots.periodId', 'per_name time_in time_out');
@@ -228,7 +230,7 @@ export const getTeacherDashboardKPIs = async (req, res, next) => {
     const classCount = new Set(assignments.map(a => a.classId?._id?.toString()).filter(Boolean)).size;
     const subjectCount = new Set(assignments.map(a => a.subjectId?._id?.toString()).filter(Boolean)).size;
 
-    const todayName = DAY_NAMES[new Date().getDay()];
+    const todayName = DAY_NAMES[schoolTodayUTC().getUTCDay()];
     const todaySchedule = assignments
       .flatMap(a => (a.timetableSlots || [])
         .filter(slot => slot.day === todayName && slot.periodId)

@@ -73,8 +73,11 @@ const router = express.Router();
 // DISCOUNT TYPES ROUTES
 // ==========================================
 router.post('/discount-types', authenticate, authorize('admin'), validate(createDiscountTypeSchema), createDiscountType);
-router.get('/discount-types', authenticate, getDiscountTypes);
-router.get('/discount-types/:id', authenticate, getDiscountTypeById);
+// Reads: finance staff and the offices that manage families and students.
+const canViewDiscounts = authorize('admin', 'accountant', 'principal', 'academic_officer');
+
+router.get('/discount-types', authenticate, canViewDiscounts, getDiscountTypes);
+router.get('/discount-types/:id', authenticate, canViewDiscounts, getDiscountTypeById);
 router.put('/discount-types/:id', authenticate, authorize('admin'), validate(updateDiscountTypeSchema), updateDiscountType);
 router.delete('/discount-types/:id', authenticate, authorize('admin'), deleteDiscountType);
 
@@ -82,8 +85,8 @@ router.delete('/discount-types/:id', authenticate, authorize('admin'), deleteDis
 // APPLIES TO ROUTES
 // ==========================================
 router.post('/applies-to', authenticate, authorize('admin'), validate(createAppliesToSchema), createAppliesTo);
-router.get('/applies-to', authenticate, getAppliesTos);
-router.get('/applies-to/:id', authenticate, getAppliesToById);
+router.get('/applies-to', authenticate, canViewDiscounts, getAppliesTos);
+router.get('/applies-to/:id', authenticate, canViewDiscounts, getAppliesToById);
 router.put('/applies-to/:id', authenticate, authorize('admin'), validate(updateAppliesToSchema), updateAppliesTo);
 router.delete('/applies-to/:id', authenticate, authorize('admin'), deleteAppliesTo);
 
@@ -91,8 +94,8 @@ router.delete('/applies-to/:id', authenticate, authorize('admin'), deleteApplies
 // SCHOLARSHIP TYPES ROUTES
 // ==========================================
 router.post('/scholarship-types', authenticate, authorize('admin'), validate(createScholarshipTypeSchema), createScholarshipType);
-router.get('/scholarship-types', authenticate, getScholarshipTypes);
-router.get('/scholarship-types/:id', authenticate, getScholarshipTypeById);
+router.get('/scholarship-types', authenticate, canViewDiscounts, getScholarshipTypes);
+router.get('/scholarship-types/:id', authenticate, canViewDiscounts, getScholarshipTypeById);
 router.put('/scholarship-types/:id', authenticate, authorize('admin'), validate(updateScholarshipTypeSchema), updateScholarshipType);
 router.delete('/scholarship-types/:id', authenticate, authorize('admin'), deleteScholarshipType);
 
@@ -100,8 +103,8 @@ router.delete('/scholarship-types/:id', authenticate, authorize('admin'), delete
 // SCHOLARSHIPS ROUTES
 // ==========================================
 router.post('/scholarships', authenticate, authorize('admin'), validate(createScholarshipSchema), createScholarship);
-router.get('/scholarships', authenticate, getScholarships);
-router.get('/scholarships/:id', authenticate, getScholarshipById);
+router.get('/scholarships', authenticate, canViewDiscounts, getScholarships);
+router.get('/scholarships/:id', authenticate, canViewDiscounts, getScholarshipById);
 router.put('/scholarships/:id', authenticate, authorize('admin'), validate(updateScholarshipSchema), updateScholarship);
 router.delete('/scholarships/:id', authenticate, authorize('admin'), deleteScholarship);
 
@@ -109,8 +112,8 @@ router.delete('/scholarships/:id', authenticate, authorize('admin'), deleteSchol
 // SIBLING RULES ROUTES
 // ==========================================
 router.post('/sibling-rules', authenticate, authorize('admin'), validate(createSiblingRuleSchema), createSiblingRule);
-router.get('/sibling-rules', authenticate, getSiblingRules);
-router.get('/sibling-rules/:id', authenticate, getSiblingRuleById);
+router.get('/sibling-rules', authenticate, canViewDiscounts, getSiblingRules);
+router.get('/sibling-rules/:id', authenticate, canViewDiscounts, getSiblingRuleById);
 router.put('/sibling-rules/:id', authenticate, authorize('admin'), validate(updateSiblingRuleSchema), updateSiblingRule);
 router.delete('/sibling-rules/:id', authenticate, authorize('admin'), deleteSiblingRule);
 
@@ -120,10 +123,10 @@ router.delete('/sibling-rules/:id', authenticate, authorize('admin'), deleteSibl
 // Must be registered BEFORE '/student-scholarships/:id' GET/PUT/DELETE below —
 // not strictly necessary since this is POST-only and no other POST exists on
 // this prefix, but kept first for readability.
-router.post('/student-scholarships/grant', authenticate, authorize('admin', 'accountant'), grantScholarship);
+router.post('/student-scholarships/grant', authenticate, authorize('admin'), grantScholarship);
 router.post('/student-scholarships', authenticate, authorize('admin'), validate(createStudentScholarshipSchema), createStudentScholarship);
-router.get('/student-scholarships', authenticate, getStudentScholarships);
-router.get('/student-scholarships/:id', authenticate, getStudentScholarshipById);
+router.get('/student-scholarships', authenticate, canViewDiscounts, getStudentScholarships);
+router.get('/student-scholarships/:id', authenticate, canViewDiscounts, getStudentScholarshipById);
 router.put('/student-scholarships/:id', authenticate, authorize('admin'), validate(updateStudentScholarshipSchema), updateStudentScholarship);
 router.delete('/student-scholarships/:id', authenticate, authorize('admin'), deleteStudentScholarship);
 

@@ -293,7 +293,7 @@ export const getReferenceData = async (req, res, next) => {
 // @route  POST /api/students/:id/account
 export const createStudentAccount = async (req, res, next) => {
   try {
-    const student = await Student.findById(req.params.id);
+    const student = await Student.findOne({ _id: req.params.id, isDeleted: false });
     if (!student) return next(new AppError('Student not found', 404));
 
     if (student.userId) {
@@ -301,7 +301,13 @@ export const createStudentAccount = async (req, res, next) => {
     }
 
     const { email, password } = req.body;
-    const existing = await User.findOne({ email });
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return next(new AppError('Enter a valid email address for the login.', 400));
+    }
+    if (password !== undefined && (typeof password !== 'string' || password.length < 8)) {
+      return next(new AppError('The password must be at least 8 characters.', 400));
+    }
+    const existing = await User.findOne({ email: email.trim().toLowerCase() });
     if (existing) return next(new AppError('Email already in use', 400));
 
     const temporaryPassword = password || generatePassword();

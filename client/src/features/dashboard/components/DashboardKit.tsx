@@ -166,14 +166,14 @@ const EVENT_STYLE: Record<string, string> = {
   Event: 'bg-tile-pink text-tile-foreground',
 };
 
-/** Monday of the week containing `d`. */
+/** Saturday of the week containing `d` (the school week runs Saturday to Thursday; Friday is off). */
 function startOfWeek(d: Date) {
   const out = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  out.setDate(out.getDate() - ((out.getDay() + 6) % 7));
+  out.setDate(out.getDate() - ((out.getDay() + 1) % 7));
   return out;
 }
 
-/** One week, Monday to Sunday, with the school's calendar items in their day. */
+/** One week, Saturday to Friday, with the school's calendar items in their day. */
 export function WeekCalendar({ items }: { items: CalendarItem[] }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const today = new Date();
@@ -204,7 +204,7 @@ export function WeekCalendar({ items }: { items: CalendarItem[] }) {
             const isToday = sameDay(d, today);
             const dayItems = items.filter((it) => sameDay(new Date(it.date), d));
             return (
-              <div key={d.toISOString()} className={cn('min-h-[148px] border-border', i > 0 && 'border-l', i >= 5 && 'bg-muted/60')}>
+              <div key={d.toISOString()} className={cn('min-h-[148px] border-border', i > 0 && 'border-l', d.getDay() === 5 && 'bg-muted/60')}>
                 <div className={cn('flex items-center justify-between border-b border-border px-2.5 py-2 text-xs', isToday && 'bg-primary/10')}>
                   <span className="font-medium text-muted-foreground">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                   <span className={cn('flex h-6 w-6 items-center justify-center rounded-full font-semibold tabular-nums', isToday ? 'bg-primary text-primary-foreground' : 'text-foreground')}>
@@ -359,9 +359,9 @@ export function DotPill({ tone, children }: { tone: 'success' | 'warning' | 'mut
 }
 
 /** This week's student attendance as an area chart. */
-export function AttendancePanel({ weekly, rate }: { weekly: { day: string; present: number; absent: number }[]; rate?: number }) {
+export function AttendancePanel({ weekly, rate }: { weekly: { day: string; present: number; absent: number; excused?: number }[]; rate?: number }) {
   const navigate = useNavigate();
-  const hasData = weekly.some((d) => (d.present ?? 0) + (d.absent ?? 0) > 0);
+  const hasData = weekly.some((d) => (d.present ?? 0) + (d.absent ?? 0) + (d.excused ?? 0) > 0);
   return (
     <Panel
       title="Attendance this week"

@@ -75,6 +75,9 @@ const holidayPayload = (payload: CalendarItemPayload) => ({
 export const settingsApi = {
   getSystemSettings: async (): Promise<SystemSettings> =>
     (await api.get('/v1/settings')).data.data,
+  /** Name, logo and contact details; no sign-in needed (used on the login page). */
+  getPublicIdentity: async (): Promise<{ schoolName: string; logoUrl: string | null; schoolEmail: string | null; schoolPhone: string | null }> =>
+    (await api.get('/v1/settings/public')).data.data,
   updateSystemSettings: async (payload: Partial<SystemSettings>): Promise<SystemSettings> =>
     (await api.put('/v1/settings', payload)).data.data,
   uploadLogo: async (file: File): Promise<{ logoUrl: string }> => {

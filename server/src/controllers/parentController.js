@@ -8,6 +8,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { assignGuardianToStudent, unassignGuardianFromStudent, getSiblingDiscountPercent } from '../services/familyService.js';
 import { withTransaction } from '../utils/transaction.js';
+import { pageParams, searchRegex } from '../utils/query.js';
 
 // @desc   Create a new parent (Guardian). Auto-creates a hidden 1:1 Family
 //         "household" record so admins manage a single "Parent" concept —
@@ -90,16 +91,15 @@ export const getParents = async (req, res, next) => {
   try {
     const { search, page = 1, limit = 20 } = req.query;
     const filter = {};
-    if (search) {
+    if (searchRegex(search)) {
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { name: searchRegex(search) },
+        { phone: searchRegex(search) },
+        { email: searchRegex(search) },
       ];
     }
 
-    const currentPage = Number(page);
-    const pageSize = Number(limit);
+    const { page: currentPage, limit: pageSize } = pageParams({ page, limit }, { defaultLimit: 20, maxLimit: 1000 });
 
     const [total, guardians] = await Promise.all([
       Guardian.countDocuments(filter),

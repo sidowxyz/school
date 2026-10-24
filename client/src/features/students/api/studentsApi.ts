@@ -43,4 +43,17 @@ export const studentsApi = {
   verifyDocument: async (id: string, docId: string): Promise<StudentDocument> =>
     (await api.patch(`/students/${id}/documents/${docId}/verify`)).data.data,
   deleteDocument: (id: string, docId: string) => api.delete(`/students/${id}/documents/${docId}`),
+  /** Documents are private: fetched with the signed-in user's token, then opened in a new tab. */
+  openDocument: async (id: string, docId: string) => {
+    const tab = window.open('', '_blank');
+    try {
+      const res = await api.get(`/students/${id}/documents/${docId}/file`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data as Blob);
+      if (tab) tab.location.href = url; else window.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      tab?.close();
+      throw err;
+    }
+  },
 };

@@ -17,8 +17,9 @@ router.use(authenticate);
 const canManageParents = authorize('admin', 'principal', 'academic_officer');
 
 router.post('/', canManageParents, createParent);
-router.get('/', getParents);
-router.get('/:id', getParent);
+// Guardian contact details: only the offices that manage families.
+router.get('/', canManageParents, getParents);
+router.get('/:id', canManageParents, getParent);
 router.put('/:id', canManageParents, updateParent);
 router.post('/:id/students/:studentId', canManageParents, assignStudent);
 router.delete('/:id/students/:studentId', canManageParents, unassignStudent);

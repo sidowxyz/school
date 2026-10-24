@@ -38,6 +38,7 @@ export const buildActor = (reqUser) => {
 const REDACT_KEYS = new Set([
   'password',
   'refreshToken',
+  'refreshTokens',
   'passwordResetToken',
   'passwordResetExpires',
   '__v',

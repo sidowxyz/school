@@ -4,17 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
 import { monthlyFeesApi, apiError } from '../api/monthlyFeesApi';
 import { money, type ClassFee } from '../monthlyTypes';
 
 /** Setup → the monthly fee each class (grade) pays. */
 export default function ClassFeesPanel() {
-  const { role } = useAuth();
-  const canEdit = role === 'admin';
+  const canEdit = useCan('fees-setup', 'edit');
   const { showToast } = useToast();
   const [classes, setClasses] = useState<ClassFee[]>([]);
+  const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export default function ClassFeesPanel() {
   const load = () => monthlyFeesApi.getClassFees().then((list) => {
     setClasses(list);
     setDrafts(Object.fromEntries(list.map((c) => [c._id, c.monthly_fee === null ? '' : String(c.monthly_fee)])));
-  }).catch((err) => showToast(apiError(err, 'Could not load classes.'), 'error'));
+  }).catch((err) => showToast(apiError(err, 'Could not load classes.'), 'error')).finally(() => setLoading(false));
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
@@ -64,6 +64,13 @@ export default function ClassFeesPanel() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {(loading || classes.length === 0) && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                  {loading ? 'Loading classes…' : 'No classes yet. Add classes under Academic Structure first.'}
+                </TableCell>
+              </TableRow>
+            )}
             {classes.map((c) => {
               const dirty = drafts[c._id] !== (c.monthly_fee === null ? '' : String(c.monthly_fee));
               return (

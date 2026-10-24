@@ -38,9 +38,12 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
 
-    refreshToken: {
-      type: String,
-      default: null,
+    // Hashed refresh tokens, one per signed-in device (see authController).
+    refreshTokens: {
+      type: [String],
+      default: [],
+      select: false,
+      index: true,
     },
 
     createBy: {

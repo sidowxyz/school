@@ -1,9 +1,8 @@
-import { Buildings, Globe, IdentificationCard } from '@phosphor-icons/react';
+import { Buildings, IdentificationCard } from '@phosphor-icons/react';
 import type { SystemSettings } from '../api/settingsApi';
 import { resolveSchoolLogo } from '../hooks/useSchoolIdentity';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect } from '@/components/ui/native-select';
 import { SettingsField, SettingsHeading, SettingsSection, settingsInput } from './SettingsSection';
 
 interface Props {
@@ -61,22 +60,6 @@ export default function SchoolProfile({ value, onChange }: Props) {
         </div>
       </SettingsSection>
 
-      <SettingsSection icon={Globe} title="Regional" description="Date, time and language defaults.">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <SettingsField label="Timezone">
-            <NativeSelect className={settingsInput} value={value.timezone || 'Africa/Mogadishu'} onChange={(e) => onChange({ timezone: e.target.value })}>
-              <option value="Africa/Mogadishu">Africa/Mogadishu</option>
-              <option value="UTC">UTC</option>
-            </NativeSelect>
-          </SettingsField>
-          <SettingsField label="Language">
-            <NativeSelect className={settingsInput} value={value.language || 'English'} onChange={(e) => onChange({ language: e.target.value as 'English' | 'Somali' })}>
-              <option value="English">English</option>
-              <option value="Somali">Somali</option>
-            </NativeSelect>
-          </SettingsField>
-        </div>
-      </SettingsSection>
     </div>
   );
 }

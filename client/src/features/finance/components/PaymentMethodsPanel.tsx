@@ -3,7 +3,7 @@ import { Check, PencilSimple, Plus, SpinnerGap, Trash, X } from '@phosphor-icons
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
 import { financeApi } from '../api/financeApi';
 import { apiError } from '../api/monthlyFeesApi';
@@ -11,8 +11,7 @@ import type { PaymentMethod } from '../types';
 
 /** Setup → the ways a family can pay (Cash, EVC Plus, bank transfer, …). */
 export default function PaymentMethodsPanel({ methods, onChanged }: { methods: PaymentMethod[]; onChanged: () => void }) {
-  const { role } = useAuth();
-  const canEdit = role === 'admin';
+  const canEdit = useCan('fees-setup', 'edit');
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);

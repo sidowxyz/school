@@ -230,7 +230,7 @@ export default function AssignmentFormModal({
                 <>
                   <span className="block text-xs font-medium text-muted-foreground">Class *</span>
                   <div className="h-10 flex items-center px-3 rounded-lg border border-border bg-muted text-sm text-muted-foreground">
-                    {classes.find((c) => c._id === lockedClassId)?.cl_name || "â€”"}
+                    {classes.find((c) => c._id === lockedClassId)?.cl_name || "—"}
                   </div>
                 </>
               ) : (
@@ -255,7 +255,7 @@ export default function AssignmentFormModal({
                 <>
                   <span className="block text-xs font-medium text-muted-foreground">Section *</span>
                   <div className="h-10 flex items-center px-3 rounded-lg border border-border bg-muted text-sm text-muted-foreground">
-                    {sections.find((s) => s._id === lockedSectionId)?.name || "â€”"}
+                    {sections.find((s) => s._id === lockedSectionId)?.name || "—"}
                   </div>
                 </>
               ) : (
@@ -278,7 +278,7 @@ export default function AssignmentFormModal({
                   <div className="h-10 flex items-center px-3 rounded-lg border border-border bg-muted text-sm text-muted-foreground">
                     {terms.find((t) => t._id === lockedTermId)
                       ? termLabel(terms.find((t) => t._id === lockedTermId)!)
-                      : "â€”"}
+                      : "—"}
                   </div>
                 </>
               ) : (
@@ -318,7 +318,7 @@ export default function AssignmentFormModal({
               <p className="text-xs text-muted-foreground">Loading periods...</p>
             ) : periods.length === 0 ? (
               <p className="text-xs text-warning">
-                This term has no periods yet â€” add them under Academic Structure &rarr; Periods first.
+                This term has no periods yet — add them under Academic Structure &rarr; Periods first.
               </p>
             ) : (
               <div className="space-y-2">

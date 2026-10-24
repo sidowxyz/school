@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowsClockwise, CaretLeft, CaretRight, MagnifyingGlass, Plus, ShieldCheck, UserCheck, UserMinus, Users,
+  ArrowsClockwise, CaretLeft, CaretRight, Key, MagnifyingGlass, Plus, ShieldCheck, UserCheck, UserMinus, Users,
 } from '@phosphor-icons/react';
 
 import PageHeader from "../../../components/common/PageHeader";
@@ -37,6 +37,8 @@ const FILL: Record<AppRole["color"], string> = {
 
 // Staff roles that sign in to the main app (not teachers, students or parents).
 const STAFF_ROLES = ["admin", "principal", "academic_officer", "accountant"];
+// These logins come with a profile and are made on their own pages.
+const PROFILE_ROLES = ["teacher", "student", "parent"];
 
 const roleName = (roles: RoleOption[], key: string) => roles.find((r) => r.key === key)?.name ?? key.replace(/_/g, " ");
 
@@ -45,7 +47,7 @@ function RoleOptions({ roles }: { roles: RoleOption[] }) {
   return (
     <>
       <optgroup label="Built-in roles">
-        {roles.filter((r) => r.builtIn).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
+        {roles.filter((r) => r.builtIn && !PROFILE_ROLES.includes(r.key)).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
       </optgroup>
       {custom.length > 0 && (
         <optgroup label="Custom roles">
@@ -214,6 +216,8 @@ export default function UserListPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [resetFor, setResetFor] = useState<{ email: string; password: string } | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRole | "">("");
@@ -303,6 +307,20 @@ export default function UserListPage() {
     } catch (err: any) {
       setUsers((list) => list.map((u) => (u._id === user._id ? { ...u, role: previous } : u)));
       setError(err?.response?.data?.message || "Could not change the role.");
+    }
+  }
+
+  // There is no email delivery: an admin sets a temporary password and hands it over.
+  async function handleResetPassword(user: AppUser) {
+    if (!window.confirm(`Reset the password for ${user.name}? They will be signed out everywhere and get a new temporary password.`)) return;
+    setResettingId(user._id);
+    try {
+      const result = await usersApi.resetPassword(user._id);
+      setResetFor({ email: result.email, password: result.temporaryPassword });
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not reset the password.");
+    } finally {
+      setResettingId(null);
     }
   }
 
@@ -424,14 +442,15 @@ export default function UserListPage() {
                 <TableHead className="px-4 font-semibold">Role</TableHead>
                 <TableHead className="px-4 font-semibold">Status</TableHead>
                 <TableHead className="px-4 font-semibold">Last login</TableHead>
-                <TableHead className="px-6 text-right font-semibold">Joined</TableHead>
+                <TableHead className="px-4 text-right font-semibold">Joined</TableHead>
+                <TableHead className="px-6 text-right font-semibold"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={5} className="py-16 text-center text-xs text-muted-foreground">Loading users...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="py-16 text-center text-xs text-muted-foreground">Loading users...</TableCell></TableRow>
               ) : users.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="py-16 text-center text-sm text-muted-foreground">{filtered ? "No users match your filters." : "No users found."}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="py-16 text-center text-sm text-muted-foreground">{filtered ? "No users match your filters." : "No users found."}</TableCell></TableRow>
               ) : (
                 users.map((user) => {
                   const isMe = !!me && me.id === user._id;
@@ -452,6 +471,11 @@ export default function UserListPage() {
                         </div>
                       </TableCell>
                       <TableCell className="px-4 py-3.5">
+                        {PROFILE_ROLES.includes(user.role) ? (
+                          <span className="inline-flex h-9 items-center rounded-xl bg-muted/40 px-3 text-xs" title="Managed from the Teachers, Students or Parents page">
+                            {roleName(roles, user.role)}
+                          </span>
+                        ) : (
                         <NativeSelect
                           value={user.role}
                           disabled={isMe}
@@ -463,6 +487,7 @@ export default function UserListPage() {
                           {!roles.some((r) => r.key === user.role) && <option value={user.role}>{roleName(roles, user.role)}</option>}
                           <RoleOptions roles={roles} />
                         </NativeSelect>
+                        )}
                       </TableCell>
                       <TableCell className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5">
@@ -483,8 +508,13 @@ export default function UserListPage() {
                           {timeAgo(user.lastLogin)}
                         </span>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap px-6 py-3.5 text-right text-xs text-muted-foreground">
+                      <TableCell className="whitespace-nowrap px-4 py-3.5 text-right text-xs text-muted-foreground">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-6 py-3.5 text-right">
+                        <Button variant="ghost" size="sm" onClick={() => void handleResetPassword(user)} disabled={resettingId === user._id} className="h-8 gap-1.5 text-xs">
+                          <Key size={14} /> Reset password
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -511,6 +541,17 @@ export default function UserListPage() {
       </Card>
 
       {showAdd && <AddUserModal roles={roles} onClose={() => setShowAdd(false)} onCreated={() => void load(true)} />}
+      {resetFor && (
+        <Dialog open onOpenChange={(open) => !open && setResetFor(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Password reset</DialogTitle>
+              <DialogDescription>Give these sign-in details to the person. They can change the password under My account.</DialogDescription>
+            </DialogHeader>
+            <CredentialsReveal title="New temporary password" email={resetFor.email} password={resetFor.password} onDone={() => setResetFor(null)} />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

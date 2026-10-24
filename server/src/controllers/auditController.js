@@ -1,6 +1,7 @@
 import AuditLog from '../models/auditLog.model.js';
 import AuditAction from '../models/auditAction.model.js';
 import AuditModule from '../models/auditModule.model.js';
+import { escapeRegex } from '../utils/query.js';
 
 /**
  * Get populated and paginated audit logs with search filters.
@@ -14,7 +15,7 @@ export const getAuditLogs = async (req, res, next) => {
 
     // 1. Module name filter
     if (module) {
-      const moduleDoc = await AuditModule.findOne({ module_name: new RegExp(`^${module}$`, 'i') });
+      const moduleDoc = await AuditModule.findOne({ module_name: new RegExp(`^${escapeRegex(module)}$`, 'i') });
       if (moduleDoc) {
         filter.module_no = moduleDoc._id;
       } else {
@@ -28,7 +29,7 @@ export const getAuditLogs = async (req, res, next) => {
 
     // 2. Action name filter
     if (action) {
-      const actionDoc = await AuditAction.findOne({ action_name: new RegExp(`^${action}$`, 'i') });
+      const actionDoc = await AuditAction.findOne({ action_name: new RegExp(`^${escapeRegex(action)}$`, 'i') });
       if (actionDoc) {
         filter.action_no = actionDoc._id;
       } else {
@@ -68,7 +69,7 @@ export const getAuditLogs = async (req, res, next) => {
 
     // 7. Pagination parameters
     const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.max(1, parseInt(limit, 10));
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10) || 10));
     const skip = (pageNum - 1) * limitNum;
 
     // 8. Execute query with population

@@ -23,7 +23,7 @@ export default function TeachingLogEditPage() {
         const data = await teachingLogService.getLogById(id);
         setLog(data);
       } catch (err: any) {
-        setError(err?.message || 'Failed to retrieve teaching log details');
+        setError(err?.response?.data?.message || err?.message || 'Failed to retrieve teaching log details');
       } finally {
         setLoading(false);
       }

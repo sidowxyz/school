@@ -23,7 +23,7 @@ export const parentsApi = {
     api.delete(`/parents/${parentId}/students/${studentId}`),
 
   getUnassignedStudents: async (): Promise<UnassignedStudent[]> =>
-    (await api.get('/students', { params: { unassigned: 'true', limit: 200 } })).data.data.students,
+    (await api.get('/students', { params: { unassigned: 'true', limit: 1000 } })).data.data.students,
 };
 
 export const siblingRulesApi = {

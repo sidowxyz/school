@@ -37,3 +37,8 @@ Thumbs.db
 .vscode/
 .idea/
 .qodo/
+
+# Files the server writes at runtime (uploads, generated receipts)
+server/uploads/
+server/receipts/
+server/backups/

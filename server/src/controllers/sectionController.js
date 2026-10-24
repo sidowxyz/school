@@ -1,6 +1,7 @@
 import Section from '../models/Section.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import { assertNotInUse } from '../utils/inUse.js';
 
 export const createSection = async (req, res, next) => {
   try {
@@ -46,6 +47,7 @@ export const updateSection = async (req, res, next) => {
 
 export const deleteSection = async (req, res, next) => {
   try {
+    await assertNotInUse('section', req.params.id);
     const section = await Section.findByIdAndDelete(req.params.id);
     if (!section) return next(new AppError('Section not found', 404));
     res.status(200).json(new ApiResponse(200, null, 'Section deleted successfully'));

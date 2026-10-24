@@ -2,6 +2,7 @@ import Year from '../models/Year.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { resolveCurrentYearId } from '../services/studentService.js';
+import { assertNotInUse } from '../utils/inUse.js';
 
 // The academic year whose Term is currently marked active (same resolution
 // studentService.js already uses to default a new student's enrollment
@@ -59,6 +60,7 @@ export const updateYear = async (req, res, next) => {
 
 export const deleteYear = async (req, res, next) => {
   try {
+    await assertNotInUse('year', req.params.id);
     const year = await Year.findByIdAndDelete(req.params.id);
     if (!year) return next(new AppError('Year not found', 404));
     res.status(200).json(new ApiResponse(200, null, 'Year deleted successfully'));

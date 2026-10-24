@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useCan } from "../../../hooks/usePermission";
 import { SpinnerGap,
   ArrowLeft, Envelope, Plus, PencilSimple, Trash, Clock, BookOpen, GraduationCap,
   Stack, CalendarDots, Trophy,
@@ -15,6 +16,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 
 export default function TeacherDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const canEditTimetable = useCan("timetable", "edit");
   const navigate = useNavigate();
 
   const [detail, setDetail] = useState<TeacherDetail | null>(null);
@@ -150,10 +152,12 @@ export default function TeacherDetailPage() {
           </div>
         </div>
 
-        <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2 shrink-0">
-          <Plus size={15} />
-          Add Assignment
-        </Button>
+        {canEditTimetable && (
+          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2 shrink-0">
+            <Plus size={15} />
+            Add Assignment
+          </Button>
+        )}
       </div>
 
       {/* Hero Faculty Card */}
@@ -181,7 +185,7 @@ export default function TeacherDetailPage() {
                   <span className="font-mono font-medium text-foreground">
                     Staff ID: {teacher.staffId}
                   </span>
-                  <span>â€¢</span>
+                  <span>•</span>
                   <span className="flex items-center gap-1.5">
                     <Envelope size={13} className="text-muted-foreground" />
                     {teacher.userId?.email || "No email on record"}
@@ -293,7 +297,7 @@ export default function TeacherDetailPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2.5 flex-wrap">
                           <h3 className="font-semibold text-base text-foreground">
-                            {a.subjectId?.sub_name || "â€”"}
+                            {a.subjectId?.sub_name || "—"}
                           </h3>
                           {a.subjectId?.sub_no && (
                             <Badge variant="outline" className="font-mono text-[11px]">
@@ -304,7 +308,7 @@ export default function TeacherDetailPage() {
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
                           <span className="flex items-center gap-1.5 font-medium text-foreground">
                             <Stack size={13} className="text-muted-foreground" />
-                            {a.classId?.cl_name || "â€”"} â€¢ {a.sectionId?.name || "â€”"}
+                            {a.classId?.cl_name || "—"} • {a.sectionId?.name || "—"}
                             {a.classId?.lev_no && (
                               <span className="text-muted-foreground font-normal">
                                 {" "}({a.classId.lev_no.lev_name})
@@ -313,7 +317,7 @@ export default function TeacherDetailPage() {
                           </span>
                           {a.termId && (
                             <>
-                              <span>â€¢</span>
+                              <span>•</span>
                               <span className="flex items-center gap-1.5">
                                 <CalendarDots size={13} className="text-muted-foreground" />
                                 {termLabel(a.termId)}
@@ -324,25 +328,29 @@ export default function TeacherDetailPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setEditTarget(a)}
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      >
-                        <PencilSimple size={15} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemove(a)}
-                        disabled={removingId === a._id}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash size={15} />
-                      </Button>
-                    </div>
+                    {canEditTimetable && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditTarget(a)}
+                          aria-label="Edit assignment"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        >
+                          <PencilSimple size={15} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemove(a)}
+                          disabled={removingId === a._id}
+                          aria-label="Remove assignment"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash size={15} />
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   {a.timetableSlots && a.timetableSlots.length > 0 && (
@@ -358,11 +366,11 @@ export default function TeacherDetailPage() {
                           >
                             <Clock size={12} className="text-muted-foreground" />
                             <span className="font-medium">{slot.day}</span>
-                            <span className="text-muted-foreground">â€¢</span>
-                            <span>{slot.periodId?.per_name || "â€”"}</span>
+                            <span className="text-muted-foreground">•</span>
+                            <span>{slot.periodId?.per_name || "—"}</span>
                             {slot.periodId && (
                               <span className="text-[11px] text-muted-foreground font-mono">
-                                ({slot.periodId.time_in}â€“{slot.periodId.time_out})
+                                ({slot.periodId.time_in}–{slot.periodId.time_out})
                               </span>
                             )}
                           </span>

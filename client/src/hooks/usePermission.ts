@@ -11,8 +11,8 @@ import type { User } from '../types/auth.types';
 // Keep in step with BUILT_IN_ROLES in server/src/config/access.js.
 const rolePermissions: Record<string, string[]> = {
   admin:            ['*'],
-  principal:        ['dashboard', 'students', 'teachers', 'parents', 'attendance', 'reports', 'teacher-attendance', 'ai-assistant'],
-  academic_officer: ['dashboard', 'academic-structure', 'timetable', 'reports', 'ai-assistant'],
+  principal:        ['dashboard', 'students', 'teachers', 'parents', 'attendance', 'timetable', 'reports', 'teacher-attendance', 'ai-assistant'],
+  academic_officer: ['dashboard', 'academic-structure', 'timetable', 'teacher-attendance', 'reports', 'ai-assistant'],
   // Teachers manage their assigned teaching activities only. Timetable access is
   // limited to their own assigned schedule; timetable administration stays with
   // academic officers and admins.
@@ -32,6 +32,26 @@ export type Action = 'view' | 'create' | 'edit' | 'delete';
 // Modules that exist only for a specific role and are hidden even from '*' roles.
 const teacherOnlyModules = ['teaching-log'];
 
+// What each built-in role may change (beyond viewing) on the pages it can open.
+// Mirrors the server's authorize() lists, so a button is only shown when the
+// server will accept the click. Admin may do everything. 'fees-setup' covers
+// class fees, payment methods and per-student discounts (admin only).
+const builtInWrites: Record<string, Record<string, Action[]>> = {
+  principal: {
+    students: ['create', 'edit', 'delete'],
+    parents: ['create', 'edit'],
+    attendance: ['create', 'edit'],
+    'teacher-attendance': ['create', 'edit', 'delete'],
+  },
+  academic_officer: {
+    'academic-structure': ['create', 'edit', 'delete'],
+    timetable: ['create', 'edit', 'delete'],
+    'teacher-attendance': ['create', 'edit', 'delete'],
+  },
+  teacher: { attendance: ['create', 'edit'] },
+  accountant: { fees: ['create', 'edit'] },
+};
+
 type Who = Pick<User, 'role' | 'permissions'> | null | undefined;
 
 function canAccess(who: Who, module: string, action: Action = 'view'): boolean {
@@ -39,6 +59,7 @@ function canAccess(who: Who, module: string, action: Action = 'view'): boolean {
   if (!isBuiltInRole(who.role)) return !!who.permissions?.[module]?.includes(action);
   const allowed = rolePermissions[who.role];
   if (allowed.includes('*')) return !teacherOnlyModules.includes(module);
+  if (action !== 'view') return !!builtInWrites[who.role]?.[module]?.includes(action);
   return allowed.includes(module);
 }
 
@@ -48,9 +69,9 @@ export function usePermission(module: string): boolean {
 }
 
 /**
- * Whether the signed-in user may do this on a page. Built-in roles may do
- * everything on the pages they can open (the server still has the last word);
- * custom roles only what was ticked for them on the Roles page.
+ * Whether the signed-in user may do this on a page: built-in roles per
+ * builtInWrites above, custom roles per what was ticked on the Roles page.
+ * Use it to hide buttons the server would refuse.
  */
 export function useCan(module: string, action: Action): boolean {
   const { user } = useAuth();

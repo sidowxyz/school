@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Calendar, MagnifyingGlass, Check, CaretDown, SignOut, List, User } from '@phosphor-icons/react';
+import { Calendar, Check, CaretDown, SignOut, List, User } from '@phosphor-icons/react';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { roleLabel } from "../../hooks/usePermission";
@@ -8,7 +8,6 @@ import { academicApi } from "../../features/academic-structure/api/academicApi";
 import type { Year } from "../../features/academic-structure/types";
 import { useAcademicYearStore } from "../../store/academicYearStore";
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 interface TopBarProps {
   onMobileMenuClick?: () => void;
@@ -70,18 +69,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
         </Button>
       )}
 
-      {/* Global Quick Search */}
-      <div className="relative flex-1 max-w-sm md:max-w-md">
-        <MagnifyingGlass
-          size={16}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-        />
-        <Input
-          type="text"
-          placeholder="Search students, teachers, classes..."
-          className="h-10 rounded-full border-transparent bg-muted pl-10 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
-        />
-      </div>
+      <div className="flex-1" />
 
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Academic Year Selector */}
@@ -166,7 +154,7 @@ export default function TopBar({ onMobileMenuClick, showMenuButton = true }: Top
                 type="button"
                 onClick={() => {
                   setUserMenuOpen(false);
-                  navigate('/settings');
+                  navigate(user?.role === 'student' ? '/student-portal?tab=settings' : '/account');
                 }}
                 className="w-full flex items-center justify-start gap-2 px-3 py-2 text-xs rounded-md text-foreground hover:bg-muted transition-colors h-auto"
               >

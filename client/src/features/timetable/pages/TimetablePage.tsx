@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StatStrip from '@/components/shared/StatStrip';
 import { useAuth } from '@/hooks/useAuth';
+import { useCan } from '@/hooks/usePermission';
 import { cn } from '@/lib/utils';
 
 // Somali school week — Saturday through Thursday, Friday off by default. Terms
@@ -40,7 +41,7 @@ export default function TimetablePage() {
   const { role, user } = useAuth();
   const isTeacher = role === "teacher";
   // Assignment changes are admin-only on the server; everyone else just reads.
-  const canEdit = role === "admin";
+  const canEdit = useCan("timetable", "edit");
 
   const [terms, setTerms] = useState<Term[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);

@@ -14,6 +14,7 @@ import {
   ChartLineUp,
   ShieldCheck,
   Key,
+  ClockCounterClockwise,
   GearSix,
   SidebarSimple,
   type Icon,
@@ -60,6 +61,7 @@ const navSections: NavSection[] = [
       { label: 'Reports', path: '/reports', icon: ChartLineUp, module: 'reports' },
       { label: 'User Accounts', path: '/users', icon: ShieldCheck, module: 'users' },
       { label: 'Roles & Access', path: '/roles', icon: Key, module: 'users' },
+      { label: 'Audit Logs', path: '/audit-logs', icon: ClockCounterClockwise, module: 'audit-logs' },
     ],
   },
 ];

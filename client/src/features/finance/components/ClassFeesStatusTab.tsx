@@ -15,6 +15,7 @@ import { monthlyFeesApi, apiError } from '../api/monthlyFeesApi';
 import FeeReceiptDialog from './FeeReceiptDialog';
 import { money, periodLabel, thisPeriod, type ClassFee, type ClassStatus, type ClassStatusRow, type FeeReceipt } from '../monthlyTypes';
 import type { PaymentMethod } from '../types';
+import { useCan } from '@/hooks/usePermission';
 
 type Filter = 'all' | 'owing' | 'paid';
 
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function ClassFeesStatusTab({ paymentMethods, onCollect }: Props) {
+  const canCharge = useCan('fees', 'create');
   const { showToast } = useToast();
   const [classes, setClasses] = useState<ClassFee[]>([]);
   const [loadedClasses, setLoadedClasses] = useState(false);
@@ -125,12 +127,12 @@ export default function ClassFeesStatusTab({ paymentMethods, onCollect }: Props)
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cs-month" className="text-xs">Month</Label>
-            <Input id="cs-month" type="month" value={period} onChange={(e) => e.target.value && setPeriod(e.target.value)} className="w-44" />
+            <Input id="cs-month" type="month" value={period} max={thisPeriod()} onChange={(e) => e.target.value && setPeriod(e.target.value)} className="w-44" />
           </div>
-          <Button variant="outline" onClick={charge} disabled={charging || !classId || selectedClass?.monthly_fee === null} className="gap-2">
+          {canCharge && <Button variant="outline" onClick={charge} disabled={charging || !classId || selectedClass?.monthly_fee === null} className="gap-2">
             {charging ? <SpinnerGap size={15} className="animate-spin" /> : <Lightning size={15} />}
             Charge {periodLabel(period, true)}
-          </Button>
+          </Button>}
         </CardContent>
       </Card>
 
@@ -218,7 +220,7 @@ export default function ClassFeesStatusTab({ paymentMethods, onCollect }: Props)
                               {confirming === r.studentId ? `Confirm ${money(r.month.balance)}` : 'Mark paid'}
                             </Button>
                           )}
-                          <Button size="sm" variant="ghost" onClick={() => onCollect(r.studentId)} className="h-8 text-xs">Collect…</Button>
+                          {canCharge && <Button size="sm" variant="ghost" onClick={() => onCollect(r.studentId)} className="h-8 text-xs">Collect…</Button>}
                         </div>
                       </TableCell>
                     </TableRow>

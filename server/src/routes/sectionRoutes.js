@@ -6,12 +6,12 @@ import { authorize } from '../middleware/authorize.js';
 const router = express.Router();
 
 router.route('/')
-  .post(authenticate, authorize('admin', 'principal'), createSection)
+  .post(authenticate, authorize('admin', 'principal', 'academic_officer'), createSection)
   .get(authenticate, getSections);
 
 router.route('/:id')
   .get(authenticate, getSectionById)
-  .put(authenticate, authorize('admin', 'principal'), updateSection)
-  .delete(authenticate, authorize('admin', 'principal'), deleteSection);
+  .put(authenticate, authorize('admin', 'principal', 'academic_officer'), updateSection)
+  .delete(authenticate, authorize('admin', 'principal', 'academic_officer'), deleteSection);
 
 export default router;

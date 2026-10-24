@@ -28,8 +28,7 @@ const filteredLogs = useMemo(() => {
       user === "All Users" || log.user === user;
 
     const matchesAction =
-      action === "All Actions" ||
-      log.action.toLowerCase().includes(action.toLowerCase());
+      action === "All Actions" || log.action === action;
 
     const matchesDate =
       !date || log.timestamp.includes(date);
@@ -42,6 +41,10 @@ const filteredLogs = useMemo(() => {
     );
   });
 }, [auditLogs, search, user, action, date]);
+
+// Filter choices come from the entries themselves, so they always match.
+const userOptions = useMemo(() => [...new Set(auditLogs.map((l) => l.user))].sort(), [auditLogs]);
+const actionOptions = useMemo(() => [...new Set(auditLogs.map((l) => l.action))].sort(), [auditLogs]);
 const handleExportCSV = () => {
   const headers = [
     "Performed By",
@@ -63,9 +66,11 @@ const handleExportCSV = () => {
     log.timestamp,
   ]);
 
+  // Quote every cell so commas and quotes inside values don't break the columns.
+  const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const csvContent = [
-    headers.join(","),
-    ...rows.map((row) => row.join(",")),
+    headers.map(cell).join(","),
+    ...rows.map((row) => row.map(cell).join(",")),
   ].join("\n");
 
   const blob = new Blob([csvContent], {
@@ -125,6 +130,8 @@ const handleExportCSV = () => {
   setAction={setAction}
   date={date}
   setDate={setDate}
+  userOptions={userOptions}
+  actionOptions={actionOptions}
 />
 
       {loading ? (

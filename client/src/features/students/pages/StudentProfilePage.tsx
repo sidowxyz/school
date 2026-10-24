@@ -8,7 +8,7 @@ import {
 } from '@phosphor-icons/react';
 import { studentsApi } from "../api/studentsApi";
 import { academicApi } from "../../academic-structure/api/academicApi";
-import { fileBaseURL } from "../../../lib/axios";
+import { useCan, usePermission } from "../../../hooks/usePermission";
 import type {
     Student as ApiStudent, RefClass, RefSection, AssignedGuardian,
     AttendanceRecord, Invoice, StudentDocument as ApiDocument,
@@ -75,14 +75,14 @@ function pctColor(pct: number) {
 }
 
 function formatBytes(bytes: number): string {
-    if (!bytes) return "â€”";
+    if (!bytes) return "—";
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function personName(ref: { firstName: string; lastName: string } | string | null | undefined): string {
-    if (!ref || typeof ref === "string") return "â€”";
+    if (!ref || typeof ref === "string") return "—";
     return `${ref.firstName} ${ref.lastName}`;
 }
 
@@ -96,9 +96,9 @@ function toStudentBase(s: ApiStudent): StudentBase {
         lastName: s.lastName,
         gender: s.gender,
         dob: s.birthDate?.slice(0, 10) ?? "",
-        classId: s.classId && typeof s.classId !== "string" ? s.classId.cl_name : "â€”",
+        classId: s.classId && typeof s.classId !== "string" ? s.classId.cl_name : "—",
         classRefId: s.classId && typeof s.classId !== "string" ? s.classId._id : "",
-        section: section?.name ?? "â€”",
+        section: section?.name ?? "—",
         classAdvisor: classTeacher ? personName(classTeacher.userId) : "Not assigned yet",
         phone: s.phoneNumber,
         address: s.address,
@@ -198,7 +198,7 @@ function SummaryCard({ title, value, subtext, icon, tone, badge, onClick }: Summ
             <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
                 <span className="truncate">{subtext}</span>
                 <span className="flex items-center gap-0.5 text-[11px] font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity ml-1 shrink-0">
-                    View â†’
+                    View →
                 </span>
             </div>
         </Button>
@@ -541,13 +541,13 @@ function PersonalTab({ student, guardian }: { student: StudentBase; guardian: As
                     {guardian ? (
                         <Link to={`/parents/${guardian._id}`}>
                             <Badge variant="outline" className="cursor-pointer hover:bg-primary/10 transition-colors text-primary border-primary/30 text-xs">
-                                View Portal Account â†’
+                                View parent →
                             </Badge>
                         </Link>
                     ) : (
                         <Link to="/parents">
                             <Badge variant="outline" className="cursor-pointer hover:bg-warning/10 transition-colors text-warning border-warning/30 text-xs">
-                                Assign Parent â†’
+                                Assign Parent →
                             </Badge>
                         </Link>
                     )}
@@ -622,7 +622,7 @@ function PersonalTab({ student, guardian }: { student: StudentBase; guardian: As
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                             <InfoField label="Assigned Parent" value={guardian.name} />
                             <InfoField label="Phone" value={guardian.phone} icon={<Phone size={13} />} />
-                            <InfoField label="Email" value={guardian.email || "â€”"} icon={<Envelope size={13} />} />
+                            <InfoField label="Email" value={guardian.email || "—"} icon={<Envelope size={13} />} />
                         </div>
                     ) : (
                         <div className="rounded-lg bg-warning/10 border border-warning/20 px-3 py-2 text-xs text-warning">
@@ -631,8 +631,8 @@ function PersonalTab({ student, guardian }: { student: StudentBase; guardian: As
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                        <InfoField label="Parent Name (on file)" value={student.parentName || "â€”"} />
-                        <InfoField label="Parent Phone (on file)" value={student.parentPhone || "â€”"} icon={<Phone size={13} />} />
+                        <InfoField label="Parent Name (on file)" value={student.parentName || "—"} />
+                        <InfoField label="Parent Phone (on file)" value={student.parentPhone || "—"} icon={<Phone size={13} />} />
                         <InfoField
                             label="Emergency Contact"
                             value={student.emergencyContactName ? `${student.emergencyContactName} (${student.emergencyContactPhone || "no phone on file"})` : "Not recorded"}
@@ -734,7 +734,7 @@ function AcademicTab({ student, subjects }: { student: StudentBase; subjects: Su
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-xs font-semibold text-foreground truncate">{sub.sub_name}</p>
-                                            <p className="text-[10px] text-muted-foreground">Course ID: {sub.sub_no || "â€”"}</p>
+                                            <p className="text-[10px] text-muted-foreground">Course ID: {sub.sub_no || "—"}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -1021,7 +1021,7 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
                                                 <TableCell className="py-3.5 px-4 font-semibold text-success">${fee.paid_amount.toLocaleString()}</TableCell>
                                                 <TableCell className={`py-3.5 px-4 font-semibold ${fee.balance > 0 ? "text-destructive" : "text-muted-foreground"}`}>${fee.balance.toLocaleString()}</TableCell>
                                                 <TableCell className="py-3.5 px-4 text-muted-foreground text-xs">{new Date(fee.registerDate).toLocaleDateString()}</TableCell>
-                                                <TableCell className="py-3.5 px-4 text-muted-foreground text-xs">{fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : "â€”"}</TableCell>
+                                                <TableCell className="py-3.5 px-4 text-muted-foreground text-xs">{fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : "—"}</TableCell>
                                                 <TableCell className="py-3.5 px-4">
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${feeStatusBadge(fee.status)}`}>
                                                         {feeStatusLabel(fee.status)}
@@ -1043,6 +1043,17 @@ function FeesTab({ invoices, totals }: { invoices: Invoice[]; totals: { invoiced
 function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: ApiDocument[]; onReload: () => Promise<void> }) {
     const [showUpload, setShowUpload] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
+    const [docError, setDocError] = useState("");
+    const canEdit = useCan("students", "edit");
+
+    async function handleOpen(docId: string) {
+        setDocError("");
+        try {
+            await studentsApi.openDocument(studentId, docId);
+        } catch (err: any) {
+            setDocError(err?.response?.status === 404 ? "That file is no longer on the server. Please upload it again." : "Could not open the document.");
+        }
+    }
 
     async function handleUpload(file: File, name: string) {
         await studentsApi.uploadDocument(studentId, file, name);
@@ -1061,10 +1072,14 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
     }
 
     async function handleDelete(docId: string) {
+        if (!window.confirm("Delete this document? This can't be undone.")) return;
         setBusyId(docId);
+        setDocError("");
         try {
             await studentsApi.deleteDocument(studentId, docId);
             await onReload();
+        } catch (err: any) {
+            setDocError(err?.response?.data?.message || "Could not delete the document.");
         } finally {
             setBusyId(null);
         }
@@ -1127,10 +1142,13 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                         <CardTitle className="text-sm font-semibold">Student Documents & Verification</CardTitle>
                         <CardDescription className="text-xs">Certificates, national IDs, and medical files</CardDescription>
                     </div>
-                    <Button size="sm" onClick={() => setShowUpload(true)} className="gap-2 shadow-2xs">
-                        <UploadSimple size={14} /> Upload Document
-                    </Button>
+                    {canEdit && (
+                        <Button size="sm" onClick={() => setShowUpload(true)} className="gap-2 shadow-2xs">
+                            <UploadSimple size={14} /> Upload Document
+                        </Button>
+                    )}
                 </CardHeader>
+                {docError && <p className="mx-4 mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{docError}</p>}
                 <CardContent className="pt-4 p-0">
                     {docs.length === 0 ? (
                         <p className="py-12 text-center text-sm text-muted-foreground">No documents uploaded for this student yet.</p>
@@ -1180,23 +1198,26 @@ function DocumentsTab({ studentId, docs, onReload }: { studentId: string; docs: 
                                                             <CheckCircle size={13} /> Verify
                                                         </Button>
                                                     )}
-                                                    <a
-                                                        href={`${fileBaseURL}${doc.fileUrl}`}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                                    >
-                                                        <DownloadSimple size={13} /> Download
-                                                    </a>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        onClick={() => handleDelete(doc._id)}
-                                                        disabled={busyId === doc._id}
-                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                                        onClick={() => handleOpen(doc._id)}
+                                                        className="h-8 gap-1 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
                                                     >
-                                                        <Trash size={14} />
+                                                        <DownloadSimple size={13} /> Open
                                                     </Button>
+                                                    {canEdit && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleDelete(doc._id)}
+                                                            disabled={busyId === doc._id}
+                                                            aria-label="Delete document"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                                        >
+                                                            <Trash size={14} />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -1225,6 +1246,8 @@ const TABS: { id: ProfileTab; icon: React.ElementType }[] = [
 export default function StudentProfilePage() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const canEdit = useCan("students", "edit");
+    const canViewPortal = usePermission("student-portal");
 
     const [apiStudent, setApiStudent] = useState<ApiStudent | null>(null);
     const [classes, setClasses] = useState<RefClass[]>([]);
@@ -1324,22 +1347,21 @@ export default function StudentProfilePage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                    <Button variant="outline" size="sm" asChild className="gap-2">
-                        <Link to={`/student-portal?studentId=${student.id}`}>
-                            <Monitor size={15} />
-                            <span className="hidden sm:inline">View Portal</span>
-                        </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <DownloadSimple size={15} />
-                        <span className="hidden sm:inline">Download Report</span>
-                        <span className="sm:hidden">Report</span>
-                    </Button>
-                    <Button size="sm" onClick={() => setShowEdit(true)} className="gap-2">
-                        <PencilSimple size={15} />
-                        <span className="hidden sm:inline">Edit Profile</span>
-                        <span className="sm:hidden">Edit</span>
-                    </Button>
+                    {canViewPortal && (
+                        <Button variant="outline" size="sm" asChild className="gap-2">
+                            <Link to={`/student-portal?studentId=${student.id}`}>
+                                <Monitor size={15} />
+                                <span className="hidden sm:inline">View Portal</span>
+                            </Link>
+                        </Button>
+                    )}
+                    {canEdit && (
+                        <Button size="sm" onClick={() => setShowEdit(true)} className="gap-2">
+                            <PencilSimple size={15} />
+                            <span className="hidden sm:inline">Edit Profile</span>
+                            <span className="sm:hidden">Edit</span>
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -1376,11 +1398,11 @@ export default function StudentProfilePage() {
                                     </Badge>
                                 </div>
                                 <p className="mt-1 text-xs text-muted-foreground font-mono">
-                                    Admission ID: <span className="font-semibold text-foreground">{student.rollNumber || "â€”"}</span>
+                                    Admission ID: <span className="font-semibold text-foreground">{student.rollNumber || "—"}</span>
                                 </p>
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
                                     <Badge variant="secondary" className="text-xs font-medium">
-                                        {student.classId} â€¢ Section {student.section}
+                                        {student.classId} • Section {student.section}
                                     </Badge>
                                     {student.house && (
                                         <Badge variant="outline" className="text-xs text-muted-foreground">
@@ -1405,7 +1427,7 @@ export default function StudentProfilePage() {
                             </div>
                             <div className="text-center px-2">
                                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Age</p>
-                                <p className="text-2xl font-bold tracking-tight text-foreground mt-0.5">{age || "â€”"}</p>
+                                <p className="text-2xl font-bold tracking-tight text-foreground mt-0.5">{age || "—"}</p>
                                 <span className="text-[10px] text-muted-foreground">Years old</span>
                             </div>
                         </div>

@@ -162,6 +162,8 @@ Open each one in the browser. You should see:
 ```
 
 In each service's **Logs** you should see `MongoDB Connected` and `Created the first admin account: …`.
+`https://<service>.onrender.com/api/health` should answer `{"success":true,"database":"connected"}` — Render uses this
+address to decide whether a deploy is healthy, and the server refuses to start without its database or secrets.
 
 **Write the two URLs down.** The API address the frontend needs is the URL **plus `/api`**:
 
@@ -182,8 +184,8 @@ Do this twice (once for `demo`, once for `main`): **New + → Web Service** → 
 - Build Command: `npx --yes pnpm@10.34.7 install --frozen-lockfile`
 - Start Command: `node src/server.js`
 - Instance type: Free
-- Advanced → Health Check Path: `/`
-- Environment: `NODE_VERSION=24`, `NODE_ENV=production`, plus the variables in the table above, plus
+- Health Check Path: `/api/health`
+- Environment: `NODE_VERSION=24`, `NODE_ENV=production`, `SCHOOL_TIMEZONE=Africa/Mogadishu`, plus the variables in the table above, plus
   `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` (make each with
   `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`, and use different ones for demo and live).
 
@@ -255,7 +257,12 @@ Click **Save, rebuild, and deploy**.
 3. Do the same on the **live** website with the live admin login.
 4. In each copy, go to **Settings** and fill in the school profile. The demo and live data are separate, so fill in both.
 
-The system creates the admin account only when the database has no admin yet. Changing `ADMIN_PASSWORD` later does **not** change an existing password; change it in the app instead.
+The system creates the admin account only when the database has no admin yet. Changing `ADMIN_PASSWORD` later does **not** change an existing password; change it in the app instead (top-right menu → **My account**).
+
+**Forgotten passwords.** The app sends no email, so nobody can reset a password by themselves. An admin opens
+**User Accounts → Reset password** next to the person, and gives them the temporary password shown once. They sign in
+with it and choose their own under **My account**. Everyone (including teachers, parents and students) can change
+their own password under **My account**.
 
 ---
 
@@ -294,6 +301,9 @@ Watch the progress in the Vercel **Deployments** page and the Render **Events** 
 ### 3. Test on the demo website
 
 Open the demo website and try the change the way a real user would. If something is wrong, fix it locally and push to `demo` again. Repeat until demo is good.
+
+> Every pull request and every push to `demo` or `main` runs the automatic checks in
+> `.github/workflows/ci.yml` (server tests and lint, client type check, tests and build). Merge only when they are green.
 
 ### 4. Release to live
 
@@ -376,6 +386,7 @@ so before a risky release take a copy with `mongodump --uri "<LIVE connection st
 | `ADMIN_EMAIL` | first start | demo admin email | real admin email |
 | `ADMIN_PASSWORD` | first start | 8+ characters | strong, 8+ characters |
 | `CORS_ORIGINS` | yes | demo website address(es) | live website address(es) |
+| `SCHOOL_TIMEZONE` | recommended | `Africa/Mogadishu` | `Africa/Mogadishu` |
 | `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`, `AI_PROVIDER` | only for the AI assistant | optional | optional |
 
 Render sets `PORT` itself; don't add it.
@@ -406,6 +417,8 @@ Render sets `PORT` itself; don't add it.
 | Render log: **No admin account exists. Set ADMIN_EMAIL and ADMIN_PASSWORD** | Add both variables (8+ character password) and redeploy |
 | Site is very slow on the first visit | The free Render server was asleep. Wait a minute, or upgrade live to Starter |
 | Uploaded logo or photos disappeared | The free Render disk was reset by a deploy (Part 9). Add a Render Disk for live |
+| Vercel build fails with **VITE_API_BASE_URL is not set** | Add `VITE_API_BASE_URL` for that environment (Part 5.3) and redeploy. The build stops on purpose rather than ship a site that calls localhost |
+| Render deploy never becomes **Live**, log says **Missing required environment variables** or **Could not connect to the database** | Set `MONGODB_URI`, `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`, and check Atlas Network Access. The server exits on purpose instead of running half-configured |
 | Build fails with **ERR_PNPM_OUTDATED_LOCKFILE** | You changed `package.json` without updating the lockfile. Run `pnpm install` in `client/` or `server/`, commit `pnpm-lock.yaml`, push again |
 | Everyone is logged out after a deploy | Normal if you changed `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`. Don't change them unless needed |
 
@@ -415,7 +428,7 @@ Render sets `PORT` itself; don't add it.
 
 - [ ] GitHub has `main` and `demo` branches, and `main` is protected
 - [ ] Atlas: one cluster, users `school_demo_user` and `school_live_user`, Network Access `0.0.0.0/0`
-- [ ] Render: `school-api-demo` (branch `demo`) and `school-api` (branch `main`) both show **Live** and answer at `/`
+- [ ] Render: `school-api-demo` (branch `demo`) and `school-api` (branch `main`) both show **Live**, and `/api/health` says `"database":"connected"`
 - [ ] Each Render service has its own `MONGODB_URI`, its own JWT secrets, `ADMIN_EMAIL`, `ADMIN_PASSWORD` and `CORS_ORIGINS`
 - [ ] Vercel: Root Directory `client`, production branch `main`
 - [ ] Vercel `VITE_API_BASE_URL`: Production → live API, Preview → demo API, then redeployed

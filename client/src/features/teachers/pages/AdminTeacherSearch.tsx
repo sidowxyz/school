@@ -24,7 +24,7 @@ export default function AdminTeacherSearch({ onSelect }: Props) {
       try {
         setLoading(true);
         setError('');
-        const result = await teachersApi.getAll({ limit: 500 });
+        const result = await teachersApi.getAll({ limit: 1000 });
         if (!cancelled) setTeachers(result);
       } catch {
         if (!cancelled) setError('Failed to load teachers. Is the server running?');

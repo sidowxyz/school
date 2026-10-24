@@ -5,6 +5,7 @@ import PageHeader from '@/components/common/PageHeader';
 import StaffOverviewTab from '../components/StaffOverviewTab';
 import TakeStaffAttendanceTab from '../components/TakeStaffAttendanceTab';
 import StaffMonthlyReportTab from '../components/StaffMonthlyReportTab';
+import { useCan } from '../../../hooks/usePermission';
 
 type Tab = 'overview' | 'take' | 'report';
 
@@ -18,10 +19,12 @@ const isTab = (v: string | null): v is Tab => TABS.some((t) => t.value === v);
 
 /** Staff attendance: the same three simple tabs as student attendance. */
 export default function TeacherAttendancePage() {
+  const canTake = useCan('teacher-attendance', 'create');
+  const tabs = TABS.filter((t) => t.value !== 'take' || canTake);
   // The open tab lives in the URL (?tab=take) so refresh and links keep it.
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab');
-  const tab: Tab = isTab(tabParam) ? tabParam : 'overview';
+  const tab: Tab = isTab(tabParam) && tabs.some((t) => t.value === tabParam) ? tabParam : 'overview';
   const openTab = (value: string) => {
     if (isTab(value)) setParams(value === 'overview' ? {} : { tab: value }, { replace: true });
   };
@@ -32,7 +35,7 @@ export default function TeacherAttendancePage() {
 
       <Tabs value={tab} onValueChange={openTab} className="space-y-5">
         <TabsList className="h-auto w-full justify-start overflow-x-auto sm:w-auto">
-          {TABS.map(({ value, label, icon: TabIcon }) => (
+          {tabs.map(({ value, label, icon: TabIcon }) => (
             <TabsTrigger key={value} value={value} className="gap-2">
               <TabIcon size={16} />
               {label}
@@ -40,7 +43,7 @@ export default function TeacherAttendancePage() {
           ))}
         </TabsList>
 
-        <TabsContent value="overview" className="mt-0"><StaffOverviewTab onTakeAttendance={() => openTab('take')} /></TabsContent>
+        <TabsContent value="overview" className="mt-0"><StaffOverviewTab onTakeAttendance={canTake ? () => openTab('take') : undefined} /></TabsContent>
         <TabsContent value="take" className="mt-0"><TakeStaffAttendanceTab /></TabsContent>
         <TabsContent value="report" className="mt-0"><StaffMonthlyReportTab /></TabsContent>
       </Tabs>

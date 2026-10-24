@@ -1,6 +1,7 @@
 import Subject from '../models/Subject.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import { assertNotInUse } from '../utils/inUse.js';
 
 export const createSubject = async (req, res, next) => {
   try {
@@ -44,6 +45,7 @@ export const updateSubject = async (req, res, next) => {
 
 export const deleteSubject = async (req, res, next) => {
   try {
+    await assertNotInUse('subject', req.params.id);
     const subject = await Subject.findByIdAndDelete(req.params.id);
     if (!subject) return next(new AppError('Subject not found', 404));
     res.status(200).json(new ApiResponse(200, null, 'Subject deleted successfully'));

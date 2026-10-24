@@ -1,6 +1,7 @@
 import Class from '../models/Class.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import { assertNotInUse } from '../utils/inUse.js';
 
 export const createClass = async (req, res, next) => {
   try {
@@ -44,6 +45,7 @@ export const updateClass = async (req, res, next) => {
 
 export const deleteClass = async (req, res, next) => {
   try {
+    await assertNotInUse('class', req.params.id);
     const deletedClass = await Class.findByIdAndDelete(req.params.id);
     if (!deletedClass) return next(new AppError('Class not found', 404));
     res.status(200).json(new ApiResponse(200, null, 'Class deleted successfully'));

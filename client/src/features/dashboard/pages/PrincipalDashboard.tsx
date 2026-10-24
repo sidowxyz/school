@@ -59,7 +59,7 @@ export default function PrincipalDashboard() {
             { label: 'Students', icon: Student, to: '/students' },
             { label: 'Reports', icon: ChartBar, to: '/reports' },
             { label: 'Timetable', icon: CalendarBlank, to: '/timetable' },
-            { label: 'Audit log', icon: ShieldCheck, to: '/audit-logs' },
+            { label: 'Staff attendance', icon: ShieldCheck, to: '/teacher-attendance' },
           ]} />
 
           <Panel title="School health">
@@ -70,7 +70,7 @@ export default function PrincipalDashboard() {
           </Panel>
 
           {fees && (
-            <Panel title="Fees" action={<PanelLink to="/finance?tab=report">Report</PanelLink>}>
+            <Panel title="Fees" action={<PanelLink to="/reports">Reports</PanelLink>}>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <MiniStat label="Collected" value={money(fees.totalCollected ?? 0)} fill="bg-tile-green" />

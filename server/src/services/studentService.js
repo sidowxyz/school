@@ -13,16 +13,21 @@ import Address from '../models/Address.js';
 import Residence from '../models/Residence.js';
 import StudentClass from '../models/StudentClass.js';
 import Term from '../models/Term.js';
+import Year from '../models/Year.js';
 import AppError from '../utils/AppError.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { recomputeFamilyDiscount } from './familyService.js';
 import { abortTransaction, commitTransaction, startTransaction, withTransaction } from '../utils/transaction.js';
+import { pageParams, searchRegex } from '../utils/query.js';
 
 // The academic year a newly-enrolled student belongs to, absent an explicit
 // yearId — whichever Term is currently marked active.
 export const resolveCurrentYearId = async () => {
-  const activeTerm = await Term.findOne({ status: 'active' }).sort({ createdAt: -1 });
-  return activeTerm?.academicYearId ? activeTerm.academicYearId.toString() : null;
+  const activeTerm = await Term.findOne({ status: 'active' }).sort({ startDate: -1, createdAt: -1 });
+  if (activeTerm?.academicYearId) return activeTerm.academicYearId.toString();
+  // No term set up yet: the newest school year, so enrolment still has a home.
+  const latestYear = await Year.findOne().sort({ createdAt: -1 }).select('_id').lean();
+  return latestYear ? latestYear._id.toString() : null;
 };
 
 // Helper to generate next admission_no atomically with session support
@@ -182,7 +187,14 @@ export const getAllStudentsService = async (filters) => {
   // graduated/created in a different year has no StudentClass row for this one.
   if (yearId) {
     const enrolledIds = await StudentClass.distinct('student', { year: yearId });
-    query._id = { $in: enrolledIds };
+    // Students with no enrolment at all (e.g. registered before the school year
+    // was set up) belong to the current year, so they never vanish from the list.
+    if (String(yearId) === String(await resolveCurrentYearId())) {
+      const everEnrolled = await StudentClass.distinct('student');
+      query.$and = [{ $or: [{ _id: { $in: enrolledIds } }, { _id: { $nin: everEnrolled } }] }];
+    } else {
+      query._id = { $in: enrolledIds };
+    }
   }
 
   // Used by the Parents admin UI's "assign a student" picker, so it only offers
@@ -191,13 +203,13 @@ export const getAllStudentsService = async (filters) => {
     query.guardians = { $size: 0 };
   }
 
-  if (search) {
+  if (searchRegex(search)) {
     query.$or = [
-      { firstName: { $regex: search, $options: 'i' } },
-      { lastName: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
-      { admissionNumber: { $regex: search, $options: 'i' } },
-      { phoneNumber: { $regex: search, $options: 'i' } }
+      { firstName: searchRegex(search) },
+      { lastName: searchRegex(search) },
+      { email: searchRegex(search) },
+      { admissionNumber: searchRegex(search) },
+      { phoneNumber: searchRegex(search) }
     ];
   }
 
@@ -213,8 +225,7 @@ export const getAllStudentsService = async (filters) => {
     query.status = status;
   }
 
-  const currentPage = Number(page);
-  const pageSize = Number(limit);
+  const { page: currentPage, limit: pageSize } = pageParams({ page, limit }, { defaultLimit: 10, maxLimit: 1000 });
 
   const totalRecords = await Student.countDocuments(query);
 
@@ -262,6 +273,11 @@ export const updateStudentService = async (id, bodyData) => {
   delete bodyData.admissionNumber;
   delete bodyData.guardian;
   delete bodyData.yearId;
+  // Fields that have their own, more restricted endpoints (the per-student
+  // discount is admin-only; logins, guardians and deletion have their own flows).
+  for (const key of ['fee_discount', 'userId', 'isDeleted', 'deletedAt', 'guardians', 'familyId', '_id', 'createdAt', 'updatedAt']) {
+    delete bodyData[key];
+  }
 
   const currentStudent = await Student.findOne({ _id: id, isDeleted: false });
   if (!currentStudent) throw new AppError('Student not found.', 404);
@@ -308,7 +324,38 @@ export const updateStudentService = async (id, bodyData) => {
     throw new AppError('Student not found.', 404);
   }
 
+  if (bodyData.status && bodyData.status !== currentStudent.status) await applyStatusChange(student, student.status);
+
+  // A class move also moves this year's enrolment, so the student shows up on
+  // the new class's attendance register (and leaves the old one).
+  if (String(currentStudent.classId) !== String(student.classId?._id ?? student.classId)
+    || String(currentStudent.sectionId ?? '') !== String(student.sectionId?._id ?? student.sectionId ?? '')) {
+    const yearId = await resolveCurrentYearId();
+    if (yearId) {
+      await StudentClass.updateMany(
+        { student: student._id, year: yearId },
+        { class: student.classId?._id ?? student.classId, section: student.sectionId?._id ?? student.sectionId ?? null },
+      );
+    }
+  }
+
   return student;
+};
+
+// Leaving the school (deletion, or a status other than Active) ends the
+// student's login and gives siblings the discount their family now qualifies for.
+const afterStudentLeaves = async (student) => {
+  if (student.userId) await User.updateOne({ _id: student.userId }, { status: false, refreshTokens: [] });
+  if (student.familyId) await recomputeFamilyDiscount(student.familyId);
+};
+
+const applyStatusChange = async (student, status) => {
+  if (status === 'Active') {
+    if (student.userId) await User.updateOne({ _id: student.userId }, { status: true });
+    if (student.familyId) await recomputeFamilyDiscount(student.familyId);
+  } else {
+    await afterStudentLeaves(student);
+  }
 };
 
 export const deleteStudentService = async (id) => {
@@ -335,6 +382,9 @@ export const deleteStudentService = async (id) => {
     );
   }
 
+  // Off every attendance register.
+  await StudentClass.deleteMany({ student: student._id });
+  await afterStudentLeaves(student);
   return student;
 };
 
@@ -357,6 +407,7 @@ export const updateStudentStatusService = async (id, status) => {
     throw new AppError('Student not found.', 404);
   }
 
+  await applyStatusChange(student, status);
   return student;
 };
 

@@ -29,37 +29,12 @@ describe('Auth API Integration Tests', () => {
     // file in this run (see beforeAll above).
   }, 30000);
 
-  const registerUser = () => request(app).post('/api/auth/register').send(validUser);
+  // Accounts are created by staff; there is no public sign-up.
+  const registerUser = () => User.create({ ...validUser, role: 'student' });
 
-  describe('POST /api/auth/register', () => {
-    it('registers a new user and returns id, name and email', async () => {
-      const res = await registerUser();
-      expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data).toHaveProperty('id');
-      expect(res.body.data.email).toBe(validUser.email);
-      // `name` is derived from the firstName + lastName virtual
-      expect(res.body.data.name).toBe('Amina Yusuf');
-    });
-
-    it('rejects a duplicate email with 400', async () => {
-      await registerUser();
-      const res = await registerUser();
-      expect(res.status).toBe(400);
-    });
-
-    it('rejects a weak password (<8 chars) with 400', async () => {
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send({ ...validUser, password: 'short' });
-      expect(res.status).toBe(400);
-    });
-
-    it('never returns the password hash', async () => {
-      const res = await registerUser();
-      expect(res.body.data).not.toHaveProperty('password');
-      expect(res.body.data).not.toHaveProperty('password_hash');
-    });
+  it('has no public sign-up or email reset endpoints', async () => {
+    expect((await request(app).post('/api/auth/register').send(validUser)).status).toBe(404);
+    expect((await request(app).post('/api/auth/forgot-password').send({ email: validUser.email })).status).toBe(404);
   });
 
   describe('POST /api/auth/login', () => {
@@ -101,6 +76,19 @@ describe('Auth API Integration Tests', () => {
       const res = await request(app).post('/api/auth/refresh').send({ token: refreshToken });
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveProperty('accessToken');
+      // The used token is replaced by a new one and can't be used again.
+      expect(res.body.data.refreshToken).not.toBe(refreshToken);
+      expect((await request(app).post('/api/auth/refresh').send({ token: refreshToken })).status).toBe(403);
+      expect((await request(app).post('/api/auth/refresh').send({ token: res.body.data.refreshToken })).status).toBe(200);
+    });
+
+    it('keeps two devices signed in at once', async () => {
+      await registerUser();
+      const creds = { email: validUser.email, password: validUser.password };
+      const phone = await request(app).post('/api/auth/login').send(creds);
+      const laptop = await request(app).post('/api/auth/login').send(creds);
+      expect((await request(app).post('/api/auth/refresh').send({ token: phone.body.data.refreshToken })).status).toBe(200);
+      expect((await request(app).post('/api/auth/refresh').send({ token: laptop.body.data.refreshToken })).status).toBe(200);
     });
 
     it('rejects a missing refresh token with 401', async () => {

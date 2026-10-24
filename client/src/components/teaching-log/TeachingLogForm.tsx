@@ -184,7 +184,7 @@ export default function TeachingLogForm({
       await onSubmit(payload, status);
       navigate('/teaching-log');
     } catch (err: any) {
-      setFormError(err?.message || 'Something went wrong while saving the teaching log.');
+      setFormError(err?.response?.data?.message || err?.message || 'Something went wrong while saving the teaching log.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };

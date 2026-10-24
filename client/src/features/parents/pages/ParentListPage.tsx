@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useCan } from "../../../hooks/usePermission";
 import {
   SpinnerGap,
   MagnifyingGlass,
@@ -43,6 +44,7 @@ export default function ParentListPage() {
   const [tierFilter, setTierFilter] = useState("All");
   const [childrenFilter, setChildrenFilter] = useState<ChildrenFilter>("all");
   const [openAddModal, setOpenAddModal] = useState(false);
+  const canCreate = useCan("parents", "create");
   const [parents, setParents] = useState<Parent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,7 +52,7 @@ export default function ParentListPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const { parents: list } = await parentsApi.getAll({ limit: 200 });
+      const { parents: list } = await parentsApi.getAll({ limit: 1000 });
       setParents(list.slice().sort((a, b) => a.name.localeCompare(b.name)));
       setError("");
     } catch {
@@ -106,9 +108,9 @@ export default function ParentListPage() {
             <Button variant="outline" size="sm" onClick={exportParents} disabled={loading || filtered.length === 0} className="gap-2">
               <DownloadSimple size={14} /> <span className="hidden sm:inline">Export</span>
             </Button>
-            <Button size="sm" onClick={() => setOpenAddModal(true)} className="gap-2">
+            {canCreate && <Button size="sm" onClick={() => setOpenAddModal(true)} className="gap-2">
               <UserPlus size={15} /> Add parent
-            </Button>
+            </Button>}
           </div>
         }
       />
@@ -168,7 +170,7 @@ export default function ParentListPage() {
               <Button variant="outline" size="sm" onClick={clearFilters}>Clear filters</Button>
             ) : (
               <div className="flex justify-center gap-2">
-                <Button size="sm" onClick={() => setOpenAddModal(true)} className="gap-1.5"><UserPlus size={14} /> Add parent</Button>
+                {canCreate && <Button size="sm" onClick={() => setOpenAddModal(true)} className="gap-1.5"><UserPlus size={14} /> Add parent</Button>}
                 <Button variant="outline" size="sm" onClick={() => navigate("/students", { state: { openCreate: true } })}>Register a student</Button>
               </div>
             )}

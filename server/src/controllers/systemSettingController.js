@@ -2,6 +2,7 @@ import SystemSetting from '../models/SystemSetting.js';
 import Year from '../models/Year.js';
 import Term from '../models/Term.js';
 import mongoose from 'mongoose';
+import { updateSystemSettingSchema } from '../validators/systemSettingValidator.js';
 
 const getOrCreateSettings = async () => {
   let settings = await SystemSetting.findOne();
@@ -31,9 +32,10 @@ export const updateSystemSettings = async (req, res, next) => {
   try {
     let settings = await getOrCreateSettings();
 
+    // Only the settings fields the form may change (unknown keys are dropped).
     settings = await SystemSetting.findByIdAndUpdate(
       settings._id,
-      req.body,
+      updateSystemSettingSchema.parse(req.body),
       { new: true, runValidators: true }
     );
 
@@ -218,4 +220,23 @@ export const deleteCalendarEvent = async (req, res, next) => {
     await settings.save();
     res.status(200).json({ success: true, message: 'Event deleted successfully' });
   } catch (error) { next(error); }
+};
+
+// GET /api/v1/settings/public — what the sign-in page shows. Nothing private.
+export const getPublicIdentity = async (req, res, next) => {
+  try {
+    const s = await getOrCreateSettings();
+    res.status(200).json({
+      success: true,
+      data: {
+        schoolName: s.schoolName,
+        logoUrl: s.logoUrl ?? null,
+        // The model's placeholder defaults are not real contact details.
+        schoolEmail: s.schoolEmail && s.schoolEmail !== 'info@school.edu' ? s.schoolEmail : null,
+        schoolPhone: s.schoolPhone && !s.schoolPhone.includes('XXX') ? s.schoolPhone : null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 };
