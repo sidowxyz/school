@@ -46,6 +46,7 @@ import UserListPage from '../features/users/pages/UserListPage';
 // Timetable
 import TimetablePage from '../features/timetable/pages/TimetablePage';
 import ExamsPage from '../features/exams/pages/ExamsPage';
+import AcademicStructurePage from '../features/academic-structure/pages/AcademicStructurePage';
 
 // Finance
 import FeeManagementPage from '../features/finance/pages/FeeManagementPage';
@@ -146,7 +147,9 @@ export const router = createBrowserRouter([
           ]),
 
           // Academic Structure and Audit Logs now live in Settings.
-          { path: '/academic-structure', element: <Navigate to="/settings?tab=structure" replace /> },
+          moduleGated('academic-structure', [
+            { path: '/academic-structure', element: <AcademicStructurePage /> },
+          ]),
           { path: '/audit-logs', element: <Navigate to="/settings?tab=audit" replace /> },
 
           moduleGated('attendance', [

@@ -173,7 +173,7 @@ export default function PromotionTab() {
         <div className="space-y-0.5">
           <p className="font-semibold">Moving students into the next school year</p>
           <p className="opacity-80">
-            First add the new year and its first term under <Link to="/settings?tab=structure" className="font-medium underline">Academic structure</Link> and make that term active.
+            First add the new year and its first term under <Link to="/academic-structure" className="font-medium underline">Academic structure</Link> and make that term active.
             Then choose what each class does and press <span className="font-medium">Move students</span>. Marks, attendance and fees from this year stay as history, and running it again never moves anyone twice.
           </p>
         </div>

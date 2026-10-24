@@ -318,7 +318,7 @@ export default function AcademicCalendar() {
         <SettingsSection icon={CalendarBlank} tint="yellow" title="No school year yet" description="The calendar is built from your school years and terms">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">Create a school year and its terms first. Their dates appear here automatically, then you can add holidays and events.</p>
-            <Button asChild size="sm"><Link to="/settings?tab=structure">Set up school years</Link></Button>
+            <Button asChild size="sm"><Link to="/academic-structure">Set up school years</Link></Button>
           </div>
         </SettingsSection>
       ) : (
@@ -331,7 +331,7 @@ export default function AcademicCalendar() {
               </NativeSelect>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="ghost" size="sm"><Link to="/settings?tab=structure">Edit years &amp; terms</Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link to="/academic-structure">Edit years &amp; terms</Link></Button>
               {addButtons}
             </div>
           </div>

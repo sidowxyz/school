@@ -16,6 +16,7 @@ import {
   GearSix,
   SidebarSimple,
   Exam,
+  Stack,
   type Icon,
 } from '@phosphor-icons/react';
 import { useAuth } from '../../hooks/useAuth';
@@ -42,6 +43,7 @@ const navSections: NavSection[] = [
       { label: 'Attendance', path: '/attendance', icon: CalendarCheck, module: 'attendance' },
       { label: 'Timetable', path: '/timetable', icon: CalendarBlank, module: 'timetable' },
       { label: 'Exams & Marks', path: '/exams', icon: Exam, module: 'exams' },
+      { label: 'Academic Structure', path: '/academic-structure', icon: Stack, module: 'academic-structure' },
       { label: 'Teaching Logs', path: '/teaching-log', icon: Notebook, module: 'teaching-log' },
     ],
   },

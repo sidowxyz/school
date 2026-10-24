@@ -24,6 +24,7 @@ import type { Year, Level, Term, Class, Section, Subject, Period, Weekday } from
 import type { Teacher } from "../../teachers/types";
 import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { DatePicker, TimePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
@@ -1183,20 +1184,90 @@ function SubjectsTab() {
 
 // Main Page
 
-// In setup order: each step needs the one before it.
-// Periods are per term, so that step shows no count.
-const TABS: { value: Tab; count?: keyof OverviewCounts }[] = [
-  { value: "Academic Years", count: "years" },
-  { value: "Terms", count: "terms" },
-  { value: "Levels", count: "levels" },
-  { value: "Periods" },
-  { value: "Classes", count: "classes" },
-  { value: "Sections", count: "sections" },
-  { value: "Subjects", count: "subjects" },
+// In setup order: each step needs the one before it. Same icons and colours
+// as each step's add/edit drawer. Periods are per term, so that step has no count.
+const TABS: { value: Tab; icon: Icon; tint: keyof typeof ICON_TINTS; hint: string; count?: keyof OverviewCounts; noun?: [string, string] }[] = [
+  { value: "Academic Years", icon: Calendar, tint: "blue", hint: "e.g. 2026–2027", count: "years", noun: ["year", "years"] },
+  { value: "Terms", icon: CalendarBlank, tint: "green", hint: "Parts of the year", count: "terms", noun: ["term", "terms"] },
+  { value: "Levels", icon: Stack, tint: "violet", hint: "Primary, Secondary…", count: "levels", noun: ["level", "levels"] },
+  { value: "Periods", icon: Clock, tint: "yellow", hint: "The school day" },
+  { value: "Classes", icon: Buildings, tint: "pink", hint: "Grade 1, Grade 2…", count: "classes", noun: ["class", "classes"] },
+  { value: "Sections", icon: SquaresFour, tint: "blue", hint: "A, B, C…", count: "sections", noun: ["section", "sections"] },
+  { value: "Subjects", icon: BookOpen, tint: "green", hint: "What is taught", count: "subjects", noun: ["subject", "subjects"] },
 ];
 
-/** Lives as a tab in Settings (embedded); kept usable on its own too. */
-export default function AcademicStructurePage({ embedded = false }: { embedded?: boolean }) {
+/** The seven setup steps as cards: icon, how far each is, a tick when done and the next one to do. */
+function SetupSteps({ active, counts, onSelect }: { active: Tab; counts: OverviewCounts | null; onSelect: (tab: Tab) => void }) {
+  const counted = TABS.filter((t) => t.count);
+  const done = counts ? counted.filter((t) => counts[t.count!] > 0).length : 0;
+  const next = counts ? counted.find((t) => counts[t.count!] === 0)?.value : undefined;
+  const percent = Math.round((done / counted.length) * 100);
+
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Set up in order</p>
+          <p className="text-xs text-muted-foreground">Each step needs the one before it.</p>
+        </div>
+        <div className="w-full max-w-[220px]">
+          <div className="mb-1 flex justify-between text-xs">
+            <span className="text-muted-foreground">Setup progress</span>
+            <span className="font-semibold tabular-nums text-foreground">{counts ? `${done} of ${counted.length}` : "…"}</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Setup progress">
+            <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${percent}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <Tabs value={active} onValueChange={(v) => onSelect(v as Tab)}>
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 border-0 bg-transparent p-0 shadow-none sm:grid-cols-4 xl:grid-cols-7">
+          {TABS.map(({ value, icon: StepIcon, tint, hint, count, noun }, i) => {
+            const n = count && counts ? counts[count] : undefined;
+            const isDone = n !== undefined && n > 0;
+            const isNext = value === next;
+            return (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className={cn(
+                  "group relative h-auto flex-col items-start gap-2.5 whitespace-normal rounded-2xl border border-border/70 bg-card p-3 text-left font-normal text-foreground",
+                  "hover:border-foreground/20 hover:bg-muted/40",
+                  "data-[state=active]:border-transparent data-[state=active]:bg-tile-blue data-[state=active]:font-normal data-[state=active]:text-tile-foreground data-[state=active]:shadow-sm data-[state=active]:hover:bg-tile-blue",
+                  isNext && "border-dashed border-primary/50",
+                )}
+              >
+                <div className="flex w-full items-center justify-between">
+                  <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-tile-foreground", ICON_TINTS[tint], "group-data-[state=active]:bg-card")}>
+                    <StepIcon size={17} weight="duotone" />
+                  </span>
+                  {isDone ? (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-label="Done">
+                      <Check size={11} weight="bold" />
+                    </span>
+                  ) : isNext ? (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary group-data-[state=active]:bg-card">Next</span>
+                  ) : (
+                    <span className="text-[11px] font-semibold tabular-nums text-muted-foreground group-data-[state=active]:text-tile-foreground/70">{i + 1}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-tight">{value}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground group-data-[state=active]:text-tile-foreground/75">
+                    {!count ? hint : n === undefined ? "…" : n > 0 ? `${n} ${n === 1 ? noun![0] : noun![1]}` : "Not set up yet"}
+                  </p>
+                </div>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
+    </div>
+  );
+}
+
+export default function AcademicStructurePage() {
   const canSettings = usePermission("settings");
   const canStructure = usePermission("academic-structure");
   const canOpenCalendar = canSettings || canStructure;
@@ -1205,29 +1276,12 @@ export default function AcademicStructurePage({ embedded = false }: { embedded?:
 
   return (
     <div className="space-y-6">
-      {!embedded && (
-        <PageHeader
-          title="Academic Structure"
-          subtitle="Years, terms, levels, periods, classes and subjects."
-        />
-      )}
+      <PageHeader
+        title="Academic Structure"
+        subtitle="Years, terms, levels, periods, classes and subjects."
+      />
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-          {TABS.map(({ value, count }, i) => {
-            const n = count && counts ? counts[count] : undefined;
-            return (
-              <TabsTrigger key={value} value={value} className="gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
-                  {n ? <Check size={11} weight="bold" className="text-success" /> : i + 1}
-                </span>
-                {value}
-                {n !== undefined && <span className="rounded-full bg-background/70 px-1.5 text-[11px] tabular-nums">{n}</span>}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </Tabs>
+      <SetupSteps active={activeTab} counts={counts} onSelect={setActiveTab} />
 
       {activeTab === "Academic Years" && <AcademicYearsTab />}
       {activeTab === "Terms"          && <TermsTab />}

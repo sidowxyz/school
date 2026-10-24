@@ -53,9 +53,9 @@ export default function AcademicOfficerDashboard() {
         main={<>
           <KpiRow>
             <KpiTile label="Classes" value={s.totalClasses} fill="bg-tile-pink" icon={Buildings}
-              note={`${s.totalStudents.toLocaleString()} students in school`} to="/settings?tab=structure" />
+              note={`${s.totalStudents.toLocaleString()} students in school`} to="/academic-structure" />
             <KpiTile label="Subjects" value={subjectCount ?? '—'} fill="bg-tile-yellow" icon={BookOpen}
-              note="Taught across the school" to="/settings?tab=structure" />
+              note="Taught across the school" to="/academic-structure" />
             <KpiTile label="Teachers" value={s.totalTeachers} fill="bg-tile-blue" icon={ChalkboardTeacher}
               note="Teaching staff on the roster" to="/timetable" />
           </KpiRow>
@@ -69,12 +69,12 @@ export default function AcademicOfficerDashboard() {
         side={<>
           <QuickActions actions={[
             { label: 'Timetable', icon: CalendarBlank, to: '/timetable' },
-            { label: 'Structure', icon: Buildings, to: '/settings?tab=structure' },
-            { label: 'Subjects', icon: BookOpen, to: '/settings?tab=structure' },
+            { label: 'Structure', icon: Buildings, to: '/academic-structure' },
+            { label: 'Subjects', icon: BookOpen, to: '/academic-structure' },
             { label: 'Reports', icon: ChartBar, to: '/reports' },
           ]} />
 
-          <Panel title="Current term" action={<PanelLink to="/settings?tab=structure">Terms</PanelLink>}>
+          <Panel title="Current term" action={<PanelLink to="/academic-structure">Terms</PanelLink>}>
             {term ? (
               <div className="space-y-4">
                 <div className="rounded-xl bg-tile-violet p-4 text-tile-foreground">

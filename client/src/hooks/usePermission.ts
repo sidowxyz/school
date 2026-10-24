@@ -105,7 +105,7 @@ const PAGE_PATHS: [string, string][] = [
   ['attendance', '/attendance'],
   ['timetable', '/timetable'],
   ['exams', '/exams'],
-  ['academic-structure', '/settings?tab=structure'],
+  ['academic-structure', '/academic-structure'],
   ['students', '/students'],
   ['teachers', '/teachers'],
   ['teacher-attendance', '/teacher-attendance'],

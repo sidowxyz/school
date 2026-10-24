@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { ArrowCircleUp, Buildings, CalendarBlank, ClockCounterClockwise, FloppyDisk, Palette, Percent, SpinnerGap, Stack, WarningCircle, type Icon } from '@phosphor-icons/react';
+import { Navigate, useSearchParams } from 'react-router-dom';
+import { ArrowCircleUp, Buildings, CalendarBlank, ClockCounterClockwise, FloppyDisk, Palette, Percent, SpinnerGap, WarningCircle, type Icon } from '@phosphor-icons/react';
 import PageHeader from '../../../components/common/PageHeader';
 import { useTheme } from '../../../context/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
@@ -8,7 +8,6 @@ import SchoolProfile from '../components/SchoolProfile';
 import AcademicCalendar from '../components/AcademicCalendar';
 import BrandingSettings from '../components/BrandingSettings';
 import DiscountPolicy from '../components/DiscountPolicy';
-import AcademicStructurePage from '../../academic-structure/pages/AcademicStructurePage';
 import AuditLogsPage from '../../audit-logs/pages/AuditLogsPage';
 import PromotionTab from '../../promotion/PromotionTab';
 import { usePermission } from '../../../hooks/usePermission';
@@ -18,12 +17,11 @@ import { DashboardLoading } from '../../dashboard/components/DashboardKit';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-type TabId = 'school' | 'structure' | 'promotion' | 'calendar' | 'branding' | 'discounts' | 'audit';
+type TabId = 'school' | 'promotion' | 'calendar' | 'branding' | 'discounts' | 'audit';
 
 // Each tab shows only for the people who may use it ("module" as in usePermission).
 const TABS: { id: TabId; label: string; icon: Icon; module: 'settings' | 'academic-structure' | 'audit-logs' | 'calendar' }[] = [
   { id: 'school', label: 'School profile', icon: Buildings, module: 'settings' },
-  { id: 'structure', label: 'Academic structure', icon: Stack, module: 'academic-structure' },
   { id: 'promotion', label: 'New school year', icon: ArrowCircleUp, module: 'academic-structure' },
   { id: 'calendar', label: 'Calendar', icon: CalendarBlank, module: 'calendar' },
   { id: 'branding', label: 'Logo & theme', icon: Palette, module: 'settings' },
@@ -103,11 +101,14 @@ export default function SettingsPage() {
     }
   };
 
+  // Academic Structure has its own page again; old links still land there.
+  if (raw === 'structure') return <Navigate to="/academic-structure" replace />;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Settings"
-        subtitle={canSettings ? "School details, structure, calendar, branding and logs." : 'School years, classes, subjects, promotion and calendar.'}
+        subtitle={canSettings ? "School details, calendar, branding, fee rules and logs." : 'The school calendar and moving students into the next year.'}
       />
 
       <Tabs value={tab} onValueChange={openTab}>
@@ -128,7 +129,6 @@ export default function SettingsPage() {
       )}
 
       {/* These tabs don't need the school details. */}
-      {tab === 'structure' && <AcademicStructurePage embedded />}
       {tab === 'promotion' && <PromotionTab />}
       {tab === 'calendar' && <AcademicCalendar />}
       {tab === 'audit' && <AuditLogsPage embedded />}
