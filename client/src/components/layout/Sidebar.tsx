@@ -15,6 +15,7 @@ import {
   Key,
   GearSix,
   SidebarSimple,
+  Exam,
   type Icon,
 } from '@phosphor-icons/react';
 import { useAuth } from '../../hooks/useAuth';
@@ -40,6 +41,7 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Attendance', path: '/attendance', icon: CalendarCheck, module: 'attendance' },
       { label: 'Timetable', path: '/timetable', icon: CalendarBlank, module: 'timetable' },
+      { label: 'Exams & Marks', path: '/exams', icon: Exam, module: 'exams' },
       { label: 'Teaching Logs', path: '/teaching-log', icon: Notebook, module: 'teaching-log' },
     ],
   },
@@ -119,10 +121,7 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
               className="h-9 w-9 shrink-0 rounded-xl object-contain"
               onError={onLogoError}
             />
-            <div className="min-w-0">
-              <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-foreground">{schoolName}</p>
-              <p className="truncate text-[11px] text-muted-foreground">School management</p>
-            </div>
+            <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-tight text-foreground">{schoolName}</p>
           </div>
         )}
         <Button

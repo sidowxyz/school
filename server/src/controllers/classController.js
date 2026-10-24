@@ -2,6 +2,7 @@ import Class from '../models/Class.js';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { assertNotInUse } from '../utils/inUse.js';
+import { activeStudentCounts } from '../utils/classCounts.js';
 
 export const createClass = async (req, res, next) => {
   try {
@@ -15,8 +16,9 @@ export const createClass = async (req, res, next) => {
 
 export const getClasses = async (req, res, next) => {
   try {
-    const classes = await Class.find().populate('lev_no', 'lev_name lev_no');
-    res.status(200).json(new ApiResponse(200, classes, 'Classes retrieved successfully'));
+    const [classes, { byClass }] = await Promise.all([Class.find().populate('lev_no', 'lev_name lev_no').lean(), activeStudentCounts()]);
+    const withCounts = classes.map((c) => ({ ...c, studentCount: byClass.get(String(c._id)) ?? 0 }));
+    res.status(200).json(new ApiResponse(200, withCounts, 'Classes retrieved successfully'));
   } catch (error) {
     next(error);
   }

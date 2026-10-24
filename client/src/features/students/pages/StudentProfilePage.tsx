@@ -9,10 +9,13 @@ import {
   PencilSimpleLine,
   CalendarCheck,
   Receipt,
+  Exam,
 } from '@phosphor-icons/react';
 import { studentsApi } from "../api/studentsApi";
 import { academicApi } from "../../academic-structure/api/academicApi";
 import { useCan, usePermission } from "../../../hooks/usePermission";
+import { examsApi } from "../../exams/api/examsApi";
+import { ReportCardPanel } from "../../exams/components/ReportCard";
 import type {
     Student as ApiStudent, RefClass, RefSection, AssignedGuardian,
     AttendanceRecord, Invoice, StudentDocument as ApiDocument,
@@ -38,7 +41,17 @@ import { EmptyState } from "@/components/common/EmptyState";
 
 // Types
 
-type ProfileTab = "Personal" | "Academic" | "Attendance" | "Fees" | "Documents";
+/** Term report cards, from the marks teachers entered (published or not). */
+function ResultsTab({ studentId }: { studentId: string }) {
+    const load = useCallback((termId?: string) => examsApi.reportCard(studentId, termId), [studentId]);
+    return (
+        <Card className="rounded-2xl p-5">
+            <ReportCardPanel load={load} emptyText="No marks have been entered for this student yet." />
+        </Card>
+    );
+}
+
+type ProfileTab = "Personal" | "Academic" | "Attendance" | "Results" | "Fees" | "Documents";
 
 interface StudentBase {
     id: string;
@@ -1243,6 +1256,7 @@ const TABS: { id: ProfileTab; icon: React.ElementType }[] = [
     { id: "Personal", icon: User },
     { id: "Academic", icon: GraduationCap },
     { id: "Attendance", icon: Calendar },
+    { id: "Results", icon: Exam },
     { id: "Fees", icon: CurrencyDollar },
     { id: "Documents", icon: FileText },
 ];
@@ -1312,6 +1326,7 @@ export default function StudentProfilePage() {
     }, [id]);
 
     const [activeTab, setActiveTab] = useState<ProfileTab>("Personal");
+    const canSeeResults = usePermission("exams");
     const [showEdit, setShowEdit] = useState(false);
 
     if (loading) {
@@ -1504,7 +1519,7 @@ export default function StudentProfilePage() {
 
             {/* Tabs Bar */}
             <div className="mb-6 flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-muted/40 p-1.5 shadow-2xs">
-                {TABS.map(({ id, icon: Icon }) => {
+                {TABS.filter(({ id }) => id !== "Results" || canSeeResults).map(({ id, icon: Icon }) => {
                     const active = activeTab === id;
                     return (
                         <Button
@@ -1528,6 +1543,7 @@ export default function StudentProfilePage() {
             {activeTab === "Personal" && <PersonalTab student={student} guardian={assignedGuardian} />}
             {activeTab === "Academic" && <AcademicTab student={student} subjects={subjects} />}
             {activeTab === "Attendance" && <AttendanceTab records={attendanceRecords} />}
+            {activeTab === "Results" && canSeeResults && <ResultsTab studentId={student.id} />}
             {activeTab === "Fees" && <FeesTab invoices={invoices} totals={invoiceTotals} />}
             {activeTab === "Documents" && <DocumentsTab studentId={student.id} docs={documents} onReload={reloadDocuments} />}
 

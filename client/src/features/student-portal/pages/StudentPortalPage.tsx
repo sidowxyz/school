@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, CurrencyDollar, Gear, UserCircle, CaretLeft, type Icon } from '@phosphor-icons/react';
+import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, CurrencyDollar, Gear, UserCircle, CaretLeft, Exam, type Icon } from '@phosphor-icons/react';
 
 import { useAuth } from '../../../hooks/useAuth';
 import type { Student } from '../../students/types';
@@ -15,6 +15,7 @@ import AttendanceTab from '../components/tabs/AttendanceTab';
 import TimetableTab from '../components/tabs/TimetableTab';
 import SubjectsTab from '../components/tabs/SubjectsTab';
 import FeesTab from '../components/tabs/FeesTab';
+import ResultsTab from '../components/tabs/ResultsTab';
 import SettingsTab from '../components/tabs/SettingsTab';
 import { TAB_IDS, type TabId } from '../types';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ function StudentPortalContent({ student }: { student: Student | null }) {
     { id: 'attendance',    label: 'Attendance',    icon: ClipboardText },
     { id: 'timetable',     label: 'Timetable',     icon: CalendarBlank },
     { id: 'subjects',      label: 'Subjects',      icon: BookOpen },
+    { id: 'results',       label: 'Results',       icon: Exam },
     { id: 'fees',          label: 'Fees',          icon: CurrencyDollar },
     { id: 'settings',      label: 'Settings',      icon: Gear },
   ];
@@ -59,6 +61,7 @@ function StudentPortalContent({ student }: { student: Student | null }) {
       {tab === 'attendance'    && <AttendanceTab />}
       {tab === 'timetable'     && <TimetableTab />}
       {tab === 'subjects'      && <SubjectsTab />}
+      {tab === 'results'       && <ResultsTab />}
       {tab === 'fees'          && <FeesTab />}
       {tab === 'settings'      && <SettingsTab />}
     </>

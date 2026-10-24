@@ -22,9 +22,11 @@ export const MODULES = [
   { key: 'teacher-attendance', label: 'Staff Attendance', group: 'People', paths: ['/staff-attendance'] },
   { key: 'attendance', label: 'Attendance', group: 'Academics', paths: ['/attendance'] },
   { key: 'timetable', label: 'Timetable', group: 'Academics', paths: ['/timetable', '/assignments', '/teacher-assignments'] },
+  // Creating exams is 'create'; entering marks is 'edit'.
+  { key: 'exams', label: 'Exams & Marks', group: 'Academics', paths: ['/exams'] },
   {
     key: 'academic-structure', label: 'Academic Structure', group: 'Academics',
-    paths: ['/years', '/terms', '/levels', '/periods', '/classes', '/sections', '/subjects'],
+    paths: ['/years', '/terms', '/levels', '/periods', '/classes', '/sections', '/subjects', '/promotion'],
   },
   {
     key: 'fees', label: 'Fees & Payments', group: 'Administration',
@@ -51,21 +53,21 @@ export const BUILT_IN_ROLES = [
   { key: 'admin', name: 'Admin', color: 'pink', description: 'Full access to everything, including user accounts, roles and settings.', allAccess: true },
   {
     key: 'principal', name: 'Principal', color: 'violet', description: 'Runs the school day to day: people, attendance and reports.',
-    permissions: { students: ALL, parents: ['view', 'create', 'edit'], teachers: ['view'], 'teacher-attendance': ['view', 'create', 'edit'], attendance: ['view', 'create', 'edit'], timetable: ['view'], reports: ['view'] },
+    permissions: { students: ALL, parents: ['view', 'create', 'edit'], teachers: ['view'], 'teacher-attendance': ['view', 'create', 'edit'], attendance: ['view', 'create', 'edit'], timetable: ['view'], exams: ['view'], reports: ['view'] },
   },
   {
     key: 'academic_officer', name: 'Academic Officer', color: 'blue', description: 'Sets up the school year, classes, subjects and the timetable.',
-    permissions: { 'academic-structure': ALL, timetable: ALL, 'teacher-attendance': ['view', 'create', 'edit'], reports: ['view'] },
+    permissions: { 'academic-structure': ALL, timetable: ALL, exams: ALL, 'teacher-attendance': ['view', 'create', 'edit'], reports: ['view'] },
   },
   {
-    key: 'teacher', name: 'Teacher', color: 'green', description: 'Takes attendance, keeps teaching logs and sees their own timetable.',
-    permissions: { attendance: ['view', 'create', 'edit'], timetable: ['view'], reports: ['view'] },
+    key: 'teacher', name: 'Teacher', color: 'green', description: 'Takes attendance, enters marks, keeps teaching logs and sees their own timetable.',
+    permissions: { attendance: ['view', 'create', 'edit'], timetable: ['view'], exams: ['view', 'edit'], reports: ['view'] },
   },
   {
     key: 'accountant', name: 'Accountant', color: 'yellow', description: 'Collects fees, prints receipts and runs finance reports.',
     permissions: { fees: ALL, reports: ['view'] },
   },
-  { key: 'student', name: 'Student', color: 'blue', description: 'Sees only their own portal: profile, attendance, timetable and fees.', portal: true },
+  { key: 'student', name: 'Student', color: 'blue', description: 'Sees only their own portal: profile, attendance, timetable, results and fees.', portal: true },
   { key: 'parent', name: 'Parent', color: 'pink', description: "Sees only their own children's portal.", portal: true },
 ];
 

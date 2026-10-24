@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SquaresFour, User, CalendarCheck, CurrencyDollar, UserCircle, CaretLeft, SpinnerGap, Users } from '@phosphor-icons/react';
+import { SquaresFour, User, CalendarCheck, CurrencyDollar, UserCircle, CaretLeft, SpinnerGap, Users, Exam } from '@phosphor-icons/react';
 import { useAuth } from '../../../hooks/useAuth';
 import type { Student } from '../../students/types';
 import type { Parent } from '../../parents/types';
@@ -12,6 +12,7 @@ import DashboardTab from '../components/tabs/DashboardTab';
 import ProfileTab from '../components/tabs/ProfileTab';
 import AttendanceTab from '../components/tabs/AttendanceTab';
 import FeesTab from '../components/tabs/FeesTab';
+import ResultsTab from '../components/tabs/ResultsTab';
 import { TAB_IDS, type TabId } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -23,6 +24,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: SquaresFour },
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
+  { id: 'results', label: 'Results', icon: Exam },
   { id: 'fees', label: 'Fee Status', icon: CurrencyDollar },
 ];
 
@@ -122,6 +124,7 @@ function ParentPortalContent({ guardianId }: { guardianId?: string }) {
             {tab === 'dashboard' && <DashboardTab onNavigate={setTab} />}
             {tab === 'profile' && <ProfileTab />}
             {tab === 'attendance' && <AttendanceTab />}
+            {tab === 'results' && <ResultsTab />}
             {tab === 'fees' && <FeesTab />}
           </>
         )}

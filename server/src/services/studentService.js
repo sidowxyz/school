@@ -15,6 +15,7 @@ import StudentClass from '../models/StudentClass.js';
 import Term from '../models/Term.js';
 import Year from '../models/Year.js';
 import AppError from '../utils/AppError.js';
+import { sectionHeadcount } from '../utils/classCounts.js';
 import { generatePassword } from '../utils/generatePassword.js';
 import { recomputeFamilyDiscount } from './familyService.js';
 import { abortTransaction, commitTransaction, startTransaction, withTransaction } from '../utils/transaction.js';
@@ -43,7 +44,9 @@ const generateAdmissionNumber = async (session = null) => {
 };
 
 
-const validateClassAndSection = async (classId, sectionId, session = null) => {
+// `movingStudentId` is set when a student joins the section (registration or a
+// move): a full section refuses them. Students already in it are never refused.
+const validateClassAndSection = async (classId, sectionId, session = null, { joining = false, movingStudentId = null } = {}) => {
   const selectedClass = await Class.findById(classId).session(session);
   if (!selectedClass) throw new AppError('Selected class was not found.', 404);
 
@@ -57,6 +60,12 @@ const validateClassAndSection = async (classId, sectionId, session = null) => {
   if (!selectedSection || selectedSection.class.toString() !== classId.toString()) {
     throw new AppError('The selected section does not belong to this class.', 400);
   }
+  if (joining && selectedSection.capacity) {
+    const headcount = await sectionHeadcount(selectedSection._id, movingStudentId, session);
+    if (headcount >= selectedSection.capacity) {
+      throw new AppError(`${selectedClass.cl_name} ${selectedSection.name} is full (${headcount} of ${selectedSection.capacity} places). Pick another section or raise its capacity.`, 409);
+    }
+  }
   return selectedSection._id;
 };
 
@@ -69,7 +78,7 @@ export const createStudentService = async (bodyData) => {
   try {
     await withTransaction(session, async () => {
       const admissionNumber = await generateAdmissionNumber(session);
-      const sectionId = await validateClassAndSection(bodyData.classId, bodyData.sectionId, session);
+      const sectionId = await validateClassAndSection(bodyData.classId, bodyData.sectionId, session, { joining: true });
       const guardianInput = bodyData.guardian || {
         mode: 'new',
         name: bodyData.parentName,
@@ -286,7 +295,8 @@ export const updateStudentService = async (id, bodyData) => {
     ? bodyData.sectionId
     : currentStudent.sectionId;
   if (bodyData.classId || Object.prototype.hasOwnProperty.call(bodyData, 'sectionId')) {
-    bodyData.sectionId = await validateClassAndSection(nextClassId, nextSectionId);
+    const joining = String(nextSectionId ?? '') !== String(currentStudent.sectionId ?? '');
+    bodyData.sectionId = await validateClassAndSection(nextClassId, nextSectionId, null, { joining, movingStudentId: currentStudent._id });
   }
 
   if (bodyData.email) {

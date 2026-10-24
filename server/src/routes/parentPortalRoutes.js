@@ -5,7 +5,8 @@ import {
   getMyChildren,
   getChildProfile,
   getChildAttendance,
-  getChildInvoices
+  getChildInvoices,
+  getChildResults
 } from '../controllers/parentPortalController.js';
 
 const router = express.Router();
@@ -21,6 +22,7 @@ router.get('/children',                       self, getMyChildren);
 router.get('/children/:studentId/profile',    self, getChildProfile);
 router.get('/children/:studentId/attendance', self, getChildAttendance);
 router.get('/children/:studentId/invoices',   self, getChildInvoices);
+router.get('/children/:studentId/results',    self, getChildResults);
 
 // Admin/staff viewing a specific parent's portal
 // The :guardianId in the path is honoured only for these privileged roles.
@@ -31,5 +33,6 @@ router.get('/:guardianId/children',                       staff, getMyChildren);
 router.get('/:guardianId/children/:studentId/profile',    staff, getChildProfile);
 router.get('/:guardianId/children/:studentId/attendance', staff, getChildAttendance);
 router.get('/:guardianId/children/:studentId/invoices',   staff, getChildInvoices);
+router.get('/:guardianId/children/:studentId/results',    staff, getChildResults);
 
 export default router;

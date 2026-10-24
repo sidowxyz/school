@@ -4,7 +4,7 @@ export type StudentStatus = "Active" | "Inactive" | "Suspended" | "Graduated";
 // /students only shallow-populates classId, not classId.lev_no.
 export interface RefClassTeacher { _id: string; staffId: string; userId?: { firstName: string; lastName: string } }
 export interface RefClass { _id: string; cl_no: string; cl_name: string; lev_no?: string }
-export interface RefSection { _id: string; name: string; class: string; classTeacherId?: string | RefClassTeacher | null }
+export interface RefSection { _id: string; name: string; class: string; classTeacherId?: string | RefClassTeacher | null; capacity?: number | null; studentCount?: number }
 
 export interface RefGuardian {
   _id: string;

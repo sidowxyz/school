@@ -11,12 +11,12 @@ import type { User } from '../types/auth.types';
 // Keep in step with BUILT_IN_ROLES in server/src/config/access.js.
 const rolePermissions: Record<string, string[]> = {
   admin:            ['*'],
-  principal:        ['dashboard', 'students', 'teachers', 'parents', 'attendance', 'timetable', 'reports', 'teacher-attendance', 'ai-assistant'],
-  academic_officer: ['dashboard', 'academic-structure', 'timetable', 'teacher-attendance', 'reports', 'ai-assistant'],
+  principal:        ['dashboard', 'students', 'teachers', 'parents', 'attendance', 'timetable', 'exams', 'reports', 'teacher-attendance', 'ai-assistant'],
+  academic_officer: ['dashboard', 'academic-structure', 'timetable', 'exams', 'teacher-attendance', 'reports', 'ai-assistant'],
   // Teachers manage their assigned teaching activities only. Timetable access is
   // limited to their own assigned schedule; timetable administration stays with
   // academic officers and admins.
-  teacher:          ['dashboard', 'timetable', 'teaching-log', 'attendance', 'reports', 'ai-assistant'],
+  teacher:          ['dashboard', 'timetable', 'exams', 'teaching-log', 'attendance', 'reports', 'ai-assistant'],
   accountant:       ['dashboard', 'fees', 'discounts', 'reports', 'ai-assistant'],
   // 'attendance' (the taking/marking interface) is teacher/principal/admin-only —
   // students and parents see their own records inside their portal instead.
@@ -46,9 +46,11 @@ const builtInWrites: Record<string, Record<string, Action[]>> = {
   academic_officer: {
     'academic-structure': ['create', 'edit', 'delete'],
     timetable: ['create', 'edit', 'delete'],
+    exams: ['create', 'edit', 'delete'],
     'teacher-attendance': ['create', 'edit', 'delete'],
   },
-  teacher: { attendance: ['create', 'edit'] },
+  // Teachers enter marks ('edit'); creating and publishing exams is the office's job.
+  teacher: { attendance: ['create', 'edit'], exams: ['edit'] },
   accountant: { fees: ['create', 'edit'] },
 };
 
@@ -102,6 +104,7 @@ const DASHBOARDS: Record<string, string> = {
 const PAGE_PATHS: [string, string][] = [
   ['attendance', '/attendance'],
   ['timetable', '/timetable'],
+  ['exams', '/exams'],
   ['academic-structure', '/settings?tab=structure'],
   ['students', '/students'],
   ['teachers', '/teachers'],

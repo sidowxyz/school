@@ -6,7 +6,8 @@ import {
   getMyTimetable,
   getMyAttendance,
   getMyInvoices,
-  getMyScholarship
+  getMyScholarship,
+  getMyResults
 } from '../controllers/studentPortalController.js';
 
 const router = express.Router();
@@ -23,6 +24,7 @@ router.get('/timetable',     self, getMyTimetable);
 router.get('/attendance',    self, getMyAttendance);
 router.get('/invoices',      self, getMyInvoices);
 router.get('/scholarship',   self, getMyScholarship);
+router.get('/results',       self, getMyResults);
 
 // Admin/staff viewing a specific student's portal
 // The :studentId in the path is honoured only for these privileged roles.
@@ -32,5 +34,6 @@ router.get('/:studentId/timetable',     staff, getMyTimetable);
 router.get('/:studentId/attendance',    staff, getMyAttendance);
 router.get('/:studentId/invoices',      staff, getMyInvoices);
 router.get('/:studentId/scholarship',   staff, getMyScholarship);
+router.get('/:studentId/results',       staff, getMyResults);
 
 export default router;

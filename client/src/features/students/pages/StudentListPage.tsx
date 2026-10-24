@@ -242,7 +242,14 @@ function StudentFormModal({
                   </Label>
                   <NativeSelect value={sectionId} onChange={(e) => setSectionId(e.target.value)} required={classSections.length > 0} disabled={!classId || classSections.length === 0} className="w-full">
                     <option value="">{!classId ? "Select class first" : classSections.length ? "Select section" : "No section assigned"}</option>
-                    {classSections.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+                    {classSections.map((s) => {
+                      const full = !!s.capacity && (s.studentCount ?? 0) >= s.capacity && s._id !== refId(initial?.sectionId);
+                      return (
+                        <option key={s._id} value={s._id} disabled={full}>
+                          {s.name}{s.capacity ? ` · ${s.studentCount ?? 0}/${s.capacity}${full ? " (full)" : ""}` : ""}
+                        </option>
+                      );
+                    })}
                   </NativeSelect>
                 </div>
               </div>

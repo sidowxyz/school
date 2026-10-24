@@ -59,6 +59,8 @@ import staffAttendanceRoutes   from './routes/staffAttendanceRoutes.js';
 
 // Teaching
 import teachingLogRoutes       from './routes/teachingLogRoutes.js';
+import examRoutes              from './routes/examRoutes.js';
+import promotionRoutes         from './routes/promotionRoutes.js';
 
 //  Finance 
 import feeRoutes               from './routes/feeRoutes.js';
@@ -213,12 +215,14 @@ app.use('/api/periods',        periodRoutes);
 app.use('/api/classes',        classRoutes);
 app.use('/api/sections',       sectionRoutes);
 app.use('/api/subjects',       subjectRoutes);
+app.use('/api/promotion',      promotionRoutes);
 
 // Attendance
 app.use('/api/attendance',         attendanceRoutes);
 app.use('/api/staff-attendance',   staffAttendanceRoutes);
 
 // Teaching
+app.use('/api/exams',                     examRoutes);
 app.use('/api/teaching-logs',             teachingLogRoutes);
 
 // Finance

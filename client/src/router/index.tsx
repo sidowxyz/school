@@ -45,6 +45,7 @@ import UserListPage from '../features/users/pages/UserListPage';
 
 // Timetable
 import TimetablePage from '../features/timetable/pages/TimetablePage';
+import ExamsPage from '../features/exams/pages/ExamsPage';
 
 // Finance
 import FeeManagementPage from '../features/finance/pages/FeeManagementPage';
@@ -178,6 +179,10 @@ export const router = createBrowserRouter([
 
           moduleGated('timetable', [
             { path: '/timetable', element: <TimetablePage /> },
+          ]),
+
+          moduleGated('exams', [
+            { path: '/exams', element: <ExamsPage /> },
           ]),
 
           moduleGated('fees', [

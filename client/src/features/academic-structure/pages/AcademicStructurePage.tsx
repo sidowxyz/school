@@ -83,6 +83,16 @@ function ListState({ loading, error, empty, emptyText, children }: {
   return <>{children}</>;
 }
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** "32 / 40 students", amber when nearly full and pink when full. */
+function SeatsBadge({ count, capacity }: { count: number; capacity?: number | null }) {
+  if (!capacity) return <Badge variant="secondary">{plural(count, "student")}</Badge>;
+  const full = count >= capacity;
+  const tone = full ? "bg-tile-pink text-tile-foreground" : count / capacity >= 0.9 ? "bg-tile-yellow text-tile-foreground" : "bg-muted text-foreground/80";
+  return <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums ${tone}`}>{count} / {capacity}{full ? " · full" : ""}</span>;
+}
+
 const ICON_TINTS = {
   blue: "bg-tile-blue", green: "bg-tile-green", yellow: "bg-tile-yellow", pink: "bg-tile-pink", violet: "bg-tile-violet",
 } as const;
@@ -886,7 +896,8 @@ function ClassesTab() {
         <ListState loading={loading} error={error} empty={classes.length === 0} emptyText={levels.length === 0 ? "Add a level first, then its classes." : "No classes yet."}>
           <ItemList>
             {classes.map((cls) => (
-              <ItemRow key={cls._id} icon={GraduationCap} tint="green" title={cls.cl_name} meta={cls.cl_no}
+              <ItemRow key={cls._id} icon={GraduationCap} tint="green" title={cls.cl_name}
+                meta={`${cls.cl_no} · ${plural(cls.studentCount ?? 0, "student")}`}
                 badges={<Badge variant="secondary">{refName(cls.lev_no, "lev_name")}</Badge>}
                 onEdit={() => setEditTarget(cls)} onDelete={() => setDeleteTarget(cls)} />
             ))}
@@ -933,7 +944,7 @@ function SectionFormModal({
   classes: Class[];
   teachers: Teacher[];
   onClose: () => void;
-  onSave: (data: { name: string; class: string; classTeacherId: string | null }) => Promise<void>;
+  onSave: (data: { name: string; class: string; classTeacherId: string | null; capacity: number | null }) => Promise<void>;
 }) {
   const initialClassId = typeof initial?.class === "string" ? initial.class : initial?.class?._id ?? "";
   const initialTeacherId = !initial?.classTeacherId
@@ -942,6 +953,7 @@ function SectionFormModal({
   const [name, setName] = useState(initial?.name ?? "");
   const [classId, setClassId] = useState(initialClassId);
   const [classTeacherId, setClassTeacherId] = useState(initialTeacherId);
+  const [capacity, setCapacity] = useState(initial?.capacity ? String(initial.capacity) : "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -950,7 +962,7 @@ function SectionFormModal({
     setSubmitting(true);
     setError("");
     try {
-      await onSave({ name, class: classId, classTeacherId: classTeacherId || null });
+      await onSave({ name, class: classId, classTeacherId: classTeacherId || null, capacity: capacity ? Number(capacity) : null });
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to save section.");
       setSubmitting(false);
@@ -982,6 +994,11 @@ function SectionFormModal({
             {teachers.map((t) => <option key={t._id} value={t._id}>{t.userId?.name || t.staffId}</option>)}
           </SelectField>
         </div>
+        <div>
+          <label htmlFor="section-capacity" className="mb-1.5 block text-sm font-medium text-foreground">Capacity <span className="font-normal text-muted-foreground">(optional)</span></label>
+          <Input id="section-capacity" type="number" min={1} inputMode="numeric" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="No limit" />
+          <p className="mt-1 text-xs text-muted-foreground">Most students it can take. A full section can't take new students.</p>
+        </div>
         <FormError message={error} />
         <ModalActions onClose={onClose} submitLabel={mode === "add" ? "Add" : "Update"} submitting={submitting} />
       </form>
@@ -1007,6 +1024,7 @@ function SectionsTab() {
             {sections.map((sec) => (
               <ItemRow key={sec._id} icon={SquaresFour} tint="pink" title={`${refName(sec.class, "cl_name")} · ${sec.name}`}
                 meta={`Class teacher: ${classTeacherName(sec.classTeacherId)}`}
+                badges={<SeatsBadge count={sec.studentCount ?? 0} capacity={sec.capacity} />}
                 onEdit={() => setEditTarget(sec)} onDelete={() => setDeleteTarget(sec)} />
             ))}
           </ItemList>

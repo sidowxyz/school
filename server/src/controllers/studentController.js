@@ -19,6 +19,7 @@ import AppError     from '../utils/AppError.js';
 
 // Services
 import ApiResponse  from '../utils/ApiResponse.js';
+import { activeStudentCounts } from '../utils/classCounts.js';
 import * as studentService from '../services/studentService.js';
 import { generatePassword } from '../utils/generatePassword.js';
 
@@ -281,8 +282,11 @@ export const getReferenceData = async (req, res, next) => {
       ...guardian.toObject(),
       childrenCount: countMap.get(guardian._id.toString()) || 0,
     }));
+    // The form shows how full each section is, and that a full one can't be picked.
+    const { bySection } = await activeStudentCounts();
+    const sectionOptions = sections.map((section) => ({ ...section.toObject(), studentCount: bySection.get(String(section._id)) ?? 0 }));
     res.status(200).json(new ApiResponse(200, {
-      classes, sections, guardians: guardianOptions, families, addresses, residences
+      classes, sections: sectionOptions, guardians: guardianOptions, families, addresses, residences
     }, 'Reference data retrieved'));
   } catch (error) {
     next(error);

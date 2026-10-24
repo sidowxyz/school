@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, CurrencyDollar, Gear, SidebarSimple, type Icon } from '@phosphor-icons/react';
+import { SquaresFour, User, ClipboardText, CalendarBlank, BookOpen, CurrencyDollar, Gear, SidebarSimple, Exam, type Icon } from '@phosphor-icons/react';
 import { onLogoError, useSchoolIdentity } from '../../features/settings/hooks/useSchoolIdentity';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ const NAV: Item[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardText },
   { id: 'timetable', label: 'Timetable', icon: CalendarBlank },
   { id: 'subjects', label: 'Subjects', icon: BookOpen },
+  { id: 'results', label: 'Results', icon: Exam },
   { id: 'fees', label: 'Fees', icon: CurrencyDollar },
 ];
 const SETTINGS: Item = { id: 'settings', label: 'Settings', icon: Gear };
